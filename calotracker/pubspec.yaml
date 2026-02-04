@@ -1,0 +1,85 @@
+name: calotracker
+description: "CaloTracker - iOS-style nutrition & health tracking app with AI-powered food recognition"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.0-149.0.dev
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  
+  # UI & Charts
+  cupertino_icons: ^1.0.8
+  fl_chart: ^0.68.0
+  intl: ^0.20.2
+  
+  # Notifications
+  flutter_local_notifications: ^17.0.0
+  timezone: ^0.9.4
+  
+  # Camera & Storage
+  image_picker: ^1.1.2
+  camera: ^0.11.0+2
+
+  # Barcode Scanner - Google ML Kit
+  google_mlkit_barcode_scanning: ^0.12.0
+  
+  # Database
+  sqflite: ^2.3.3
+  path: ^1.9.0
+  path_provider: ^2.1.4
+  shared_preferences: ^2.3.2
+  
+  # Utilities
+  uuid: ^4.5.1
+  http: ^1.6.0
+  url_launcher: ^6.3.1  # For opening YouTube links
+  
+  # Voice Input
+  # speech_to_text: ^7.0.0
+  
+  # Export & Sharing
+  pdf: ^3.11.1
+  csv: ^6.0.0
+  share_plus: ^10.1.4
+  printing: ^5.13.4
+  
+  # Security
+  local_auth: ^2.3.0
+  flutter_secure_storage: ^9.2.4
+  
+  # Permissions
+  permission_handler: ^11.3.1
+  
+  # Location/GPS
+  geolocator: ^13.0.2
+  
+  # Supabase - Backend & Community
+  supabase_flutter: ^2.8.0
+  
+  # State Management
+  provider: ^6.1.2
+  
+  # Image Caching
+  cached_network_image: ^3.4.1
+  
+  # Connectivity
+  connectivity_plus: ^6.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/data/  # Workout program data

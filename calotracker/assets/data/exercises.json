@@ -1,0 +1,460 @@
+{
+  "exercises": [
+    {
+      "id": "burpees",
+      "name": "Burpees (Modified)",
+      "nameEn": "Modified Burpees",
+      "category": "cardio",
+      "icon": "🔥",
+      "reps": 10,
+      "duration": -1,
+      "sets": 3,
+      "description": "Bài tập toàn thân đốt mỡ hiệu quả, phiên bản dễ hơn cho người mới",
+      "instructions": [
+        "Đứng thẳng, chân rộng bằng vai",
+        "Squat xuống, đặt tay xuống sàn",
+        "Bước từng chân ra sau (không cần nhảy)",
+        "Bước từng chân về trước",
+        "Đứng dậy (không cần nhảy)"
+      ],
+      "difficulty": "easy",
+      "caloriesPerSet": 15,
+      "videos": [
+        {
+          "title": "Burpees cho người mới - Hana Giang Anh",
+          "url": "https://www.youtube.com/watch?v=TU8QYVW0gDU",
+          "lang": "vi",
+          "rating": 5
+        },
+        {
+          "title": "Modified Burpees - Chloe Ting",
+          "url": "https://www.youtube.com/watch?v=JZQA08SlJnM",
+          "lang": "en",
+          "rating": 5
+        }
+      ],
+      "tips": [
+        "Giữ lưng thẳng, không vồ lưng",
+        "Nhảy khi đứng dậy để tăng độ khó",
+        "Nghỉ khi cảm thấy quá mệt"
+      ]
+    },
+    {
+      "id": "high_knees",
+      "name": "High Knees (Nâng gối cao)",
+      "nameEn": "High Knees",
+      "category": "cardio",
+      "icon": "🏃",
+      "reps": -1,
+      "duration": 30,
+      "sets": 3,
+      "description": "Chạy tại chỗ nâng gối cao, tăng nhịp tim nhanh",
+      "instructions": [
+        "Chạy tại chỗ, nâng gối lên ngang hông",
+        "Tay vung tự nhiên như chạy bộ",
+        "Nhịp nhanh, giữ lưng thẳng"
+      ],
+      "difficulty": "easy",
+      "caloriesPerSet": 12,
+      "videos": [
+        {
+          "title": "High Knees Tutorial - Emi Wong",
+          "url": "https://www.youtube.com/watch?v=8opcQdC-V-U",
+          "lang": "en",
+          "rating": 5
+        },
+        {
+          "title": "Cardio High Knees - FitnessBlender",
+          "url": "https://www.youtube.com/watch?v=L_7JZqTVM60",
+          "lang": "en",
+          "rating": 4
+        }
+      ],
+      "tips": [
+        "Nhịp tim lên 70-80% max",
+        "Nâng gối chỉ ngang đùi nếu mới tập"
+      ]
+    },
+    {
+      "id": "mountain_climbers",
+      "name": "Mountain Climbers (Leo núi)",
+      "nameEn": "Mountain Climbers",
+      "category": "cardio",
+      "icon": "⛰️",
+      "reps": 20,
+      "duration": -1,
+      "sets": 3,
+      "description": "Bài tập core và cardio kết hợp",
+      "instructions": [
+        "Tư thế plank, tay thẳng",
+        "Kéo gối phải về phía ngực",
+        "Đổi chân, kéo gối trái về phía ngực",
+        "Thực hiện nhanh luân phiên"
+      ],
+      "difficulty": "medium",
+      "caloriesPerSet": 18,
+      "videos": [
+        {
+          "title": "Mountain Climbers - Hướng dẫn chi tiết",
+          "url": "https://www.youtube.com/watch?v=nmwgirgXLYM",
+          "lang": "vi",
+          "rating": 5
+        },
+        {
+          "title": "Perfect Form Mountain Climbers - Athlean-X",
+          "url": "https://www.youtube.com/watch?v=kLh-uczlPLg",
+          "lang": "en",
+          "rating": 5
+        }
+      ],
+      "tips": [
+        "Hông không được nâng cao",
+        "Lưng thẳng suốt quá trình",
+        "Hít vào khi kéo gối"
+      ]
+    },
+    {
+      "id": "squat",
+      "name": "Bodyweight Squat (Ngồi xổm)",
+      "nameEn": "Bodyweight Squat",
+      "category": "legs",
+      "icon": "🦵",
+      "reps": 20,
+      "duration": -1,
+      "sets": 3,
+      "description": "Bài tập chân cơ bản, quan trọng nhất",
+      "instructions": [
+        "Chân rộng bằng vai, mũi chân hơi chếch ra",
+        "Tay duỗi thẳng phía trước",
+        "Hít vào, ngồi xuống như ngồi ghế",
+        "Gối không vượt quá mũi chân",
+        "Thở ra, đứng lên"
+      ],
+      "difficulty": "easy",
+      "caloriesPerSet": 20,
+      "videos": [
+        {
+          "title": "Perfect Squat Form - Hướng dẫn Squat chuẩn",
+          "url": "https://www.youtube.com/watch?v=aclHkVaku9U",
+          "lang": "vi",
+          "rating": 5
+        },
+        {
+          "title": "Squat cho người mới - Athlean-X",
+          "url": "https://www.youtube.com/watch?v=ultWZbUMPL8",
+          "lang": "en",
+          "rating": 5
+        }
+      ],
+      "tips": [
+        "Đùi song song với sàn",
+        "Giữ ở dưới 3-5 giây để tăng độ khó",
+        "Jump squat khi đã quen"
+      ]
+    },
+    {
+      "id": "lunges",
+      "name": "Lunges (Chúi người)",
+      "nameEn": "Lunges",
+      "category": "legs",
+      "icon": "🚶",
+      "reps": 12,
+      "duration": -1,
+      "sets": 3,
+      "description": "Bài tập đùi và mông hiệu quả",
+      "instructions": [
+        "Đứng thẳng, bước chân phải ra trước xa",
+        "Hạ hông xuống, gối trước gập 90 độ",
+        "Gối sau hạ gần sàn (không chạm)",
+        "Đẩy gót trước, đứng lên",
+        "Đổi chân và lặp lại"
+      ],
+      "difficulty": "medium",
+      "caloriesPerSet": 18,
+      "videos": [
+        {
+          "title": "Lunges Tutorial - Hana Giang Anh",
+          "url": "https://www.youtube.com/watch?v=QOVaHwm-Q6U",
+          "lang": "vi",
+          "rating": 5
+        },
+        {
+          "title": "Perfect Lunges - Chloe Ting",
+          "url": "https://www.youtube.com/watch?v=wrwwXE_x-pQ",
+          "lang": "en",
+          "rating": 5
+        }
+      ],
+      "tips": [
+        "Lưng luôn thẳng đứng",
+        "Gối trước không vượt mũi chân",
+        "Giữ thăng bằng"
+      ]
+    },
+    {
+      "id": "glute_bridge",
+      "name": "Glute Bridge (Nâng mông)",
+      "nameEn": "Glute Bridge",
+      "category": "legs",
+      "icon": "🍑",
+      "reps": 20,
+      "duration": -1,
+      "sets": 3,
+      "description": "Bài tập mông và đùi sau",
+      "instructions": [
+        "Nằm ngửa, gập gối, bàn chân đặt sát mông",
+        "Tay để hai bên thân",
+        "Thở ra, nâng hông lên cao",
+        "Siết chặt mông ở trên cùng 2-3 giây",
+        "Hạ xuống từ từ"
+      ],
+      "difficulty": "easy",
+      "caloriesPerSet": 15,
+      "videos": [
+        {
+          "title": "Glute Bridge - Bài tập mông",
+          "url": "https://www.youtube.com/watch?v=wPM8icPu6H8",
+          "lang": "vi",
+          "rating": 5
+        },
+        {
+          "title": "Hip Thrust & Bridge Tutorial",
+          "url": "https://www.youtube.com/watch?v=SEdqd1n0cvg",
+          "lang": "en",
+          "rating": 4
+        }
+      ],
+      "tips": [
+        "Từ vai đến gối tạo đường thẳng",
+        "Nâng một chân lên để tăng độ khó"
+      ]
+    },
+    {
+      "id": "pushups",
+      "name": "Push-ups (Chống đẩy)",
+      "nameEn": "Push-ups",
+      "category": "arms",
+      "icon": "💪",
+      "reps": 12,
+      "duration": -1,
+      "sets": 3,
+      "description": "Bài tập tay, vai, ngực cơ bản",
+      "instructions": [
+        "Tư thế plank, tay rộng hơn vai một chút",
+        "Hạ người xuống, khuỷu tay gập 45 độ",
+        "Ngực gần chạm sàn",
+        "Đẩy lên mạnh, thở ra"
+      ],
+      "difficulty": "medium",
+      "caloriesPerSet": 20,
+      "videos": [
+        {
+          "title": "Push-ups đúng cách - Tránh chấn thương",
+          "url": "https://www.youtube.com/watch?v=IODxDxX7oi4",
+          "lang": "vi",
+          "rating": 5
+        },
+        {
+          "title": "Beginner Push-ups - Athlean-X",
+          "url": "https://www.youtube.com/watch?v=4dF1DOWzf20",
+          "lang": "en",
+          "rating": 5
+        },
+        {
+          "title": "Knee Push-ups Tutorial",
+          "url": "https://www.youtube.com/watch?v=jWxvty2KROs",
+          "lang": "en",
+          "rating": 4
+        }
+      ],
+      "tips": [
+        "Knee Push-ups: Chống đẩy trên đầu gối",
+        "Wall Push-ups: Chống tường đứng"
+      ]
+    },
+    {
+      "id": "tricep_dips",
+      "name": "Tricep Dips (Chống ghế)",
+      "nameEn": "Tricep Dips",
+      "category": "arms",
+      "icon": "🪑",
+      "reps": 15,
+      "duration": -1,
+      "sets": 3,
+      "description": "Bài tập tay sau hiệu quả",
+      "instructions": [
+        "Ngồi mép ghế/giường chắc chắn",
+        "Hai tay đặt mép ghế, ngón tay hướng về phía trước",
+        "Di chuyển mông ra khỏi ghế, gót chân chống sàn",
+        "Hạ người xuống, khuỷu tay gập 90 độ",
+        "Đẩy lên bằng tay, duỗi thẳng khuỷu"
+      ],
+      "difficulty": "easy",
+      "caloriesPerSet": 12,
+      "videos": [
+        {
+          "title": "Tricep Dips at Home - Hana Giang Anh",
+          "url": "https://www.youtube.com/watch?v=0326dy_-CzM",
+          "lang": "vi",
+          "rating": 5
+        },
+        {
+          "title": "Bench Dips Tutorial - Chloe Ting",
+          "url": "https://www.youtube.com/watch?v=6kALZ ikXxLc",
+          "lang": "en",
+          "rating": 5
+        }
+      ],
+      "tips": [
+        "Lưng sát ghế, không đẩy bằng chân"
+      ]
+    },
+    {
+      "id": "shoulder_tap",
+      "name": "Shoulder Tap Plank (Chạm vai)",
+      "nameEn": "Shoulder Tap Plank",
+      "category": "arms",
+      "icon": "👆",
+      "reps": 20,
+      "duration": -1,
+      "sets": 3,
+      "description": "Bài tập vai và core",
+      "instructions": [
+        "Tư thế plank, tay thẳng",
+        "Nâng tay phải lên, chạm vai trái",
+        "Đặt tay phải xuống",
+        "Nâng tay trái lên, chạm vai phải",
+        "Luân phiên nhanh"
+      ],
+      "difficulty": "medium",
+      "caloriesPerSet": 14,
+      "videos": [
+        {
+          "title": "Plank Shoulder Taps - Perfect Form",
+          "url": "https://www.youtube.com/watch?v=5L4A-Y8-fNI",
+          "lang": "en",
+          "rating": 5
+        },
+        {
+          "title": "Core Stability - Shoulder Tap",
+          "url": "https://www.youtube.com/watch?v=c6xFBMKqAa8",
+          "lang": "en",
+          "rating": 4
+        }
+      ],
+      "tips": [
+        "Giữ hông ổn định, không xoay người"
+      ]
+    },
+    {
+      "id": "plank",
+      "name": "Plank (Chống tay tĩnh)",
+      "nameEn": "Plank",
+      "category": "core",
+      "icon": "🧘",
+      "reps": -1,
+      "duration": 60,
+      "sets": 3,
+      "description": "Bài tập core cơ bản nhất",
+      "instructions": [
+        "Chống khuỷu tay, cẳng tay nằm sàn",
+        "Người thẳng từ đầu đến gót",
+        "Siết chặt bụng, mông",
+        "Giữ nguyên tư thế"
+      ],
+      "difficulty": "easy",
+      "caloriesPerSet": 10,
+      "videos": [
+        {
+          "title": "Plank đúng cách - 5 phút abs",
+          "url": "https://www.youtube.com/watch?v=pSHjTRCQxIw",
+          "lang": "vi",
+          "rating": 5
+        },
+        {
+          "title": "Perfect Plank Tutorial - Chloe Ting",
+          "url": "https://www.youtube.com/watch?v=B296mZDhrP4",
+          "lang": "en",
+          "rating": 5
+        }
+      ],
+      "tips": [
+        "Không để hông xệ xuống hoặc nâng cao"
+      ]
+    },
+    {
+      "id": "bicycle_crunch",
+      "name": "Bicycle Crunches (Gập bụng đạp xe)",
+      "nameEn": "Bicycle Crunches",
+      "category": "core",
+      "icon": "🚴",
+      "reps": 30,
+      "duration": -1,
+      "sets": 3,
+      "description": "Bài tập bụng toàn diện",
+      "instructions": [
+        "Nằm ngửa, tay sau đầu",
+        "Nâng chân lên, gập gối 90 độ",
+        "Xoay người, khuỷu phải chạm gối trái",
+        "Duỗi chân phải thẳng (không chạm sàn)",
+        "Đổi bên, khuỷu trái chạm gối phải"
+      ],
+      "difficulty": "medium",
+      "caloriesPerSet": 16,
+      "videos": [
+        {
+          "title": "Bicycle Crunches - Emi Wong",
+          "url": "https://www.youtube.com/watch?v=9FGilxCbdz8",
+          "lang": "en",
+          "rating": 5
+        },
+        {
+          "title": "Abs Workout - Bicycle Crunch",
+          "url": "https://www.youtube.com/watch?v=Iwyvozckjak",
+          "lang": "en",
+          "rating": 4
+        }
+      ],
+      "tips": [
+        "Xoay từ bụng, không kéo cổ"
+      ]
+    },
+    {
+      "id": "leg_raises",
+      "name": "Leg Raises (Nâng chân)",
+      "nameEn": "Leg Raises",
+      "category": "core",
+      "icon": "🦿",
+      "reps": 15,
+      "duration": -1,
+      "sets": 3,
+      "description": "Bài tập bụng dưới",
+      "instructions": [
+        "Nằm ngửa, tay đặt dưới mông",
+        "Chân duỗi thẳng, chụm lại",
+        "Nâng chân lên 90 độ",
+        "Hạ xuống từ từ (không chạm sàn)"
+      ],
+      "difficulty": "medium",
+      "caloriesPerSet": 14,
+      "videos": [
+        {
+          "title": "Leg Raises Tutorial - Lower Abs",
+          "url": "https://www.youtube.com/watch?v=JB2oyawG9KI",
+          "lang": "en",
+          "rating": 5
+        },
+        {
+          "title": "Perfect Leg Raises - Athlean-X",
+          "url": "https://www.youtube.com/watch?v=l4kzGANSkBc",
+          "lang": "en",
+          "rating": 5
+        }
+      ],
+      "tips": [
+        "Gập gối khi nâng nếu quá khó",
+        "Lưng dưới áp sát sàn"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+    "id": "beginner_12week",
+    "title": "Chương Trình 12 Tuần - Người Mới Bắt Đầu",
+    "description": "Chương trình tập luyện toàn diện giảm cân tại nhà, không cần thiết bị",
+    "durationWeeks": 12,
+    "level": "beginner",
+    "weeklySchedule": {
+        "1": {
+            "dayOfWeek": 1,
+            "title": "Thứ 2 - Toàn thân + Cardio",
+            "focusArea": "Full Body + Cardio",
+            "exerciseIds": [
+                "burpees",
+                "high_knees",
+                "squat",
+                "pushups",
+                "plank"
+            ],
+            "estimatedDuration": 40,
+            "isRestDay": false,
+            "note": "Tập sáng hoặc chiều"
+        },
+        "2": {
+            "dayOfWeek": 2,
+            "title": "Thứ 3 - Chân + Core",
+            "focusArea": "Legs + Core",
+            "exerciseIds": [
+                "squat",
+                "lunges",
+                "glute_bridge",
+                "plank",
+                "bicycle_crunch",
+                "leg_raises"
+            ],
+            "estimatedDuration": 35,
+            "isRestDay": false,
+            "note": "Nghỉ nếu mỏi"
+        },
+        "3": {
+            "dayOfWeek": 3,
+            "title": "Thứ 4 - NGHỈ / Đi bộ nhẹ",
+            "focusArea": "Active Recovery",
+            "exerciseIds": [],
+            "estimatedDuration": 20,
+            "isRestDay": true,
+            "note": "Đi bộ 20-30 phút hoặc nghỉ hoàn toàn"
+        },
+        "4": {
+            "dayOfWeek": 4,
+            "title": "Thứ 5 - Tay + Vai + Cardio",
+            "focusArea": "Arms + Cardio",
+            "exerciseIds": [
+                "pushups",
+                "tricep_dips",
+                "shoulder_tap",
+                "mountain_climbers",
+                "high_knees"
+            ],
+            "estimatedDuration": 40,
+            "isRestDay": false,
+            "note": "Tăng cường nhịp tim"
+        },
+        "5": {
+            "dayOfWeek": 5,
+            "title": "Thứ 6 - HIIT nhẹ",
+            "focusArea": "HIIT",
+            "exerciseIds": [
+                "burpees",
+                "mountain_climbers",
+                "high_knees",
+                "squat",
+                "bicycle_crunch"
+            ],
+            "estimatedDuration": 35,
+            "isRestDay": false,
+            "note": "Cháy mỡ tối đa"
+        },
+        "6": {
+            "dayOfWeek": 6,
+            "title": "Thứ 7 - Yoga / Giãn cơ",
+            "focusArea": "Stretching",
+            "exerciseIds": [],
+            "estimatedDuration": 30,
+            "isRestDay": true,
+            "note": "Thư giãn, phục hồi. Xem video yoga"
+        },
+        "7": {
+            "dayOfWeek": 7,
+            "title": "Chủ nhật - NGHỈ",
+            "focusArea": "Rest",
+            "exerciseIds": [],
+            "estimatedDuration": 0,
+            "isRestDay": true,
+            "note": "Cơ thể cần nghỉ ngơi"
+        }
+    }
+}
