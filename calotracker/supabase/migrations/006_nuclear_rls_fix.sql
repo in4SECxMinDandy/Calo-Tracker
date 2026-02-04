@@ -4,6 +4,12 @@
 -- ===================================================================
 
 -- Step 1: Drop ALL existing policies (both old and new v2 versions)
+DROP POLICY IF EXISTS "gm_select_public" ON public.group_members;
+DROP POLICY IF EXISTS "gm_select_own" ON public.group_members;
+DROP POLICY IF EXISTS "gm_select_creator" ON public.group_members;
+DROP POLICY IF EXISTS "gm_insert_join" ON public.group_members;
+DROP POLICY IF EXISTS "gm_delete_leave" ON public.group_members;
+DROP POLICY IF EXISTS "gm_delete_creator" ON public.group_members;
 DROP POLICY IF EXISTS "Anyone can view public group members" ON public.group_members;
 DROP POLICY IF EXISTS "Anyone can view public group members v2" ON public.group_members;
 DROP POLICY IF EXISTS "Members can view own memberships" ON public.group_members;
