@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../services/community_service.dart';
+import '../../services/unified_community_service.dart';
 import '../../models/community_group.dart';
 import '../../models/post.dart';
 import '../../theme/colors.dart';
@@ -28,7 +28,7 @@ class GroupDetailScreen extends StatefulWidget {
 
 class _GroupDetailScreenState extends State<GroupDetailScreen>
     with SingleTickerProviderStateMixin {
-  final _communityService = CommunityService();
+  final _communityService = UnifiedCommunityService();
   late TabController _tabController;
 
   CommunityGroup? _group;
@@ -37,6 +37,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   bool _isLoading = true;
   bool _isMember = false;
   bool _isJoining = false;
+  bool _isOwner = false;
 
   @override
   void initState() {
@@ -68,8 +69,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       // Load members
       _members = await _communityService.getGroupMembers(widget.groupId);
 
-      // Check if current user is a member
+      // Check if current user is a member and owner
       final myGroups = await _communityService.getMyGroups();
+      _isOwner = await _communityService.isGroupOwner(widget.groupId);
       _isMember = myGroups.any((g) => g.id == widget.groupId);
 
       if (mounted) {
@@ -87,21 +89,66 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
     try {
       await _communityService.joinGroup(widget.groupId);
-      setState(() => _isMember = true);
-      _loadGroup();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã tham gia nhóm!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // Check if group requires approval
+        final requiresApproval = _group?.requireApproval ?? false;
+
+        if (requiresApproval) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(CupertinoIcons.clock, color: Colors.white),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Yêu cầu tham gia đã được gửi!\nChờ quản trị viên phê duyệt.',
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else {
+          setState(() => _isMember = true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(CupertinoIcons.checkmark_circle, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('Đã tham gia nhóm thành công!'),
+                ],
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+
+        _loadGroup();
       }
     } catch (e) {
+      // Error is handled via SnackBar below
       if (mounted) {
+        final errorMsg = _getErrorMessage(e.toString());
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(
+                  CupertinoIcons.exclamationmark_circle,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text(errorMsg)),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
         );
       }
     } finally {
@@ -109,6 +156,27 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         setState(() => _isJoining = false);
       }
     }
+  }
+
+  String _getErrorMessage(String error) {
+    final errorLower = error.toLowerCase();
+
+    if (errorLower.contains('permission') || errorLower.contains('rls')) {
+      return 'Không có quyền tham gia nhóm. Vui lòng đăng nhập lại.';
+    }
+    if (errorLower.contains('duplicate') || errorLower.contains('already')) {
+      // User is already a member - update UI state
+      setState(() => _isMember = true);
+      return 'Bạn đã là thành viên của nhóm này.';
+    }
+    if (errorLower.contains('full') || errorLower.contains('max_members')) {
+      return 'Nhóm đã đầy. Không thể tham gia.';
+    }
+    if (errorLower.contains('network') || errorLower.contains('connection')) {
+      return 'Lỗi kết nối. Vui lòng kiểm tra internet.';
+    }
+
+    return 'Không thể tham gia nhóm. Vui lòng thử lại sau.';
   }
 
   Future<void> _leaveGroup() async {
@@ -173,6 +241,300 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
+  /// Show edit group dialog (for owner only)
+  void _editGroup() {
+    if (_group == null) return;
+
+    final nameController = TextEditingController(text: _group!.name);
+    final descController = TextEditingController(
+      text: _group!.description ?? '',
+    );
+    GroupCategory selectedCategory = _group!.category;
+    GroupVisibility selectedVisibility = _group!.visibility;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (ctx) => StatefulBuilder(
+            builder: (ctx, setSheetState) {
+              final isDark = Theme.of(ctx).brightness == Brightness.dark;
+              return Container(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+                  top: 20,
+                  left: 20,
+                  right: 20,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkCard : Colors.white,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Handle bar
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white24 : Colors.black12,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Title
+                      Row(
+                        children: [
+                          Icon(
+                            CupertinoIcons.pencil_circle_fill,
+                            color: AppColors.primaryBlue,
+                            size: 28,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Chỉnh sửa nhóm',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Name field
+                      TextField(
+                        controller: nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Tên nhóm',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Description field
+                      TextField(
+                        controller: descController,
+                        decoration: InputDecoration(
+                          labelText: 'Mô tả',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Category dropdown
+                      DropdownButtonFormField<GroupCategory>(
+                        initialValue: selectedCategory,
+                        decoration: InputDecoration(
+                          labelText: 'Danh mục',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        items:
+                            GroupCategory.values
+                                .map(
+                                  (cat) => DropdownMenuItem(
+                                    value: cat,
+                                    child: Text(cat.label),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged:
+                            (val) =>
+                                setSheetState(() => selectedCategory = val!),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Visibility dropdown
+                      DropdownButtonFormField<GroupVisibility>(
+                        initialValue: selectedVisibility,
+                        decoration: InputDecoration(
+                          labelText: 'Quyền riêng tư',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        items:
+                            GroupVisibility.values
+                                .map(
+                                  (vis) => DropdownMenuItem(
+                                    value: vis,
+                                    child: Text(
+                                      vis == GroupVisibility.public
+                                          ? 'Công khai'
+                                          : 'Riêng tư',
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged:
+                            (val) =>
+                                setSheetState(() => selectedVisibility = val!),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Action buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text('Hủy'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                Navigator.pop(ctx);
+                                await _saveGroupChanges(
+                                  nameController.text.trim(),
+                                  descController.text.trim(),
+                                  selectedCategory,
+                                  selectedVisibility,
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryBlue,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text('Lưu thay đổi'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+    );
+  }
+
+  Future<void> _saveGroupChanges(
+    String name,
+    String description,
+    GroupCategory category,
+    GroupVisibility visibility,
+  ) async {
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tên nhóm không được để trống')),
+      );
+      return;
+    }
+
+    try {
+      await _communityService.updateGroup(
+        groupId: widget.groupId,
+        name: name,
+        description: description.isNotEmpty ? description : null,
+        category: category,
+        visibility: visibility,
+      );
+
+      await _loadGroup();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã cập nhật nhóm thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  /// Delete group (for owner only)
+  Future<void> _deleteGroup() async {
+    final confirm = await showCupertinoDialog<bool>(
+      context: context,
+      builder:
+          (context) => CupertinoAlertDialog(
+            title: const Text('Xóa nhóm'),
+            content: Text(
+              'Bạn có chắc chắn muốn xóa nhóm "${_group?.name}"?\n\n'
+              'Hành động này không thể hoàn tác. Tất cả bài viết và thành viên sẽ bị xóa.',
+            ),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Hủy'),
+              ),
+              CupertinoDialogAction(
+                isDestructiveAction: true,
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Xóa'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await _communityService.deleteGroup(widget.groupId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã xóa nhóm thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context); // Return to previous screen
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi xóa nhóm: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -194,6 +556,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       floatingActionButton:
           _isMember
               ? FloatingActionButton.extended(
+                heroTag: 'group_detail_fab',
                 onPressed: _createPost,
                 icon: const Icon(CupertinoIcons.pencil),
                 label: const Text('Đăng bài'),
@@ -229,19 +592,53 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             icon: const Icon(CupertinoIcons.ellipsis, color: Colors.white),
             onSelected: (value) {
               if (value == 'leave') _leaveGroup();
+              if (value == 'edit') _editGroup();
+              if (value == 'delete') _deleteGroup();
             },
             itemBuilder:
                 (context) => [
-                  const PopupMenuItem(
-                    value: 'leave',
-                    child: Row(
-                      children: [
-                        Icon(CupertinoIcons.xmark_circle, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('Rời nhóm', style: TextStyle(color: Colors.red)),
-                      ],
+                  // Show edit/delete options only for owner
+                  if (_isOwner) ...[
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(CupertinoIcons.pencil, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Text('Chỉnh sửa nhóm'),
+                        ],
+                      ),
                     ),
-                  ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(CupertinoIcons.trash, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Xóa nhóm', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                  ],
+                  // Leave option for all members (except owner)
+                  if (!_isOwner)
+                    const PopupMenuItem(
+                      value: 'leave',
+                      child: Row(
+                        children: [
+                          Icon(
+                            CupertinoIcons.xmark_circle,
+                            color: Colors.orange,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Rời nhóm',
+                            style: TextStyle(color: Colors.orange),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
           ),
       ],
@@ -378,24 +775,48 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           if (!_isMember)
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton.icon(
+              child: ElevatedButton(
                 onPressed: _isJoining ? null : _joinGroup,
-                icon:
-                    _isJoining
-                        ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                        : const Icon(CupertinoIcons.person_badge_plus),
-                label: Text(_isJoining ? 'Đang tham gia...' : 'Tham gia nhóm'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryBlue,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  disabledBackgroundColor: AppColors.primaryBlue.withValues(
+                    alpha: 0.5,
                   ),
+                  disabledForegroundColor: Colors.white.withValues(alpha: 0.7),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  elevation: 0,
+                  shadowColor: AppColors.primaryBlue.withValues(alpha: 0.3),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_isJoining)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                    else
+                      const Icon(CupertinoIcons.person_badge_plus, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isJoining ? 'Đang tham gia...' : 'Tham gia nhóm',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

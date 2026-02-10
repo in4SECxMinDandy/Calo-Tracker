@@ -136,69 +136,227 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final dateFormatter = DateFormat('dd/MM/yyyy');
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Lịch sử'),
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.arrow_left),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
       body:
           _isLoading
               ? const Center(child: CupertinoActivityIndicator())
               : RefreshIndicator(
                 onRefresh: _loadData,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Date selector
-                      _buildDateSelector(dateFormatter),
-                      const SizedBox(height: 24),
+                child: CustomScrollView(
+                  slivers: [
+                    // Beautiful gradient header
+                    SliverAppBar(
+                      expandedHeight: 180,
+                      pinned: true,
+                      backgroundColor:
+                          isDark ? AppColors.darkCard : Colors.white,
+                      flexibleSpace: FlexibleSpaceBar(
+                        background: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.primaryBlue,
+                                AppColors.primaryBlue.withValues(alpha: 0.8),
+                                AppColors.primaryBlue.withValues(alpha: 0.6),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          child: SafeArea(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                60,
+                                20,
+                                20,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        CupertinoIcons.chart_bar_alt_fill,
+                                        color: Colors.white,
+                                        size: 28,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      const Text(
+                                        'Lịch sử calo',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  // Summary stats in header
+                                  Row(
+                                    children: [
+                                      _buildHeaderStat(
+                                        icon: CupertinoIcons.calendar,
+                                        value: '$_chartRange',
+                                        label: 'ngày',
+                                      ),
+                                      const SizedBox(width: 24),
+                                      _buildHeaderStat(
+                                        icon: CupertinoIcons.flame,
+                                        value:
+                                            _calculateAverageCalories()
+                                                .toString(),
+                                        label: 'kcal/ngày TB',
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        title: null,
+                      ),
+                      leading: IconButton(
+                        icon: const Icon(
+                          CupertinoIcons.arrow_left,
+                          color: Colors.white,
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
 
-                      // Chart range selector
-                      _buildChartRangeSelector(),
-                      const SizedBox(height: 24),
-
-                      // Chart
-                      GlassCard(
+                    // Main content
+                    SliverToBoxAdapter(
+                      child: Padding(
                         padding: const EdgeInsets.all(20),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Biểu đồ calo',
-                              style: AppTextStyles.cardTitle,
+                            // Date selector
+                            _buildDateSelector(dateFormatter),
+                            const SizedBox(height: 24),
+
+                            // Chart range selector
+                            _buildChartRangeSelector(),
+                            const SizedBox(height: 24),
+
+                            // Chart
+                            GlassCard(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primaryBlue
+                                              .withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          CupertinoIcons.graph_square,
+                                          color: AppColors.primaryBlue,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      const Text(
+                                        'Biểu đồ calo',
+                                        style: AppTextStyles.cardTitle,
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                  DualLineChart(
+                                    records: _chartRecords,
+                                    targetLine: _userProfile?.dailyTarget,
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 20),
-                            DualLineChart(
-                              records: _chartRecords,
-                              targetLine: _userProfile?.dailyTarget,
+                            const SizedBox(height: 24),
+
+                            // Daily stats
+                            _buildDailyStats(),
+                            const SizedBox(height: 24),
+
+                            // Meals list
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.successGreen.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    CupertinoIcons.square_list,
+                                    color: AppColors.successGreen,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Bữa ăn ngày ${dateFormatter.format(_selectedDate)}',
+                                  style: AppTextStyles.heading3,
+                                ),
+                              ],
                             ),
+                            const SizedBox(height: 16),
+                            _buildMealsList(),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 24),
-
-                      // Daily stats
-                      _buildDailyStats(),
-                      const SizedBox(height: 24),
-
-                      // Meals list
-                      Text(
-                        'Bữa ăn ngày ${dateFormatter.format(_selectedDate)}',
-                        style: AppTextStyles.heading3,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildMealsList(),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
     );
+  }
+
+  Widget _buildHeaderStat({
+    required IconData icon,
+    required String value,
+    required String label,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white70, size: 16),
+        const SizedBox(width: 6),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.8),
+            fontSize: 14,
+          ),
+        ),
+      ],
+    );
+  }
+
+  int _calculateAverageCalories() {
+    if (_chartRecords.isEmpty) return 0;
+    final total = _chartRecords.fold<double>(0, (sum, r) => sum + r.caloIntake);
+    return (total / _chartRecords.length).round();
   }
 
   Widget _buildDateSelector(DateFormat formatter) {

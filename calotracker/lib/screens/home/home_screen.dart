@@ -6,8 +6,10 @@ import 'dart:math' as math;
 import '../../models/user_profile.dart';
 import '../../models/calo_record.dart';
 import '../../models/gym_session.dart';
+import '../../models/friendship.dart';
 import '../../services/database_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/friends_service.dart';
 import '../../theme/colors.dart';
 import '../chatbot/chatbot_screen.dart';
 import '../camera/camera_scan_screen.dart';
@@ -49,8 +51,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   UserProfile? _userProfile;
   CaloRecord? _todayRecord;
   GymSession? _nextGymSession;
+  List<Friendship> _friends = [];
   bool _isLoading = true;
   int _currentIndex = 0;
+
+  final _friendsService = FriendsService();
 
   late AnimationController _ringAnimationController;
   late Animation<double> _ringAnimation;
@@ -84,11 +89,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final todayRecord = await DatabaseService.getTodayRecord();
       final nextGym = await DatabaseService.getNextGymSession();
 
+      // Load friends list
+      List<Friendship> friends = [];
+      try {
+        if (_friendsService.isAvailable) {
+          friends = await _friendsService.getFriends();
+        }
+      } catch (e) {
+        // Silently fail if friends service is not available
+      }
+
       if (!mounted) return;
       setState(() {
         _userProfile = profile;
         _todayRecord = todayRecord;
         _nextGymSession = nextGym;
+        _friends = friends;
         _isLoading = false;
       });
       _ringAnimationController.forward(from: 0);
@@ -302,7 +318,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 4,
                 AppIcons.profile,
                 AppIcons.profileOutline,
-                'Hồ sơ',
+                'Cá nhân',
                 isDark,
               ),
             ],
@@ -490,22 +506,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       {
         'icon': AppIcons.flag,
         'label': 'Thử thách tuần',
-        'color': WellnessColors.coral,
+        'color': AppColors.communityOrange,
       },
       {
         'icon': AppIcons.group,
         'label': 'Bạn bè tập',
-        'color': WellnessColors.skyBlue,
+        'color': AppColors.communityTeal,
       },
       {
         'icon': AppIcons.heart,
         'label': 'Giảm cân',
-        'color': WellnessColors.peach,
+        'color': AppColors.successGreen,
       },
       {
         'icon': AppIcons.calories,
         'label': 'Trending',
-        'color': WellnessColors.lavender,
+        'color': AppColors.primaryIndigo,
       },
       {
         'icon': AppIcons.star,
@@ -657,21 +673,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 _buildRingLegend(
                   'Calories',
                   '${intake.toInt()}/${target.toInt()} kcal',
-                  WellnessColors.coral,
+                  AppColors.primaryIndigo,
                   isDark,
                 ),
                 const SizedBox(height: 12),
                 _buildRingLegend(
                   'Vận động',
                   '${burned.toInt()}/500 kcal',
-                  WellnessColors.sageGreen,
+                  AppColors.successGreen,
                   isDark,
                 ),
                 const SizedBox(height: 12),
                 _buildRingLegend(
                   'Hoạt động',
                   '7/10 giờ',
-                  WellnessColors.skyBlue,
+                  AppColors.communityTeal,
                   isDark,
                 ),
               ],
@@ -810,6 +826,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildSocialActivityCard(bool isDark) {
+    // Show only if there are friends
+    if (_friends.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // Get online friends (limit to 3 most recent)
+    final onlineFriends = _friends.where((f) => f.isOnline).take(3).toList();
+
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       padding: const EdgeInsets.all(16),
@@ -835,11 +859,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Icon(
                 CupertinoIcons.person_2_fill,
                 size: 16,
-                color: WellnessColors.skyBlue,
+                color: AppColors.communityTeal,
               ),
               const SizedBox(width: 8),
               Text(
-                'Hoạt động bạn bè',
+                'Bạn bè đang hoạt động',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -854,64 +878,85 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
           const SizedBox(height: 12),
-          // Activity items
-          _buildActivityItem(
-            'Minh',
-            'vừa chạy 5km',
-            '🏃',
-            '2 phút trước',
-            isDark,
-          ),
-          const Divider(height: 20),
-          _buildActivityItem(
-            'Lan',
-            'đạt mục tiêu 10k bước',
-            '🎯',
-            '15 phút trước',
-            isDark,
-          ),
-          const Divider(height: 20),
-          _buildActivityItem(
-            'Hùng',
-            'hoàn thành thử thách giảm cân',
-            '🏆',
-            '1 giờ trước',
-            isDark,
-          ),
+          // Show online friends or empty state
+          if (onlineFriends.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  'Chưa có bạn bè nào đang online',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color:
+                        isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
+                  ),
+                ),
+              ),
+            )
+          else
+            ...onlineFriends.asMap().entries.map((entry) {
+              final index = entry.key;
+              final friend = entry.value;
+              return Column(
+                children: [
+                  if (index > 0) const Divider(height: 20),
+                  _buildFriendActivityItem(friend, isDark),
+                ],
+              );
+            }),
         ],
       ),
     );
   }
 
-  Widget _buildActivityItem(
-    String name,
-    String action,
-    String emoji,
-    String time,
-    bool isDark,
-  ) {
+  Widget _buildFriendActivityItem(Friendship friend, bool isDark) {
+    final displayName =
+        friend.friendDisplayName ?? friend.friendUsername ?? 'Bạn bè';
+    final timeAgo = _getTimeAgo(friend.lastSeen);
+
     return Row(
       children: [
-        // Avatar stack simulation
+        // Avatar
         Container(
           width: 32,
           height: 32,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [WellnessColors.mint, WellnessColors.sageGreen],
+              colors: [AppColors.communityTeal, AppColors.successGreen],
             ),
             shape: BoxShape.circle,
           ),
-          child: Center(
-            child: Text(
-              name[0],
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-          ),
+          child:
+              friend.friendAvatarUrl != null
+                  ? ClipOval(
+                    child: Image.network(
+                      friend.friendAvatarUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder:
+                          (_, __, ___) => Center(
+                            child: Text(
+                              displayName[0].toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                    ),
+                  )
+                  : Center(
+                    child: Text(
+                      displayName[0].toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -923,20 +968,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               children: [
                 TextSpan(
-                  text: name,
+                  text: displayName,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
-                TextSpan(text: ' $action '),
-                TextSpan(text: emoji),
+                const TextSpan(text: ' đang online '),
+                const TextSpan(text: '🟢'),
               ],
             ),
           ),
         ),
         Text(
-          time,
+          timeAgo,
           style: TextStyle(
             fontSize: 11,
             color: isDark ? Colors.white38 : Colors.black38,
@@ -946,114 +991,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  String _getTimeAgo(DateTime? time) {
+    if (time == null) return 'Vừa xong';
+
+    final now = DateTime.now();
+    final diff = now.difference(time);
+
+    if (diff.inMinutes < 1) return 'Vừa xong';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
+    if (diff.inHours < 24) return '${diff.inHours} giờ trước';
+    return '${diff.inDays} ngày trước';
+  }
+
   Widget _buildCommunityHighlight(bool isDark) {
-    return GestureDetector(
-      onTap: _openCommunity,
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              WellnessColors.lavender.withValues(alpha: 0.8),
-              WellnessColors.peach.withValues(alpha: 0.6),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        CupertinoIcons.flame_fill,
-                        size: 14,
-                        color: WellnessColors.coral,
-                      ),
-                      const SizedBox(width: 4),
-                      const Text(
-                        'Trending',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Thử thách Đón Tết Healthy',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      // Avatar stack
-                      SizedBox(
-                        width: 60,
-                        height: 24,
-                        child: Stack(
-                          children: List.generate(
-                            3,
-                            (i) => Positioned(
-                              left: i * 18.0,
-                              child: Container(
-                                width: 24,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  color:
-                                      [
-                                        WellnessColors.coral,
-                                        WellnessColors.skyBlue,
-                                        WellnessColors.mint,
-                                      ][i],
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    ['A', 'B', 'C'][i],
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        '234 người tham gia',
-                        style: TextStyle(fontSize: 12, color: Colors.white70),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const Icon(CupertinoIcons.chevron_right, color: Colors.white54),
-          ],
-        ),
-      ),
-    );
+    // TODO: Connect to real backend data for trending challenges
+    // For now, hide this section until backend integration
+    return const SizedBox.shrink();
   }
 
   Widget _buildNextWorkoutCard(bool isDark) {
@@ -1145,6 +1098,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildScannerFAB() {
     return FloatingActionButton(
+      heroTag: 'home_scanner_fab',
       onPressed: _openCamera,
       backgroundColor: WellnessColors.sageGreen,
       child: const Icon(
@@ -1177,17 +1131,17 @@ class HealthRingsPainter extends CustomPainter {
       {
         'radius': size.width / 2 - 5,
         'progress': moveProgress,
-        'color': WellnessColors.coral,
+        'color': AppColors.primaryIndigo,
       },
       {
         'radius': size.width / 2 - 20,
         'progress': exerciseProgress,
-        'color': WellnessColors.sageGreen,
+        'color': AppColors.successGreen,
       },
       {
         'radius': size.width / 2 - 35,
         'progress': standProgress,
-        'color': WellnessColors.skyBlue,
+        'color': AppColors.communityTeal,
       },
     ];
 

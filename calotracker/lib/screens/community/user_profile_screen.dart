@@ -2,18 +2,21 @@
 // View and edit community profile
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
+import 'dart:async';
 import 'package:image_picker/image_picker.dart';
 import '../../services/supabase_auth_service.dart';
 import '../../services/community_service.dart';
 import '../../services/friends_service.dart';
+import '../../services/presence_service.dart';
 import '../../models/community_profile.dart';
 import '../../models/post.dart';
 import '../../models/friendship.dart';
+import '../../models/user_presence.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/glass_card.dart';
+import '../../widgets/online_indicator.dart';
 import 'widgets/post_card.dart';
 import 'chat_screen.dart';
 
@@ -31,6 +34,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   final _authService = SupabaseAuthService();
   final _communityService = CommunityService();
   final _friendsService = FriendsService();
+  final _presenceService = PresenceService();
   final _imagePicker = ImagePicker();
 
   late TabController _tabController;
@@ -40,6 +44,8 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   bool _isFollowing = false;
   bool _isOwnProfile = false;
   FriendshipStatus? _friendshipStatus;
+  UserPresence? _userPresence;
+  StreamSubscription? _presenceSubscription;
 
   @override
   void initState() {
@@ -51,6 +57,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _presenceSubscription?.cancel();
     super.dispose();
   }
 
@@ -68,8 +75,8 @@ class _UserProfileScreenState extends State<UserProfileScreen>
 
       _isOwnProfile = currentUserId == targetUserId;
 
-      // Load profile
-      final profile = await _authService.getProfile();
+      // Load profile by userId
+      final profile = await _authService.getUserProfileById(targetUserId);
       if (profile != null) {
         _profile = CommunityProfile.fromJson(profile);
       }
@@ -85,12 +92,31 @@ class _UserProfileScreenState extends State<UserProfileScreen>
         );
       }
 
+      // Load presence and subscribe to updates
+      _userPresence = await _presenceService.getUserPresence(targetUserId);
+      _presenceSubscription?.cancel();
+      _presenceSubscription = _presenceService.presenceStream.listen((
+        presence,
+      ) {
+        if (presence.userId == targetUserId && mounted) {
+          setState(() => _userPresence = presence);
+        }
+      });
+      _presenceService.subscribeToPresence([targetUserId]);
+
       if (mounted) {
         setState(() => _isLoading = false);
       }
     } catch (e) {
+      debugPrint('Error loading profile: $e');
       if (mounted) {
         setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể tải trang cá nhân: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -98,14 +124,24 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   Future<void> _toggleFollow() async {
     if (widget.userId == null) return;
 
-    if (_isFollowing) {
-      await _communityService.unfollowUser(widget.userId!);
-    } else {
-      await _communityService.followUser(widget.userId!);
-    }
-
+    // Optimistically update UI
     setState(() => _isFollowing = !_isFollowing);
-    _loadProfile();
+
+    try {
+      if (!_isFollowing) {
+        await _communityService.unfollowUser(widget.userId!);
+      } else {
+        await _communityService.followUser(widget.userId!);
+      }
+    } catch (e) {
+      // Revert on error
+      setState(() => _isFollowing = !_isFollowing);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: ${e.toString()}')));
+      }
+    }
   }
 
   Future<void> _changeAvatar() async {
@@ -164,15 +200,47 @@ class _UserProfileScreenState extends State<UserProfileScreen>
               ? const Center(child: CircularProgressIndicator())
               : _profile == null
               ? _buildNotLoggedIn(isDark)
-              : CustomScrollView(
-                slivers: [
-                  _buildAppBar(isDark),
-                  SliverToBoxAdapter(child: _buildProfileHeader(isDark)),
-                  SliverToBoxAdapter(child: _buildStats(isDark)),
-                  SliverToBoxAdapter(child: _buildTabBar(isDark)),
-                  SliverFillRemaining(child: _buildTabContent(isDark)),
-                ],
+              : NestedScrollView(
+                headerSliverBuilder:
+                    (context, innerBoxIsScrolled) => [
+                      _buildAppBar(isDark),
+                      SliverToBoxAdapter(child: _buildProfileHeader(isDark)),
+                      SliverToBoxAdapter(child: _buildStats(isDark)),
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _SliverTabBarDelegate(
+                          tabBar: _buildTabBarWidget(isDark),
+                          isDark: isDark,
+                        ),
+                      ),
+                    ],
+                body: _buildTabContent(isDark),
               ),
+    );
+  }
+
+  Widget _buildTabBarWidget(bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        labelColor: AppColors.primaryBlue,
+        unselectedLabelColor:
+            isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+        indicatorSize: TabBarIndicatorSize.tab,
+        indicator: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: AppColors.primaryBlue.withValues(alpha: 0.1),
+        ),
+        tabs: const [
+          Tab(icon: Icon(CupertinoIcons.square_grid_2x2)),
+          Tab(icon: Icon(CupertinoIcons.heart_fill)),
+          Tab(icon: Icon(CupertinoIcons.bookmark_fill)),
+        ],
+      ),
     );
   }
 
@@ -242,149 +310,159 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   }
 
   Widget _buildProfileHeader(bool isDark) {
-    return Transform.translate(
-      offset: const Offset(0, -50),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          children: [
-            // Avatar
-            Stack(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isDark ? AppColors.darkCard : AppColors.lightCard,
-                      width: 4,
-                    ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(50),
-                    child:
-                        _profile?.avatarUrl != null
-                            ? CachedNetworkImage(
-                              imageUrl: _profile!.avatarUrl!,
-                              width: 100,
-                              height: 100,
-                              fit: BoxFit.cover,
-                              placeholder: (_, __) => _buildAvatarPlaceholder(),
-                              errorWidget:
-                                  (_, __, ___) => _buildAvatarPlaceholder(),
-                            )
-                            : _buildAvatarPlaceholder(),
+    if (_profile == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          // Avatar
+          Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                    width: 4,
                   ),
                 ),
-                if (_isOwnProfile)
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: GestureDetector(
-                      onTap: _changeAvatar,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryBlue,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color:
-                                isDark
-                                    ? AppColors.darkCard
-                                    : AppColors.lightCard,
-                            width: 2,
-                          ),
+                child: AvatarWithPresence(
+                  imageUrl: _profile?.avatarUrl,
+                  displayName: _profile?.displayName ?? 'U',
+                  presence: _userPresence,
+                  radius: 50,
+                ),
+              ),
+              if (_isOwnProfile)
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: GestureDetector(
+                    onTap: _changeAvatar,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryBlue,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color:
+                              isDark ? AppColors.darkCard : AppColors.lightCard,
+                          width: 2,
                         ),
-                        child: const Icon(
-                          CupertinoIcons.camera,
-                          color: Colors.white,
-                          size: 16,
-                        ),
+                      ),
+                      child: const Icon(
+                        CupertinoIcons.camera,
+                        color: Colors.white,
+                        size: 16,
                       ),
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 16),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
 
-            // Name and username
+          // Name and username
+          Text(
+            _profile?.displayName ?? 'Người dùng',
+            style: AppTextStyles.heading2,
+          ),
+          if (_profile?.username != null)
             Text(
-              _profile?.displayName ?? 'Người dùng',
-              style: AppTextStyles.heading2,
+              '@${_profile!.username}',
+              style: TextStyle(
+                fontSize: 15,
+                color:
+                    isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
+              ),
             ),
-            if (_profile?.username != null)
-              Text(
-                '@${_profile!.username}',
+          // Online status text
+          if (!_isOwnProfile && _userPresence != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _userPresence!.lastSeenText,
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 13,
+                  color:
+                      _userPresence!.isOnline
+                          ? Colors.green
+                          : (isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary),
+                  fontWeight:
+                      _userPresence!.isOnline
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                ),
+              ),
+            ),
+          const SizedBox(height: 8),
+
+          // Bio
+          if (_profile?.bio != null && _profile!.bio!.isNotEmpty)
+            Text(
+              _profile!.bio!,
+              style: AppTextStyles.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          const SizedBox(height: 16),
+
+          // Level badge
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: AppColors.communityCardGradient,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      CupertinoIcons.star_fill,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Level ${_profile?.level ?? 1}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${_profile?.totalPoints ?? 0} điểm',
+                style: TextStyle(
                   color:
                       isDark
                           ? AppColors.darkTextSecondary
                           : AppColors.lightTextSecondary,
                 ),
               ),
-            const SizedBox(height: 8),
+            ],
+          ),
+          const SizedBox(height: 16),
 
-            // Bio
-            if (_profile?.bio != null && _profile!.bio!.isNotEmpty)
-              Text(
-                _profile!.bio!,
-                style: AppTextStyles.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-            const SizedBox(height: 16),
-
-            // Level badge
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: AppColors.communityCardGradient,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        CupertinoIcons.star_fill,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Level ${_profile?.level ?? 1}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${_profile?.totalPoints ?? 0} điểm',
-                  style: TextStyle(
-                    color:
-                        isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.lightTextSecondary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Action buttons
-            if (!_isOwnProfile) _buildActionButtons(),
-          ],
-        ),
+          // Action buttons
+          if (!_isOwnProfile) _buildActionButtons(),
+          const SizedBox(height: 16),
+        ],
       ),
     );
   }
@@ -393,57 +471,73 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     final isFriend = _friendshipStatus == FriendshipStatus.accepted;
     final isPending = _friendshipStatus == FriendshipStatus.pending;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Follow/Unfollow button
-        ElevatedButton.icon(
-          onPressed: _toggleFollow,
-          icon: Icon(
-            _isFollowing
-                ? CupertinoIcons.person_badge_minus
-                : CupertinoIcons.person_badge_plus,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Follow/Unfollow button
+          Flexible(
+            child: ElevatedButton.icon(
+              onPressed: _toggleFollow,
+              icon: Icon(
+                _isFollowing
+                    ? CupertinoIcons.person_badge_minus
+                    : CupertinoIcons.person_badge_plus,
+                size: 18,
+              ),
+              label: Text(
+                _isFollowing ? 'Đang theo dõi' : 'Theo dõi',
+                overflow: TextOverflow.ellipsis,
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    _isFollowing ? Colors.grey : AppColors.primaryBlue,
+                foregroundColor: Colors.white,
+              ),
+            ),
           ),
-          label: Text(_isFollowing ? 'Đang theo dõi' : 'Theo dõi'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _isFollowing ? Colors.grey : AppColors.primaryBlue,
-            foregroundColor: Colors.white,
-          ),
-        ),
-        const SizedBox(width: 8),
+          const SizedBox(width: 8),
 
-        // Friend button
-        if (isFriend)
-          ElevatedButton.icon(
-            onPressed: _openChat,
-            icon: const Icon(CupertinoIcons.chat_bubble_fill),
-            label: const Text('Nhắn tin'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
+          // Friend button
+          if (isFriend)
+            Flexible(
+              child: ElevatedButton.icon(
+                onPressed: _openChat,
+                icon: const Icon(CupertinoIcons.chat_bubble_fill, size: 18),
+                label: const Text('Nhắn tin', overflow: TextOverflow.ellipsis),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            )
+          else if (isPending)
+            Flexible(
+              child: ElevatedButton.icon(
+                onPressed: null,
+                icon: const Icon(CupertinoIcons.clock, size: 18),
+                label: const Text('Đã gửi', overflow: TextOverflow.ellipsis),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            )
+          else
+            Flexible(
+              child: ElevatedButton.icon(
+                onPressed: _sendFriendRequest,
+                icon: const Icon(CupertinoIcons.person_add_solid, size: 18),
+                label: const Text('Kết bạn', overflow: TextOverflow.ellipsis),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
+              ),
             ),
-          )
-        else if (isPending)
-          ElevatedButton.icon(
-            onPressed: null,
-            icon: const Icon(CupertinoIcons.clock),
-            label: const Text('Đã gửi lời mời'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.grey,
-              foregroundColor: Colors.white,
-            ),
-          )
-        else
-          ElevatedButton.icon(
-            onPressed: _sendFriendRequest,
-            icon: const Icon(CupertinoIcons.person_add_solid),
-            label: const Text('Kết bạn'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-            ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -488,45 +582,25 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     );
   }
 
-  Widget _buildAvatarPlaceholder() {
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        color: AppColors.primaryBlue.withValues(alpha: 0.2),
-        shape: BoxShape.circle,
-      ),
-      child: const Icon(
-        CupertinoIcons.person_fill,
-        size: 50,
-        color: AppColors.primaryBlue,
-      ),
-    );
-  }
-
   Widget _buildStats(bool isDark) {
-    return Transform.translate(
-      offset: const Offset(0, -40),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: GlassCard(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildStatItem('${_posts.length}', 'Bài viết'),
-              _buildStatDivider(isDark),
-              _buildStatItem(
-                '${_profile?.followersCount ?? 0}',
-                'Người theo dõi',
-              ),
-              _buildStatDivider(isDark),
-              _buildStatItem(
-                '${_profile?.followingCount ?? 0}',
-                'Đang theo dõi',
-              ),
-            ],
-          ),
+    if (_profile == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildStatItem('${_posts.length}', 'Bài viết'),
+            _buildStatDivider(isDark),
+            _buildStatItem(
+              '${_profile?.followersCount ?? 0}',
+              'Người theo dõi',
+            ),
+            _buildStatDivider(isDark),
+            _buildStatItem('${_profile?.followingCount ?? 0}', 'Đang theo dõi'),
+          ],
         ),
       ),
     );
@@ -550,37 +624,6 @@ class _UserProfileScreenState extends State<UserProfileScreen>
       width: 1,
       height: 40,
       color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
-    );
-  }
-
-  Widget _buildTabBar(bool isDark) {
-    return Transform.translate(
-      offset: const Offset(0, -30),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkCard : AppColors.lightCard,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: TabBar(
-          controller: _tabController,
-          labelColor: AppColors.primaryBlue,
-          unselectedLabelColor:
-              isDark
-                  ? AppColors.darkTextSecondary
-                  : AppColors.lightTextSecondary,
-          indicatorSize: TabBarIndicatorSize.tab,
-          indicator: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: AppColors.primaryBlue.withValues(alpha: 0.1),
-          ),
-          tabs: const [
-            Tab(icon: Icon(CupertinoIcons.square_grid_2x2)),
-            Tab(icon: Icon(CupertinoIcons.heart_fill)),
-            Tab(icon: Icon(CupertinoIcons.bookmark_fill)),
-          ],
-        ),
-      ),
     );
   }
 
@@ -792,5 +835,37 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
         ],
       ),
     );
+  }
+}
+
+/// SliverPersistentHeaderDelegate for the TabBar
+class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget tabBar;
+  final bool isDark;
+
+  _SliverTabBarDelegate({required this.tabBar, required this.isDark});
+
+  @override
+  double get minExtent => 60;
+
+  @override
+  double get maxExtent => 60;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(
+      color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
+    return tabBar != oldDelegate.tabBar || isDark != oldDelegate.isDark;
   }
 }

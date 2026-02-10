@@ -108,6 +108,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
               ? _buildEmptyState()
               : _buildConversationsList(),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'conversations_fab',
         onPressed: _openFriends,
         backgroundColor: AppColors.primaryBlue,
         child: const Icon(Icons.chat, color: Colors.white),

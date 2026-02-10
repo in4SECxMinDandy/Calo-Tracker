@@ -89,6 +89,19 @@ class SupabaseAuthService {
       email: email,
       password: password,
     );
+
+    // Ensure profile exists after login
+    if (response.user != null) {
+      final profile = await _client
+          .from('profiles')
+          .select('id')
+          .eq('id', response.user!.id)
+          .maybeSingle();
+      if (profile == null) {
+        await _ensureProfileExists();
+      }
+    }
+
     return response;
   }
 
@@ -137,9 +150,55 @@ class SupabaseAuthService {
             .from('profiles')
             .select()
             .eq('id', currentUser!.id)
-            .single();
+            .maybeSingle();
+
+    // If profile doesn't exist, create it
+    if (response == null) {
+      return await _ensureProfileExists();
+    }
 
     return response;
+  }
+
+  // Get any user's profile by ID
+  Future<Map<String, dynamic>?> getUserProfileById(String userId) async {
+    final response =
+        await _client
+            .from('profiles')
+            .select()
+            .eq('id', userId)
+            .maybeSingle();
+
+    return response;
+  }
+
+  // Ensure profile exists for current user, create if missing
+  Future<Map<String, dynamic>?> _ensureProfileExists() async {
+    if (currentUser == null) return null;
+
+    final user = currentUser!;
+    final metadata = user.userMetadata ?? {};
+
+    try {
+      await _client.from('profiles').insert({
+        'id': user.id,
+        'username': metadata['username'] ?? 'user_${user.id.substring(0, 8)}',
+        'display_name': metadata['display_name'] ?? metadata['full_name'] ?? user.email ?? 'Người dùng mới',
+        'avatar_url': metadata['avatar_url'],
+      });
+
+      debugPrint('✅ Auto-created missing profile for user ${user.id}');
+
+      // Read back the created profile
+      return await _client
+          .from('profiles')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
+    } catch (e) {
+      debugPrint('❌ Error creating profile: $e');
+      return null;
+    }
   }
 
   // Alias for getUserProfile (for compatibility)

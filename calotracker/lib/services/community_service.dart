@@ -1,5 +1,6 @@
 // Community Service
 // Handles all community-related operations (groups, challenges, posts)
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/config/supabase_config.dart';
 import '../models/community_group.dart';
@@ -107,53 +108,110 @@ class CommunityService {
   }) async {
     if (_userId == null) throw Exception('User not authenticated');
 
-    final response =
-        await _client
-            .from('groups')
-            .insert({
-              'name': name,
-              'slug': slug,
-              'description': description,
-              'cover_image_url': coverImageUrl,
-              'category': category.name,
-              'visibility': visibility.name,
-              'max_members': maxMembers,
-              'require_approval': requireApproval,
-              'created_by': _userId,
-            })
-            .select()
-            .single();
+    try {
+      final response =
+          await _client
+              .from('groups')
+              .insert({
+                'name': name,
+                'slug': slug,
+                'description': description,
+                'cover_image_url': coverImageUrl,
+                'category': category.dbValue, // Use snake_case for DB
+                'visibility': visibility.name,
+                'max_members': maxMembers,
+                'require_approval': requireApproval,
+                'created_by': _userId,
+              })
+              .select()
+              .single();
 
-    // Add creator as owner
-    await _client.from('group_members').insert({
-      'group_id': response['id'],
-      'user_id': _userId,
-      'role': 'owner',
-    });
+      final groupId = response['id'];
 
-    return CommunityGroup.fromJson(response);
+      // Check if creator is already added (e.g., by trigger)
+      final existingMember =
+          await _client
+              .from('group_members')
+              .select()
+              .eq('group_id', groupId)
+              .eq('user_id', _userId!)
+              .maybeSingle();
+
+      debugPrint('🔍 Checking if creator already exists: $existingMember');
+
+      // Only add creator if not already added by trigger
+      if (existingMember == null) {
+        debugPrint('✅ Adding creator as owner...');
+        await _client.from('group_members').insert({
+          'group_id': groupId,
+          'user_id': _userId,
+          'role': 'owner',
+        });
+      } else {
+        debugPrint('⚠️ Creator already exists with role: ${existingMember['role']}');
+        // If exists but role is not owner, update it
+        if (existingMember['role'] != 'owner') {
+          debugPrint('🔧 Updating role to owner...');
+          await _client
+              .from('group_members')
+              .update({'role': 'owner'})
+              .eq('group_id', groupId)
+              .eq('user_id', _userId!);
+        }
+      }
+
+      return CommunityGroup.fromJson(response);
+    } catch (e) {
+      // Debug logging
+      debugPrint('❌ Error creating group: $e');
+      rethrow;
+    }
   }
 
   /// Join a group
   Future<void> joinGroup(String groupId) async {
     if (_userId == null) throw Exception('User not authenticated');
 
-    await _client.from('group_members').insert({
-      'group_id': groupId,
-      'user_id': _userId,
-      'role': 'member',
-    });
+    try {
+      // Check if already a member
+      final existingMember =
+          await _client
+              .from('group_members')
+              .select()
+              .eq('group_id', groupId)
+              .eq('user_id', _userId!)
+              .maybeSingle();
 
-    // Increment member count
-    await _client.rpc(
-      'increment_counter',
-      params: {
-        'table_name': 'groups',
-        'column_name': 'member_count',
-        'row_id': groupId,
-        'amount': 1,
-      },
-    );
+      debugPrint('🔍 Checking membership: existing=$existingMember');
+
+      // If not already a member, add them
+      if (existingMember == null) {
+        debugPrint('✅ Adding user to group...');
+        await _client.from('group_members').insert({
+          'group_id': groupId,
+          'user_id': _userId,
+          'role': 'member',
+        });
+
+        // Increment member count only for new members
+        await _client.rpc(
+          'increment_counter',
+          params: {
+            'table_name': 'groups',
+            'column_name': 'member_count',
+            'row_id': groupId,
+            'amount': 1,
+          },
+        );
+        debugPrint('✅ Successfully joined group!');
+      } else {
+        debugPrint('⚠️ User is already a member of this group');
+        throw Exception('Already a member of this group');
+      }
+    } catch (e) {
+      debugPrint('❌ Error joining group: $e');
+      rethrow;
+    }
   }
 
   /// Leave a group
@@ -176,6 +234,78 @@ class CommunityService {
         'amount': -1,
       },
     );
+  }
+
+  /// Update a group (only for group owner)
+  Future<CommunityGroup> updateGroup({
+    required String groupId,
+    String? name,
+    String? description,
+    String? coverImageUrl,
+    GroupCategory? category,
+    GroupVisibility? visibility,
+    bool? requireApproval,
+    int? maxMembers,
+  }) async {
+    if (_userId == null) throw Exception('User not authenticated');
+
+    // Build update data
+    final updateData = <String, dynamic>{
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    if (name != null) updateData['name'] = name;
+    if (description != null) updateData['description'] = description;
+    if (coverImageUrl != null) updateData['cover_image_url'] = coverImageUrl;
+    if (category != null) updateData['category'] = category.dbValue;
+    if (visibility != null) updateData['visibility'] = visibility.name;
+    if (requireApproval != null) {
+      updateData['require_approval'] = requireApproval;
+    }
+    if (maxMembers != null) updateData['max_members'] = maxMembers;
+
+    final response =
+        await _client
+            .from('groups')
+            .update(updateData)
+            .eq('id', groupId)
+            .eq('created_by', _userId!) // Only owner can update
+            .select()
+            .single();
+
+    return CommunityGroup.fromJson(response);
+  }
+
+  /// Delete a group (only for group owner)
+  Future<void> deleteGroup(String groupId) async {
+    if (_userId == null) throw Exception('User not authenticated');
+
+    // Delete all group members first
+    await _client.from('group_members').delete().eq('group_id', groupId);
+
+    // Delete all group posts
+    await _client.from('posts').delete().eq('group_id', groupId);
+
+    // Delete the group (only if user is owner)
+    await _client
+        .from('groups')
+        .delete()
+        .eq('id', groupId)
+        .eq('created_by', _userId!);
+  }
+
+  /// Check if current user is owner of the group
+  Future<bool> isGroupOwner(String groupId) async {
+    if (_userId == null) return false;
+
+    final response =
+        await _client
+            .from('groups')
+            .select('created_by')
+            .eq('id', groupId)
+            .maybeSingle();
+
+    if (response == null) return false;
+    return response['created_by'] == _userId;
   }
 
   /// Get group members
@@ -399,7 +529,7 @@ class CommunityService {
   // POSTS
   // ============================================
 
-  /// Get feed posts
+  /// Get feed posts with isLikedByMe populated
   Future<List<Post>> getFeed({int limit = 20, int offset = 0}) async {
     final response = await _client
         .from('posts')
@@ -409,10 +539,33 @@ class CommunityService {
         .order('created_at', ascending: false)
         .range(offset, offset + limit - 1);
 
-    return (response as List).map((p) => Post.fromJson(p)).toList();
+    final posts = response as List;
+
+    // Batch fetch likes for current user
+    Set<String> likedPostIds = {};
+    if (_userId != null && posts.isNotEmpty) {
+      try {
+        final postIds = posts.map((p) => p['id'] as String).toList();
+        final likes = await _client
+            .from('likes')
+            .select('post_id')
+            .eq('user_id', _userId!)
+            .inFilter('post_id', postIds);
+        likedPostIds =
+            (likes as List).map((l) => l['post_id'] as String).toSet();
+      } catch (_) {
+        // Ignore errors fetching likes
+      }
+    }
+
+    return posts
+        .map(
+          (p) => Post.fromJson(p, isLikedByMe: likedPostIds.contains(p['id'])),
+        )
+        .toList();
   }
 
-  /// Get group posts
+  /// Get group posts with isLikedByMe populated
   Future<List<Post>> getGroupPosts(
     String groupId, {
     int limit = 20,
@@ -426,10 +579,33 @@ class CommunityService {
         .order('created_at', ascending: false)
         .range(offset, offset + limit - 1);
 
-    return (response as List).map((p) => Post.fromJson(p)).toList();
+    final posts = response as List;
+
+    // Batch fetch likes for current user
+    Set<String> likedPostIds = {};
+    if (_userId != null && posts.isNotEmpty) {
+      try {
+        final postIds = posts.map((p) => p['id'] as String).toList();
+        final likes = await _client
+            .from('likes')
+            .select('post_id')
+            .eq('user_id', _userId!)
+            .inFilter('post_id', postIds);
+        likedPostIds =
+            (likes as List).map((l) => l['post_id'] as String).toSet();
+      } catch (_) {
+        // Ignore errors fetching likes
+      }
+    }
+
+    return posts
+        .map(
+          (p) => Post.fromJson(p, isLikedByMe: likedPostIds.contains(p['id'])),
+        )
+        .toList();
   }
 
-  /// Get user posts
+  /// Get user posts with isLikedByMe populated
   Future<List<Post>> getUserPosts(
     String userId, {
     int limit = 20,
@@ -443,7 +619,30 @@ class CommunityService {
         .order('created_at', ascending: false)
         .range(offset, offset + limit - 1);
 
-    return (response as List).map((p) => Post.fromJson(p)).toList();
+    final posts = response as List;
+
+    // Batch fetch likes for current user
+    Set<String> likedPostIds = {};
+    if (_userId != null && posts.isNotEmpty) {
+      try {
+        final postIds = posts.map((p) => p['id'] as String).toList();
+        final likes = await _client
+            .from('likes')
+            .select('post_id')
+            .eq('user_id', _userId!)
+            .inFilter('post_id', postIds);
+        likedPostIds =
+            (likes as List).map((l) => l['post_id'] as String).toSet();
+      } catch (_) {
+        // Ignore errors fetching likes
+      }
+    }
+
+    return posts
+        .map(
+          (p) => Post.fromJson(p, isLikedByMe: likedPostIds.contains(p['id'])),
+        )
+        .toList();
   }
 
   /// Create a post
@@ -759,6 +958,121 @@ class CommunityService {
         .limit(limit);
 
     return (response as List).map((p) => CommunityProfile.fromJson(p)).toList();
+  }
+
+  // ============================================
+  // LIKED & SAVED POSTS
+  // ============================================
+
+  /// Get posts that the user has liked
+  Future<List<Post>> getLikedPosts({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    if (_userId == null) return [];
+
+    final response = await _client
+        .from('posts')
+        .select('*, profiles(username, display_name, avatar_url)')
+        .inFilter(
+          'id',
+          await _client
+              .from('likes')
+              .select('post_id')
+              .eq('user_id', _userId!)
+              .then((data) => (data as List).map((l) => l['post_id']).toList()),
+        )
+        .eq('is_hidden', false)
+        .order('created_at', ascending: false)
+        .range(offset, offset + limit - 1);
+
+    final posts = response as List;
+
+    return posts
+        .map((p) => Post.fromJson(p, isLikedByMe: true))
+        .toList();
+  }
+
+  /// Get posts that the user has saved
+  Future<List<Post>> getSavedPosts({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    if (_userId == null) return [];
+
+    // Get saved post IDs first
+    final savedData = await _client
+        .from('saved_posts')
+        .select('post_id')
+        .eq('user_id', _userId!)
+        .order('created_at', ascending: false)
+        .range(offset, offset + limit - 1);
+
+    final postIds = (savedData as List).map((s) => s['post_id'] as String).toList();
+
+    if (postIds.isEmpty) return [];
+
+    // Fetch posts with details
+    final response = await _client
+        .from('posts')
+        .select('*, profiles(username, display_name, avatar_url)')
+        .inFilter('id', postIds)
+        .eq('is_hidden', false);
+
+    final posts = response as List;
+
+    // Check which posts are liked
+    Set<String> likedPostIds = {};
+    try {
+      final likes = await _client
+          .from('likes')
+          .select('post_id')
+          .eq('user_id', _userId!)
+          .inFilter('post_id', postIds);
+      likedPostIds =
+          (likes as List).map((l) => l['post_id'] as String).toSet();
+    } catch (_) {}
+
+    return posts
+        .map(
+          (p) => Post.fromJson(p, isLikedByMe: likedPostIds.contains(p['id'])),
+        )
+        .toList();
+  }
+
+  /// Save a post
+  Future<void> savePost(String postId) async {
+    if (_userId == null) throw Exception('User not authenticated');
+
+    await _client.from('saved_posts').insert({
+      'user_id': _userId,
+      'post_id': postId,
+    });
+  }
+
+  /// Unsave a post
+  Future<void> unsavePost(String postId) async {
+    if (_userId == null) throw Exception('User not authenticated');
+
+    await _client
+        .from('saved_posts')
+        .delete()
+        .eq('user_id', _userId!)
+        .eq('post_id', postId);
+  }
+
+  /// Check if a post is saved
+  Future<bool> isPostSaved(String postId) async {
+    if (_userId == null) return false;
+
+    final response = await _client
+        .from('saved_posts')
+        .select('id')
+        .eq('user_id', _userId!)
+        .eq('post_id', postId)
+        .maybeSingle();
+
+    return response != null;
   }
 
   // ============================================

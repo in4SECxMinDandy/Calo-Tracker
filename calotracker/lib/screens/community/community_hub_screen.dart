@@ -1,11 +1,13 @@
 // Community Hub Screen - Modern Social Media Style
 // Redesigned with Instagram/Facebook-like layout
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/supabase_auth_service.dart';
 import '../../services/unified_community_service.dart';
 import '../../services/messaging_service.dart';
-import '../../services/friends_service.dart';
+import '../../services/presence_service.dart';
 import '../../models/post.dart';
 import '../../models/community_group.dart';
 import '../../models/challenge.dart';
@@ -13,6 +15,7 @@ import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/glass_card.dart';
 import '../auth/login_screen.dart';
+import '../profile/my_profile_screen.dart';
 import 'groups_screen.dart';
 import 'challenges_screen.dart';
 import 'notifications_screen.dart';
@@ -34,7 +37,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
   final _communityService = UnifiedCommunityService();
   final _authService = SupabaseAuthService();
   final _messagingService = MessagingService();
-  final _friendsService = FriendsService();
+  final _presenceService = PresenceService();
   final _scrollController = ScrollController();
 
   List<Post> _feedPosts = [];
@@ -44,18 +47,45 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
   int _unreadNotifications = 0;
   int _unreadMessages = 0;
 
+  // Auth state subscription
+  StreamSubscription<AuthState>? _authSubscription;
+
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _checkAuthAndLoadData();
     _loadMessageCount();
-    _friendsService.goOnline();
+    _presenceService.goOnline();
+
+    // Listen for auth state changes
+    _authSubscription = _authService.authStateChanges.listen((authState) {
+      if (mounted) {
+        // Reload when auth state changes
+        _checkAuthAndLoadData();
+      }
+    });
+  }
+
+  Future<void> _checkAuthAndLoadData() async {
+    // Check if user is authenticated
+    if (!_authService.isAuthenticated) {
+      // User is not authenticated, require login
+      // Set loading to false to show empty state
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+      return;
+    }
+
+    // User is authenticated, load data
+    _loadData();
   }
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _scrollController.dispose();
-    _friendsService.goOffline();
+    _presenceService.goOffline();
     super.dispose();
   }
 
@@ -89,7 +119,13 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
     Navigator.push(
       context,
       CupertinoPageRoute(
-        builder: (_) => LoginScreen(onLoginSuccess: _loadData),
+        builder:
+            (_) => LoginScreen(
+              onLoginSuccess: () {
+                // Reload data after successful login
+                _loadData();
+              },
+            ),
       ),
     );
   }
@@ -126,7 +162,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
   }
 
   void _createPost() {
-    if (!_authService.isAuthenticated && !_communityService.isDemoMode) {
+    if (!_authService.isAuthenticated) {
       _openLogin();
       return;
     }
@@ -183,8 +219,8 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              AppColors.primaryBlue,
-                              AppColors.primaryBlue.withValues(alpha: 0.7),
+                              AppColors.communityOrange,
+                              AppColors.communityOrange.withValues(alpha: 0.7),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(10),
@@ -240,6 +276,8 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
                   ? const SliverFillRemaining(
                     child: Center(child: CircularProgressIndicator()),
                   )
+                  : !_authService.isAuthenticated
+                  ? SliverFillRemaining(child: _buildLoginRequired(isDark))
                   : _feedPosts.isEmpty
                   ? SliverFillRemaining(child: _buildEmptyFeed(isDark))
                   : SliverList(
@@ -283,7 +321,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                colors: AppColors.communityCardGradient,
               ),
               borderRadius: BorderRadius.circular(12),
             ),
@@ -330,10 +368,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
             CupertinoIcons.person_2,
             color: isDark ? Colors.white70 : Colors.black54,
           ),
-          onPressed:
-              _authService.isAuthenticated || _communityService.isDemoMode
-                  ? _openFriends
-                  : _openLogin,
+          onPressed: _authService.isAuthenticated ? _openFriends : _openLogin,
         ),
         // Messages
         IconButton(
@@ -345,10 +380,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
               color: isDark ? Colors.white70 : Colors.black54,
             ),
           ),
-          onPressed:
-              _authService.isAuthenticated || _communityService.isDemoMode
-                  ? _openMessages
-                  : _openLogin,
+          onPressed: _authService.isAuthenticated ? _openMessages : _openLogin,
         ),
         // Notifications
         IconButton(
@@ -361,15 +393,23 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
             ),
           ),
           onPressed:
-              _authService.isAuthenticated || _communityService.isDemoMode
-                  ? _openNotifications
-                  : _openLogin,
+              _authService.isAuthenticated ? _openNotifications : _openLogin,
         ),
         // Profile
         Padding(
           padding: const EdgeInsets.only(right: 8),
           child: GestureDetector(
-            onTap: _openLogin,
+            onTap: () {
+              if (_authService.isAuthenticated) {
+                // Navigate to profile screen
+                Navigator.push(
+                  context,
+                  CupertinoPageRoute(builder: (_) => const MyProfileScreen()),
+                );
+              } else {
+                _openLogin();
+              }
+            },
             child: Container(
               width: 36,
               height: 36,
@@ -515,7 +555,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
             child: _buildQuickActionButton(
               icon: CupertinoIcons.group_solid,
               label: 'Nhóm',
-              color: const Color(0xFF6366f1),
+              color: AppColors.communityTeal,
               onTap:
                   () => Navigator.push(
                     context,
@@ -529,7 +569,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
             child: _buildQuickActionButton(
               icon: CupertinoIcons.flag_fill,
               label: 'Thử thách',
-              color: const Color(0xFFf59e0b),
+              color: AppColors.communityOrange,
               onTap:
                   () => Navigator.push(
                     context,
@@ -545,7 +585,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
             child: _buildQuickActionButton(
               icon: CupertinoIcons.chart_bar_alt_fill,
               label: 'Bảng xếp hạng',
-              color: const Color(0xFF10b981),
+              color: AppColors.primaryIndigo,
               onTap: () {
                 Navigator.push(
                   context,
@@ -619,7 +659,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFf59e0b), Color(0xFFef4444)],
+                    colors: [AppColors.communityOrange, AppColors.warningCoral],
                   ),
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -749,6 +789,75 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
     );
   }
 
+  Widget _buildLoginRequired(bool isDark) {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 40),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.warningOrange.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                CupertinoIcons.lock_shield,
+                size: 48,
+                color: AppColors.warningOrange,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text('Cần đăng nhập', style: AppTextStyles.heading3),
+            const SizedBox(height: 8),
+            Text(
+              'Vui lòng đăng nhập để xem\nvà tương tác với cộng đồng',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color:
+                    isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _openLogin,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
+                elevation: 2,
+                shadowColor: AppColors.primaryBlue.withValues(alpha: 0.3),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(CupertinoIcons.person_circle, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Đăng nhập',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyFeed(bool isDark) {
     return SingleChildScrollView(
       child: Padding(
@@ -784,20 +893,31 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
+            ElevatedButton(
               onPressed: _createPost,
-              icon: const Icon(CupertinoIcons.pencil),
-              label: const Text('Tạo bài viết'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryBlue,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
+                  horizontal: 32,
+                  vertical: 16,
                 ),
+                elevation: 2,
+                shadowColor: AppColors.primaryBlue.withValues(alpha: 0.3),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
+                  borderRadius: BorderRadius.circular(16),
                 ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(CupertinoIcons.pencil, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Tạo bài viết',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 40),
@@ -808,32 +928,69 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
   }
 
   Widget _buildFAB(bool isDark) {
-    return FloatingActionButton.extended(
-      onPressed: _createPost,
-      backgroundColor: AppColors.primaryBlue,
-      icon: const Icon(CupertinoIcons.pencil, color: Colors.white),
-      label: const Text(
-        'Đăng bài',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryBlue.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: FloatingActionButton.extended(
+        heroTag: 'community_fab',
+        onPressed: _createPost,
+        backgroundColor: AppColors.primaryBlue,
+        elevation: 0,
+        icon: const Icon(
+          CupertinoIcons.plus_circle_fill,
+          color: Colors.white,
+          size: 22,
+        ),
+        label: const Text(
+          'Đăng bài',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          ),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
 
   Future<void> _handleLike(Post post) async {
-    if (!_authService.isAuthenticated && !_communityService.isDemoMode) {
+    if (!_authService.isAuthenticated) {
       _openLogin();
       return;
     }
 
+    // Optimistic update
+    final postIndex = _feedPosts.indexWhere((p) => p.id == post.id);
+    if (postIndex == -1) return;
+
+    final isLiked = post.isLikedByMe == true;
+    setState(() {
+      _feedPosts[postIndex] = post.copyWith(
+        isLikedByMe: !isLiked,
+        likeCount: isLiked ? post.likeCount - 1 : post.likeCount + 1,
+      );
+    });
+
     try {
-      if (post.isLikedByMe == true) {
+      if (isLiked) {
         await _communityService.unlikePost(post.id);
       } else {
         await _communityService.likePost(post.id);
       }
-      _loadData();
     } catch (e) {
-      // Handle error
+      // Revert on error
+      setState(() {
+        _feedPosts[postIndex] = post;
+      });
     }
   }
 

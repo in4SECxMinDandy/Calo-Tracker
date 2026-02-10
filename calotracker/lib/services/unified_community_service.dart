@@ -125,6 +125,63 @@ class UnifiedCommunityService {
     );
   }
 
+  Future<CommunityGroup> updateGroup({
+    required String groupId,
+    String? name,
+    String? description,
+    String? coverImageUrl,
+    GroupCategory? category,
+    GroupVisibility? visibility,
+    bool? requireApproval,
+    int? maxMembers,
+  }) async {
+    if (isDemoMode) {
+      // Return mock updated group
+      final existingGroup = await getGroup(groupId);
+      return CommunityGroup(
+        id: groupId,
+        name: name ?? existingGroup?.name ?? 'Updated Group',
+        slug: existingGroup?.slug ?? 'updated-group',
+        description: description ?? existingGroup?.description,
+        category: category ?? existingGroup?.category ?? GroupCategory.general,
+        visibility:
+            visibility ?? existingGroup?.visibility ?? GroupVisibility.public,
+        createdBy: existingGroup?.createdBy ?? MockCommunityService.demoUserId,
+        memberCount: existingGroup?.memberCount ?? 1,
+        postCount: existingGroup?.postCount ?? 0,
+        createdAt: existingGroup?.createdAt ?? DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+    }
+    return _realService.updateGroup(
+      groupId: groupId,
+      name: name,
+      description: description,
+      coverImageUrl: coverImageUrl,
+      category: category,
+      visibility: visibility,
+      requireApproval: requireApproval,
+      maxMembers: maxMembers,
+    );
+  }
+
+  Future<void> deleteGroup(String groupId) async {
+    if (isDemoMode) {
+      // Mock: just return success
+      return;
+    }
+    return _realService.deleteGroup(groupId);
+  }
+
+  Future<bool> isGroupOwner(String groupId) async {
+    if (isDemoMode) {
+      // Mock: user is owner if group was created by demo user
+      final group = await getGroup(groupId);
+      return group?.createdBy == MockCommunityService.demoUserId;
+    }
+    return _realService.isGroupOwner(groupId);
+  }
+
   // ============================================
   // CHALLENGES
   // ============================================

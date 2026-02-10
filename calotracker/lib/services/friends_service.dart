@@ -59,28 +59,40 @@ class FriendsService {
   Future<void> acceptFriendRequest(String friendshipId) async {
     if (_userId == null) throw Exception('User not authenticated');
 
-    await _client
-        .from('friendships')
-        .update({
-          'status': 'accepted',
-          'updated_at': DateTime.now().toIso8601String(),
-        })
-        .eq('id', friendshipId)
-        .eq('friend_id', _userId!);
+    try {
+      debugPrint('🔍 Accepting friend request: $friendshipId');
+
+      await _client
+          .from('friendships')
+          .update({'status': 'accepted'})
+          .eq('id', friendshipId)
+          .eq('friend_id', _userId!);
+
+      debugPrint('✅ Friend request accepted successfully');
+    } catch (e) {
+      debugPrint('❌ Error accepting friend request: $e');
+      rethrow;
+    }
   }
 
   /// Reject friend request
   Future<void> rejectFriendRequest(String friendshipId) async {
     if (_userId == null) throw Exception('User not authenticated');
 
-    await _client
-        .from('friendships')
-        .update({
-          'status': 'rejected',
-          'updated_at': DateTime.now().toIso8601String(),
-        })
-        .eq('id', friendshipId)
-        .eq('friend_id', _userId!);
+    try {
+      debugPrint('🔍 Rejecting friend request: $friendshipId');
+
+      await _client
+          .from('friendships')
+          .update({'status': 'rejected'})
+          .eq('id', friendshipId)
+          .eq('friend_id', _userId!);
+
+      debugPrint('✅ Friend request rejected successfully');
+    } catch (e) {
+      debugPrint('❌ Error rejecting friend request: $e');
+      rethrow;
+    }
   }
 
   /// Block user

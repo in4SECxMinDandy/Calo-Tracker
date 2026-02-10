@@ -116,19 +116,34 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   String _formatNutritionResponse(NutritionData data) {
     final buffer = StringBuffer();
-    buffer.writeln('🍽️ Kết quả phân tích:');
+    buffer.writeln('🍽️ **Kết quả phân tích:**');
     buffer.writeln('');
 
     for (final food in data.foods) {
-      buffer.writeln('• ${food.name}');
+      buffer.writeln('• **${food.name}**');
       if (food.weight != null) {
-        buffer.writeln('  (${food.weight?.toInt()}g)');
+        buffer.writeln('  📦 Khẩu phần: ${food.weight?.toInt()}g');
       }
+      buffer.writeln('  🔥 Năng lượng: ${food.calories.toInt()} kcal');
     }
 
     buffer.writeln('');
-    buffer.writeln('📊 Tổng dinh dưỡng:');
-    buffer.writeln('🔥 ${data.calories.toInt()} kcal');
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━━━');
+    buffer.writeln('📊 **Tổng dinh dưỡng:**');
+    buffer.writeln('');
+    buffer.writeln('🔥 Calo: **${data.calories.toInt()}** kcal');
+    buffer.writeln(
+      '🥩 Protein: **${(data.protein ?? 0).toStringAsFixed(1)}**g',
+    );
+    buffer.writeln('🍞 Carbs: **${(data.carbs ?? 0).toStringAsFixed(1)}**g');
+    buffer.writeln('🧈 Chất béo: **${(data.fat ?? 0).toStringAsFixed(1)}**g');
+    buffer.writeln('');
+
+    // Add helpful tip based on meal
+    final caloriePercent = (data.calories / 2000 * 100).round();
+    buffer.writeln(
+      '💡 Chiếm khoảng **$caloriePercent%** khẩu phần calo hàng ngày (2000 kcal)',
+    );
 
     return buffer.toString();
   }
@@ -217,22 +232,169 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         children: [
           // Chat messages
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length + (_isLoading ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (_isLoading && index == _messages.length) {
-                  return _buildLoadingBubble();
-                }
-                return _buildMessageBubble(_messages[index]);
-              },
-            ),
+            child:
+                _messages.isEmpty
+                    ? _buildWelcomeState()
+                    : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _messages.length + (_isLoading ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (_isLoading && index == _messages.length) {
+                          return _buildLoadingBubble();
+                        }
+                        return _buildMessageBubble(_messages[index]);
+                      },
+                    ),
           ),
+
+          // Quick suggestions
+          _buildQuickSuggestions(),
 
           // Input field
           _buildInputField(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildWelcomeState() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: 40),
+          // Bot avatar
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: AppColors.chatbotCardGradient,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: const Icon(
+              CupertinoIcons.chat_bubble_2_fill,
+              color: Colors.white,
+              size: 50,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Xin chào! 👋',
+            style: AppTextStyles.heading2.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Tôi là trợ lý dinh dưỡng của bạn.\nHãy nhập món ăn để tôi phân tích dinh dưỡng!',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          // Tips
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '💡 Mẹo sử dụng:',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildTip('🍜', 'Nhập tên món: "Phở bò"'),
+                _buildTip('📦', 'Thêm khẩu phần: "200g cơm gà"'),
+                _buildTip('🍱', 'Nhiều món: "Bánh mì + cà phê sữa"'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTip(String emoji, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 18)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickSuggestions() {
+    final suggestions = [
+      '🍜 Phở bò',
+      '🍚 Cơm tấm',
+      '🥖 Bánh mì',
+      '🍗 Gà rán',
+      '🥗 Salad',
+      '☕ Cà phê',
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children:
+              suggestions.map((suggestion) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ActionChip(
+                    label: Text(suggestion),
+                    backgroundColor: Theme.of(context).cardColor,
+                    onPressed: () {
+                      // Remove emoji and trim
+                      final text =
+                          suggestion
+                              .replaceAll(
+                                RegExp(
+                                  r'[^\w\sàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]',
+                                ),
+                                '',
+                              )
+                              .trim();
+                      _messageController.text = text;
+                      _sendMessage();
+                    },
+                  ),
+                );
+              }).toList(),
+        ),
       ),
     );
   }

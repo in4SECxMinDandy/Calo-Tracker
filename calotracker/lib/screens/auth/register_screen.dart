@@ -199,14 +199,70 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   String _getErrorMessage(String error) {
-    if (error.contains('User already registered')) {
-      return 'Email đã được đăng ký';
-    } else if (error.contains('Password should be')) {
-      return 'Mật khẩu không đủ mạnh';
-    } else if (error.contains('Tên người dùng đã tồn tại')) {
-      return 'Tên người dùng đã tồn tại';
+    final errorLower = error.toLowerCase();
+
+    // Email provider disabled (Supabase configuration issue)
+    if (errorLower.contains('email_provider_disabled') ||
+        errorLower.contains('email signups are disabled')) {
+      return '⚠️ Đăng ký tạm thời bị vô hiệu hóa.\n\nQuản trị viên cần bật Email Provider trong Supabase Dashboard:\nAuthentication → Providers → Email → Enable';
     }
-    return 'Đăng ký thất bại. Vui lòng thử lại';
+
+    // Email related errors
+    if (error.contains('User already registered') ||
+        errorLower.contains('already registered')) {
+      return 'Email này đã được đăng ký. Vui lòng đăng nhập hoặc dùng email khác.';
+    }
+    if (errorLower.contains('invalid_email') ||
+        errorLower.contains('invalid email') ||
+        errorLower.contains('email format')) {
+      return 'Địa chỉ email không hợp lệ. Vui lòng kiểm tra lại.';
+    }
+
+    // Password related errors
+    if (error.contains('Password should be') ||
+        errorLower.contains('weak_password') ||
+        errorLower.contains('password')) {
+      return 'Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ và số.';
+    }
+
+    // Username related errors
+    if (error.contains('Tên người dùng đã tồn tại') ||
+        errorLower.contains('username') && errorLower.contains('exist')) {
+      return 'Tên người dùng đã tồn tại. Vui lòng chọn tên khác.';
+    }
+
+    // Network related errors
+    if (errorLower.contains('network') ||
+        errorLower.contains('socketexception') ||
+        errorLower.contains('connection') ||
+        errorLower.contains('unreachable') ||
+        errorLower.contains('no internet')) {
+      return 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet.';
+    }
+
+    // Rate limiting
+    if (errorLower.contains('rate_limit') ||
+        errorLower.contains('too many requests') ||
+        errorLower.contains('rate limit')) {
+      return 'Quá nhiều yêu cầu. Vui lòng chờ vài phút và thử lại.';
+    }
+
+    // Timeout
+    if (errorLower.contains('timeout') ||
+        errorLower.contains('timed out')) {
+      return 'Yêu cầu hết thời gian. Vui lòng thử lại.';
+    }
+
+    // Server errors
+    if (errorLower.contains('500') ||
+        errorLower.contains('server error') ||
+        errorLower.contains('internal error')) {
+      return 'Lỗi máy chủ. Vui lòng thử lại sau.';
+    }
+
+    // Log the actual error for debugging
+    debugPrint('Registration error (unhandled): $error');
+    return 'Đăng ký thất bại. Vui lòng thử lại sau.';
   }
 
   @override

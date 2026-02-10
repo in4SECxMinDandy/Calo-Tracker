@@ -71,7 +71,7 @@ class CommunityGroup {
       'slug': slug,
       'description': description,
       'cover_image_url': coverImageUrl,
-      'category': category.name,
+      'category': category.dbValue, // Use snake_case for DB
       'visibility': visibility.name,
       'max_members': maxMembers,
       'require_approval': requireApproval,
@@ -146,6 +146,43 @@ enum GroupCategory {
         return 'Thể hình';
       case GroupCategory.general:
         return 'Chung';
+    }
+  }
+
+  // Convert to snake_case for database
+  String get dbValue {
+    switch (this) {
+      case GroupCategory.weightLoss:
+        return 'weight_loss';
+      case GroupCategory.muscleGain:
+        return 'muscle_gain';
+      case GroupCategory.healthyEating:
+        return 'healthy_eating';
+      case GroupCategory.running:
+        return 'running';
+      case GroupCategory.fitness:
+        return 'fitness';
+      case GroupCategory.general:
+        return 'general';
+    }
+  }
+
+  // Parse from snake_case database value
+  static GroupCategory fromDbValue(String value) {
+    switch (value) {
+      case 'weight_loss':
+        return GroupCategory.weightLoss;
+      case 'muscle_gain':
+        return GroupCategory.muscleGain;
+      case 'healthy_eating':
+        return GroupCategory.healthyEating;
+      case 'running':
+        return GroupCategory.running;
+      case 'fitness':
+        return GroupCategory.fitness;
+      case 'general':
+      default:
+        return GroupCategory.general;
     }
   }
 

@@ -308,7 +308,13 @@ class _CommentSheetState extends State<CommentSheet> {
                   children: [
                     InkWell(
                       onTap: () {
-                        // TODO: Implement comment like
+                        // Feature planned: Comment like functionality
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Tính năng đang phát triển'),
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
                       },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),

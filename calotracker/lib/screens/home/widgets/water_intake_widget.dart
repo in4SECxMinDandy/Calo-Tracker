@@ -1,6 +1,7 @@
 // Water Intake Widget - Simple & Stable Layout
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../models/water_record.dart';
 import '../../../services/water_service.dart';
 import '../../../theme/colors.dart';
@@ -57,51 +58,295 @@ class _WaterIntakeWidgetState extends State<WaterIntakeWidget> {
   }
 
   void _showCustomDialog() {
-    int amount = 200;
-    showCupertinoDialog(
+    int amount = 250;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder:
           (ctx) => StatefulBuilder(
             builder:
-                (ctx, setState) => CupertinoAlertDialog(
-                  title: const Text('Thêm nước'),
-                  content: Column(
+                (ctx, setState) => Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.darkCard : Colors.white,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
+                  ),
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+                    top: 20,
+                    left: 20,
+                    right: 20,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const SizedBox(height: 16),
-                      Text(
-                        '${amount}ml',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                      // Handle bar
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white24 : Colors.black12,
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      CupertinoSlider(
-                        value: amount.toDouble(),
-                        min: 50,
-                        max: 1000,
-                        divisions: 19,
-                        onChanged: (v) => setState(() => amount = v.round()),
+                      const SizedBox(height: 20),
+
+                      // Title
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF42A5F5), Color(0xFF1E88E5)],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              CupertinoIcons.drop_fill,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Thêm nước',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Amount display
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2196F3).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text(
+                                  amount.toString(),
+                                  style: const TextStyle(
+                                    fontSize: 48,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1976D2),
+                                    height: 1,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'ml',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF1976D2),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _getWaterDescription(amount),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white60 : Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Slider
+                      SliderTheme(
+                        data: SliderThemeData(
+                          activeTrackColor: const Color(0xFF2196F3),
+                          inactiveTrackColor:
+                              isDark ? Colors.white12 : Colors.grey.shade200,
+                          thumbColor: const Color(0xFF1976D2),
+                          overlayColor: const Color(
+                            0xFF2196F3,
+                          ).withValues(alpha: 0.2),
+                          trackHeight: 6,
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 10,
+                          ),
+                        ),
+                        child: Slider(
+                          value: amount.toDouble(),
+                          min: 50,
+                          max: 1000,
+                          divisions: 19,
+                          onChanged: (v) => setState(() => amount = v.round()),
+                        ),
+                      ),
+
+                      // Quick amount buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildQuickAmountBtn(
+                              100,
+                              amount,
+                              (v) => setState(() => amount = v),
+                              isDark,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildQuickAmountBtn(
+                              250,
+                              amount,
+                              (v) => setState(() => amount = v),
+                              isDark,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildQuickAmountBtn(
+                              500,
+                              amount,
+                              (v) => setState(() => amount = v),
+                              isDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Action buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                'Hủy',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color:
+                                      isDark ? Colors.white60 : Colors.black54,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _addWater(amount);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2196F3),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(CupertinoIcons.add, size: 20),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Thêm nước',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  actions: [
-                    CupertinoDialogAction(
-                      isDefaultAction: true,
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Hủy'),
-                    ),
-                    CupertinoDialogAction(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _addWater(amount);
-                      },
-                      child: const Text('Thêm'),
-                    ),
-                  ],
                 ),
           ),
     );
+  }
+
+  Widget _buildQuickAmountBtn(
+    int value,
+    int currentValue,
+    Function(int) onTap,
+    bool isDark,
+  ) {
+    final isSelected = value == currentValue;
+    return GestureDetector(
+      onTap: () => onTap(value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color:
+              isSelected
+                  ? const Color(0xFF2196F3)
+                  : (isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : Colors.grey.shade100),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color:
+                isSelected
+                    ? const Color(0xFF1976D2)
+                    : (isDark ? Colors.white12 : Colors.grey.shade300),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Text(
+          '${value}ml',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color:
+                isSelected
+                    ? Colors.white
+                    : (isDark ? Colors.white70 : Colors.black87),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _getWaterDescription(int amount) {
+    if (amount <= 100) return '~ 1/2 cốc';
+    if (amount <= 250) return '~ 1 cốc';
+    if (amount <= 500) return '~ 1 chai nhỏ';
+    if (amount <= 750) return '~ 1 chai lớn';
+    return '~ 1 lít';
   }
 
   @override
@@ -257,48 +502,19 @@ class _WaterIntakeWidgetState extends State<WaterIntakeWidget> {
   }
 
   Widget _buildBtn(int amount, bool isDark) {
-    return GestureDetector(
+    return _AnimatedWaterButton(
+      amount: amount,
+      isDark: isDark,
       onTap: () => _addWater(amount),
-      child: Container(
-        height: 36,
-        decoration: BoxDecoration(
-          color:
-              isDark
-                  ? const Color(0xFF2196F3).withValues(alpha: 0.15)
-                  : const Color(0xFFE3F2FD),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          '+$amount',
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1976D2),
-          ),
-        ),
-      ),
     );
   }
 
   Widget _buildMoreBtn(bool isDark) {
-    return GestureDetector(
+    return _AnimatedWaterButton(
+      amount: null,
+      isDark: isDark,
+      isGradient: true,
       onTap: _showCustomDialog,
-      child: Container(
-        height: 36,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF42A5F5), Color(0xFF1E88E5)],
-          ),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        alignment: Alignment.center,
-        child: const Icon(
-          CupertinoIcons.ellipsis,
-          color: Colors.white,
-          size: 18,
-        ),
-      ),
     );
   }
 
@@ -307,5 +523,155 @@ class _WaterIntakeWidgetState extends State<WaterIntakeWidget> {
     if (progress < 60) return Colors.orange;
     if (progress < 100) return const Color(0xFF2196F3);
     return Colors.green;
+  }
+}
+
+/// Animated water button with scale animation and haptic feedback
+class _AnimatedWaterButton extends StatefulWidget {
+  final int? amount;
+  final bool isDark;
+  final bool isGradient;
+  final VoidCallback onTap;
+
+  const _AnimatedWaterButton({
+    this.amount,
+    required this.isDark,
+    this.isGradient = false,
+    required this.onTap,
+  });
+
+  @override
+  State<_AnimatedWaterButton> createState() => _AnimatedWaterButtonState();
+}
+
+class _AnimatedWaterButtonState extends State<_AnimatedWaterButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.92,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails details) {
+    setState(() => _isPressed = true);
+    _controller.forward();
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    _controller.reverse();
+    setState(() => _isPressed = false);
+    HapticFeedback.lightImpact();
+    widget.onTap();
+  }
+
+  void _onTapCancel() {
+    _controller.reverse();
+    setState(() => _isPressed = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 100),
+              height: 36,
+              decoration: BoxDecoration(
+                color:
+                    widget.isGradient
+                        ? null
+                        : (_isPressed
+                            ? const Color(0xFF1976D2).withValues(alpha: 0.25)
+                            : (widget.isDark
+                                ? const Color(
+                                  0xFF2196F3,
+                                ).withValues(alpha: 0.15)
+                                : const Color(0xFFE3F2FD))),
+                gradient:
+                    widget.isGradient
+                        ? LinearGradient(
+                          colors:
+                              _isPressed
+                                  ? [
+                                    const Color(0xFF1E88E5),
+                                    const Color(0xFF1565C0),
+                                  ]
+                                  : [
+                                    const Color(0xFF42A5F5),
+                                    const Color(0xFF1E88E5),
+                                  ],
+                        )
+                        : null,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow:
+                    _isPressed
+                        ? []
+                        : [
+                          BoxShadow(
+                            color: const Color(
+                              0xFF2196F3,
+                            ).withValues(alpha: 0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+              ),
+              alignment: Alignment.center,
+              child:
+                  widget.amount != null
+                      ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            CupertinoIcons.drop_fill,
+                            color: Color(0xFF1976D2),
+                            size: 12,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '+${widget.amount}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1976D2),
+                            ),
+                          ),
+                        ],
+                      )
+                      : const Icon(
+                        CupertinoIcons.ellipsis,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }

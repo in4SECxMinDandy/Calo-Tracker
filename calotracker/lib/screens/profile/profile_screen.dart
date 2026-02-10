@@ -1,10 +1,12 @@
 // Profile Screen
 // User profile management with stats
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/storage_service.dart';
 import '../../services/database_service.dart';
 import '../../services/supabase_auth_service.dart';
@@ -23,6 +25,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final _authService = SupabaseAuthService();
   final _imagePicker = ImagePicker();
+  StreamSubscription<AuthState>? _authSubscription;
 
   String _name = '';
   double _height = 0;
@@ -36,13 +39,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _streakDays = 0;
   String? _avatarUrl;
   bool _isUploadingAvatar = false;
+  bool _isLoggedIn = false;
 
   @override
   void initState() {
     super.initState();
+    _checkAuthState();
+    _setupAuthListener();
     _loadProfile();
     _loadStats();
     _loadAvatarFromSupabase();
+  }
+
+  /// Check current auth state immediately
+  void _checkAuthState() {
+    setState(() {
+      _isLoggedIn = _authService.isAuthenticated;
+    });
+  }
+
+  /// Listen for auth state changes to update UI reactively
+  void _setupAuthListener() {
+    _authSubscription = _authService.authStateChanges.listen((authState) {
+      if (mounted) {
+        setState(() {
+          _isLoggedIn = authState.session != null;
+        });
+        // Reload avatar when user signs in
+        if (authState.event == AuthChangeEvent.signedIn) {
+          _loadAvatarFromSupabase();
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   void _loadProfile() {
@@ -174,7 +208,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isLoggedIn = _authService.isAuthenticated;
 
     return Scaffold(
       appBar: AppBar(
@@ -209,7 +242,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 24),
 
             // Account Section
-            _buildAccountSection(isDark, isLoggedIn),
+            _buildAccountSection(isDark, _isLoggedIn),
             const SizedBox(height: 40),
           ],
         ),
@@ -386,23 +419,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileHeader() {
-    return GlassCard(
+    return Container(
       padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primaryBlue.withValues(alpha: 0.15),
+            AppColors.primaryBlue.withValues(alpha: 0.05),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: AppColors.primaryBlue.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
       child: Column(
         children: [
           // Avatar with edit button
           Stack(
+            clipBehavior: Clip.none,
             children: [
               GestureDetector(
                 onTap: _changeAvatar,
                 child: Container(
-                  width: 100,
-                  height: 100,
+                  width: 110,
+                  height: 110,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: AppColors.cameraCardGradient,
                     ),
                     shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primaryBlue.withValues(alpha: 0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                     image:
                         _avatarUrl != null
                             ? DecorationImage(
@@ -418,7 +474,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               _name.isNotEmpty ? _name[0].toUpperCase() : '👤',
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 40,
+                                fontSize: 44,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -433,11 +489,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: GestureDetector(
                   onTap: _changeAvatar,
                   child: Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: AppColors.primaryBlue,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primaryBlue.withValues(alpha: 0.4),
+                          blurRadius: 8,
+                        ),
+                      ],
                     ),
                     child:
                         _isUploadingAvatar
@@ -461,23 +523,96 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 20),
+
+          // Gender icon badge
+          _buildGenderBadge(),
           const SizedBox(height: 16),
 
           // Name
           Text(
             _name.isNotEmpty ? _name : 'Người dùng',
-            style: AppTextStyles.heading2,
+            style: AppTextStyles.heading2.copyWith(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            _getGoalLabel(_goal),
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.primaryBlue,
+          const SizedBox(height: 8),
+
+          // Goal with styled badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.primaryBlue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppColors.primaryBlue.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _getGoalIcon(_goal),
+                  color: AppColors.primaryBlue,
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _getGoalLabel(_goal),
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.primaryBlue,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildGenderBadge() {
+    final isMan = _gender == 'male';
+    final color = isMan ? Colors.blue : Colors.pink;
+    final icon = isMan ? '♂️' : '♀️';
+    final label = isMan ? 'Nam' : 'Nữ';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 18)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getGoalIcon(String goal) {
+    switch (goal) {
+      case 'lose':
+        return CupertinoIcons.arrow_down_circle;
+      case 'gain':
+        return CupertinoIcons.arrow_up_circle;
+      default:
+        return CupertinoIcons.equal_circle;
+    }
   }
 
   Widget _buildStatsSection() {

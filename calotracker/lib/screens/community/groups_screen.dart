@@ -9,6 +9,7 @@ import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/glass_card.dart';
 import '../auth/login_screen.dart';
+import 'group_detail_screen.dart';
 
 class GroupsScreen extends StatefulWidget {
   final GroupCategory? initialCategory;
@@ -25,6 +26,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
   final _searchController = TextEditingController();
 
   List<CommunityGroup> _groups = [];
+  Set<String> _myGroupIds = {};
   bool _isLoading = true;
   GroupCategory? _selectedCategory;
   String _searchQuery = '';
@@ -49,6 +51,12 @@ class _GroupsScreenState extends State<GroupsScreen> {
       final groups = await _communityService.getPublicGroups(
         category: _selectedCategory,
       );
+
+      // Load user's joined groups to know membership status
+      if (_authService.isAuthenticated) {
+        final myGroups = await _communityService.getMyGroups();
+        _myGroupIds = myGroups.map((g) => g.id).toSet();
+      }
 
       if (mounted) {
         setState(() {
@@ -286,8 +294,28 @@ class _GroupsScreenState extends State<GroupsScreen> {
     );
   }
 
+  void _openGroupDetail(CommunityGroup group) {
+    Navigator.push(
+      context,
+      CupertinoPageRoute(
+        builder: (_) => GroupDetailScreen(
+          groupId: group.id,
+          initialGroup: group,
+        ),
+      ),
+    ).then((_) => _loadGroups()); // Reload when returning
+  }
+
   Widget _buildGroupCard(CommunityGroup group, bool isDark) {
-    return GlassCard(
+    final isMember = _myGroupIds.contains(group.id);
+
+    return GestureDetector(
+      onTap: () {
+        if (isMember) {
+          _openGroupDetail(group);
+        }
+      },
+      child: GlassCard(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,19 +448,30 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => _joinGroup(group),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: group.category.color,
-                foregroundColor: Colors.white,
-              ),
-              child: Text(
-                group.requireApproval ? 'Yêu cầu tham gia' : 'Tham gia',
-              ),
-            ),
+            child: isMember
+                ? ElevatedButton.icon(
+                    onPressed: () => _openGroupDetail(group),
+                    icon: const Icon(CupertinoIcons.arrow_right_circle, size: 18),
+                    label: const Text('Vào nhóm'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryBlue,
+                      foregroundColor: Colors.white,
+                    ),
+                  )
+                : ElevatedButton(
+                    onPressed: () => _joinGroup(group),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: group.category.color,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text(
+                      group.requireApproval ? 'Yêu cầu tham gia' : 'Tham gia',
+                    ),
+                  ),
           ),
         ],
       ),
+    ),
     );
   }
 }

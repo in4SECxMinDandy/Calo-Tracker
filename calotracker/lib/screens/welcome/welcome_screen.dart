@@ -241,8 +241,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           ),
         ],
       ),
-      child: Column(
-        children: [
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
           // Handle indicator
           Container(
             width: 40,
@@ -294,7 +295,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             onTap: _continueOffline,
           ),
 
-          const Spacer(),
+          const SizedBox(height: 20),
 
           // Terms text
           Text(
@@ -307,6 +308,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           ),
           const SizedBox(height: 16),
         ],
+      ),
       ),
     );
   }

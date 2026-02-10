@@ -1,11 +1,15 @@
 // Friends Screen
 // Display friends list with online status and friend requests
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/friends_service.dart';
+import '../../services/presence_service.dart';
 import '../../models/friendship.dart';
+import '../../models/user_presence.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
+import '../../widgets/online_indicator.dart';
 import 'chat_screen.dart';
 import 'user_profile_screen.dart';
 
@@ -19,11 +23,14 @@ class FriendsScreen extends StatefulWidget {
 class _FriendsScreenState extends State<FriendsScreen>
     with SingleTickerProviderStateMixin {
   final FriendsService _friendsService = FriendsService();
+  final PresenceService _presenceService = PresenceService();
   late TabController _tabController;
 
   List<Friendship> _friends = [];
   List<FriendRequest> _requests = [];
+  Map<String, UserPresence> _presenceMap = {};
   bool _isLoading = true;
+  StreamSubscription? _presenceSubscription;
 
   @override
   void initState() {
@@ -37,6 +44,8 @@ class _FriendsScreenState extends State<FriendsScreen>
   void dispose() {
     _tabController.dispose();
     _friendsService.unsubscribeFromFriendRequests();
+    _presenceSubscription?.cancel();
+    _presenceService.unsubscribeFromPresence();
     super.dispose();
   }
 
@@ -52,6 +61,25 @@ class _FriendsScreenState extends State<FriendsScreen>
           _requests = requests;
           _isLoading = false;
         });
+
+        // Load presence for all friends
+        if (_friends.isNotEmpty) {
+          final friendIds = _friends.map((f) => f.friendId).toList();
+          _presenceMap = await _presenceService.getBatchPresence(friendIds);
+
+          // Subscribe to presence updates
+          _presenceSubscription?.cancel();
+          _presenceSubscription = _presenceService.presenceStream.listen((presence) {
+            if (mounted) {
+              setState(() {
+                _presenceMap[presence.userId] = presence;
+              });
+            }
+          });
+          _presenceService.subscribeToPresence(friendIds);
+
+          if (mounted) setState(() {});
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -175,6 +203,8 @@ class _FriendsScreenState extends State<FriendsScreen>
   }
 
   Widget _buildFriendItem(Friendship friendship) {
+    final presence = _presenceMap[friendship.friendId];
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -186,46 +216,11 @@ class _FriendsScreenState extends State<FriendsScreen>
           child: Row(
             children: [
               // Avatar with online indicator
-              Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: AppColors.primaryBlue.withValues(
-                      alpha: 0.2,
-                    ),
-                    backgroundImage:
-                        friendship.friendAvatarUrl != null
-                            ? CachedNetworkImageProvider(
-                              friendship.friendAvatarUrl!,
-                            )
-                            : null,
-                    child:
-                        friendship.friendAvatarUrl == null
-                            ? Text(
-                              friendship.displayName[0].toUpperCase(),
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryBlue,
-                              ),
-                            )
-                            : null,
-                  ),
-                  // Online indicator
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      width: 16,
-                      height: 16,
-                      decoration: BoxDecoration(
-                        color: friendship.isOnline ? Colors.green : Colors.grey,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                    ),
-                  ),
-                ],
+              AvatarWithPresence(
+                imageUrl: friendship.friendAvatarUrl,
+                displayName: friendship.displayName,
+                presence: presence,
+                radius: 28,
               ),
               const SizedBox(width: 12),
 

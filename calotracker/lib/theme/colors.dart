@@ -3,20 +3,23 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary Colors
+  // Primary Colors (Blue / Indigo for Calorie/BMR)
   static const Color primaryBlue = Color(0xFF2563EB);
   static const Color primaryBlueDark = Color(0xFF3B82F6);
+  static const Color primaryIndigo = Color(0xFF6366F1); // New focus color
 
-  // Success/Green
+  // Success/Green (Weight Loss Goals)
   static const Color successGreen = Color(0xFF10B981);
   static const Color successGreenLight = Color(0xFF34D399);
 
-  // Warning/Orange
+  // Warning/Error (Coral / Red)
   static const Color warningOrange = Color(0xFFF59E0B);
-  static const Color warningOrangeLight = Color(0xFFFBBF24);
-
-  // Error/Red
+  static const Color warningCoral = Color(0xFFFF7F50); // New warning color
   static const Color errorRed = Color(0xFFEF4444);
+
+  // Community Colors (Soft Orange / Teal)
+  static const Color communityOrange = Color(0xFFFF8A65);
+  static const Color communityTeal = Color(0xFF26A69A);
 
   // Light Theme Colors
   static const Color lightBackground = Color(0xFFF8F9FA);
@@ -65,16 +68,16 @@ class AppColors {
     Color(0xFFC62828),
   ];
 
-  // Community Card Gradient
+  // Community Card Gradient (Soft Orange / Teal)
   static const List<Color> communityCardGradient = [
-    Color(0xFF667eea),
-    Color(0xFF764ba2),
+    Color(0xFFFF8A65), // Soft Orange
+    Color(0xFF26A69A), // Teal
   ];
 
   // Chart Colors
   static const Color chartIntake = Color(0xFF10B981);
   static const Color chartBurned = Color(0xFFF59E0B);
-  static const Color chartNet = Color(0xFF3B82F6);
+  static const Color chartNet = Color(0xFF6366F1); // Indigo for focus
 
   // Additional Card/Surface Colors
   static const Color lightCard = Color(0xFFFFFFFF);

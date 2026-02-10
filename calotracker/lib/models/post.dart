@@ -20,11 +20,19 @@ class Post {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  // Location fields
+  final double? locationLat;
+  final double? locationLng;
+  final String? locationName;
+
   // Loaded relations
   final String? authorUsername;
   final String? authorDisplayName;
   final String? authorAvatarUrl;
   final bool? isLikedByMe;
+
+  // Helper for location display
+  bool get hasLocation => locationLat != null && locationLng != null;
 
   const Post({
     required this.id,
@@ -43,6 +51,9 @@ class Post {
     this.isHidden = false,
     required this.createdAt,
     required this.updatedAt,
+    this.locationLat,
+    this.locationLng,
+    this.locationName,
     this.authorUsername,
     this.authorDisplayName,
     this.authorAvatarUrl,
@@ -72,6 +83,9 @@ class Post {
       isHidden: json['is_hidden'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
+      locationLat: json['location_lat'] as double?,
+      locationLng: json['location_lng'] as double?,
+      locationName: json['location_name'] as String?,
       authorUsername: profile?['username'] as String?,
       authorDisplayName: profile?['display_name'] as String?,
       authorAvatarUrl: profile?['avatar_url'] as String?,
@@ -89,7 +103,63 @@ class Post {
       'post_type': postType.value,
       'linked_data': linkedData,
       'visibility': visibility.name,
+      'location_lat': locationLat,
+      'location_lng': locationLng,
+      'location_name': locationName,
     };
+  }
+
+  /// Create a copy with updated fields (for optimistic updates)
+  Post copyWith({
+    String? id,
+    String? userId,
+    String? groupId,
+    String? challengeId,
+    String? content,
+    List<String>? imageUrls,
+    PostType? postType,
+    Map<String, dynamic>? linkedData,
+    int? likeCount,
+    int? commentCount,
+    int? shareCount,
+    PostVisibility? visibility,
+    bool? isPinned,
+    bool? isHidden,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    double? locationLat,
+    double? locationLng,
+    String? locationName,
+    String? authorUsername,
+    String? authorDisplayName,
+    String? authorAvatarUrl,
+    bool? isLikedByMe,
+  }) {
+    return Post(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      groupId: groupId ?? this.groupId,
+      challengeId: challengeId ?? this.challengeId,
+      content: content ?? this.content,
+      imageUrls: imageUrls ?? this.imageUrls,
+      postType: postType ?? this.postType,
+      linkedData: linkedData ?? this.linkedData,
+      likeCount: likeCount ?? this.likeCount,
+      commentCount: commentCount ?? this.commentCount,
+      shareCount: shareCount ?? this.shareCount,
+      visibility: visibility ?? this.visibility,
+      isPinned: isPinned ?? this.isPinned,
+      isHidden: isHidden ?? this.isHidden,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      locationLat: locationLat ?? this.locationLat,
+      locationLng: locationLng ?? this.locationLng,
+      locationName: locationName ?? this.locationName,
+      authorUsername: authorUsername ?? this.authorUsername,
+      authorDisplayName: authorDisplayName ?? this.authorDisplayName,
+      authorAvatarUrl: authorAvatarUrl ?? this.authorAvatarUrl,
+      isLikedByMe: isLikedByMe ?? this.isLikedByMe,
+    );
   }
 
   // Helper for displaying time ago
