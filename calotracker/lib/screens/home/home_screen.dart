@@ -19,13 +19,15 @@ import '../workout/workout_program_screen.dart';
 import '../healthy_food/healthy_food_screen.dart';
 import 'widgets/settings_sheet.dart';
 import 'widgets/water_intake_widget.dart';
-import 'widgets/weight_progress_widget.dart';
+
 import 'widgets/level_badge_widget.dart';
 import '../barcode/barcode_scanner_screen.dart';
 import 'widgets/meal_suggestion_widget.dart';
 import 'widgets/sleep_widget.dart';
 import '../community/community_hub_screen.dart';
 import '../../theme/app_icons.dart';
+import '../../theme/animated_app_icons.dart';
+import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
 import '../profile/profile_screen.dart';
 
 // Modern color palette
@@ -143,13 +145,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _openHistory() {
-    Navigator.push(
-      context,
-      CupertinoPageRoute(builder: (_) => const HistoryScreen()),
-    );
-  }
-
   void _openSettings() {
     showModalBottomSheet(
       context: context,
@@ -254,10 +249,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                   const SizedBox(height: 16),
 
-                  // Weight Progress
-                  WeightProgressWidget(onWeightAdded: _loadData),
-                  const SizedBox(height: 16),
-
                   // Level Badge
                   const LevelBadgeWidget(),
                   const SizedBox(height: 16),
@@ -292,35 +283,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(
-                0,
-                AppIcons.home,
-                AppIcons.homeOutline,
-                'Trang chủ',
-                isDark,
-              ),
+              _buildNavItem(0, CupertinoIcons.house_fill, 'Trang chủ', isDark),
               _buildNavItem(
                 1,
-                AppIcons.community,
-                AppIcons.communityOutline,
+                CupertinoIcons.person_2_fill,
                 'Cộng đồng',
                 isDark,
               ),
               _buildNavItem(
                 2,
-                AppIcons.statistics,
-                AppIcons.statisticsOutline,
+                CupertinoIcons.chart_bar_fill,
                 'Lịch sử',
                 isDark,
               ),
-              _buildNavItem(3, AppIcons.ai, AppIcons.ai, 'AI', isDark),
-              _buildNavItem(
-                4,
-                AppIcons.profile,
-                AppIcons.profileOutline,
-                'Cá nhân',
-                isDark,
-              ),
+              _buildNavItem(3, CupertinoIcons.sparkles, 'AI', isDark),
+              _buildNavItem(4, CupertinoIcons.person_fill, 'Cá nhân', isDark),
             ],
           ),
         ),
@@ -328,13 +305,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildNavItem(
-    int index,
-    IconData iconActive,
-    IconData iconInactive,
-    String label,
-    bool isDark,
-  ) {
+  Widget _buildNavItem(int index, IconData icon, String label, bool isDark) {
     final isSelected = _currentIndex == index;
     final color =
         isSelected
@@ -349,13 +320,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedContainer(
+            AnimatedScale(
+              scale: isSelected ? 1.15 : 1.0,
               duration: const Duration(milliseconds: 200),
-              child: Icon(
-                isSelected ? iconActive : iconInactive,
-                color: color,
-                size: 24,
-              ),
+              child: Icon(icon, size: 24, color: color),
             ),
             const SizedBox(height: 4),
             Text(
@@ -449,10 +417,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    CupertinoIcons.sparkles,
+                  AnimatedAppIcons.ai(
                     size: 16,
                     color: WellnessColors.lavender,
+                    trigger: lucide.AnimationTrigger.onTap,
                   ),
                   const SizedBox(width: 4),
                   Text(
@@ -489,10 +457,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ),
                         ],
               ),
-              child: Icon(
-                CupertinoIcons.gear,
+              child: AnimatedAppIcons.settings(
                 size: 18,
                 color: isDark ? Colors.white70 : WellnessColors.warmGray,
+                trigger: lucide.AnimationTrigger.onTap,
               ),
             ),
           ),
@@ -759,7 +727,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         'label': 'Lịch tập',
         'onTap': _openGymScheduler,
       },
-      {'icon': AppIcons.statistics, 'label': 'Thống kê', 'onTap': _openHistory},
       {
         'icon': AppIcons.leaf,
         'label': 'Dinh dưỡng',
@@ -1004,8 +971,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildCommunityHighlight(bool isDark) {
-    // TODO: Connect to real backend data for trending challenges
-    // For now, hide this section until backend integration
+    // Note: Community highlights feature is intentionally hidden
+    // Will be enabled when backend data integration is complete
     return const SizedBox.shrink();
   }
 
@@ -1101,9 +1068,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       heroTag: 'home_scanner_fab',
       onPressed: _openCamera,
       backgroundColor: WellnessColors.sageGreen,
-      child: const Icon(
-        CupertinoIcons.leaf_arrow_circlepath,
+      child: AnimatedAppIcons.leaf(
+        size: 24,
         color: Colors.white,
+        trigger: lucide.AnimationTrigger.onTap,
       ),
     );
   }

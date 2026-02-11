@@ -23,7 +23,7 @@ class PresenceService {
     try {
       debugPrint('🟢 Going online...');
 
-      await _client.rpc('set_user_online', params: {'p_user_id': _userId});
+      await _client.rpc('update_presence', params: {'p_status': 'online'});
 
       // Start heartbeat (update every 30 seconds)
       _heartbeatTimer?.cancel();
@@ -47,7 +47,7 @@ class PresenceService {
 
       _heartbeatTimer?.cancel();
 
-      await _client.rpc('set_user_offline', params: {'p_user_id': _userId});
+      await _client.rpc('update_presence', params: {'p_status': 'offline'});
 
       debugPrint('✅ Now offline');
     } catch (e) {
@@ -60,7 +60,7 @@ class PresenceService {
     if (_userId == null) return;
 
     try {
-      await _client.rpc('set_user_online', params: {'p_user_id': _userId});
+      await _client.rpc('update_presence', params: {'p_status': 'online'});
       debugPrint('💓 Heartbeat updated');
     } catch (e) {
       debugPrint('❌ Heartbeat error: $e');

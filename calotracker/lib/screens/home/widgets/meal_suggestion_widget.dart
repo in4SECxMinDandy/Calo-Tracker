@@ -117,7 +117,9 @@ class _MealSuggestionWidgetState extends State<MealSuggestionWidget> {
       );
     }
 
-    if (_result == null || !_result!.isSuccess || _result!.suggestions == null) {
+    if (_result == null ||
+        !_result!.isSuccess ||
+        _result!.suggestions == null) {
       return const SizedBox();
     }
 
@@ -189,18 +191,7 @@ class _MealSuggestionWidgetState extends State<MealSuggestionWidget> {
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 12),
-            ...suggestions.take(3).map((s) => _buildSuggestionTile(s)),
-            if (suggestions.length > 3) ...[
-              const SizedBox(height: 8),
-              Center(
-                child: Text(
-                  '+ ${suggestions.length - 3} gợi ý khác',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    color: AppColors.primaryBlue,
-                  ),
-                ),
-              ),
-            ],
+            ...suggestions.map((s) => _buildSuggestionTile(s)),
           ] else ...[
             // Show first suggestion preview
             const SizedBox(height: 12),
@@ -269,9 +260,7 @@ class _MealSuggestionWidgetState extends State<MealSuggestionWidget> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Theme.of(context).dividerColor,
-        ),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,7 +301,10 @@ class _MealSuggestionWidgetState extends State<MealSuggestionWidget> {
               _buildMacroChip('F', suggestion.fat, Colors.purple),
               const Spacer(),
               CupertinoButton(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
                 color: AppColors.successGreen,
                 // ignore: deprecated_member_use
                 minSize: 0,

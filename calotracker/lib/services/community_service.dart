@@ -168,12 +168,12 @@ class CommunityService {
     }
   }
 
-  /// Join a group
-  Future<void> joinGroup(String groupId) async {
+  /// Join a group (public = instant, private = pending approval)
+  Future<String> joinGroup(String groupId) async {
     if (_userId == null) throw Exception('User not authenticated');
 
     try {
-      // Check if already a member
+      // Check if already a member (any status)
       final existingMember =
           await _client
               .from('group_members')
@@ -182,18 +182,40 @@ class CommunityService {
               .eq('user_id', _userId!)
               .maybeSingle();
 
-      debugPrint('🔍 Checking membership: existing=$existingMember');
+      if (existingMember != null) {
+        final status = existingMember['status'] as String;
+        if (status == 'active') {
+          throw Exception('Bạn đã là thành viên của nhóm này');
+        } else if (status == 'pending') {
+          throw Exception('Yêu cầu của bạn đang chờ duyệt');
+        } else if (status == 'banned') {
+          throw Exception('Bạn đã bị cấm khỏi nhóm này');
+        }
+      }
 
-      // If not already a member, add them
-      if (existingMember == null) {
-        debugPrint('✅ Adding user to group...');
-        await _client.from('group_members').insert({
-          'group_id': groupId,
-          'user_id': _userId,
-          'role': 'member',
-        });
+      // Check if group is public or private
+      final group = await _client
+          .from('groups')
+          .select('visibility, require_approval')
+          .eq('id', groupId)
+          .single();
 
-        // Increment member count only for new members
+      final isPublic = group['visibility'] == 'public';
+      final requireApproval = group['require_approval'] == true;
+
+      // Public groups without approval: join directly
+      // Private groups or groups requiring approval: pending
+      final status = (isPublic && !requireApproval) ? 'active' : 'pending';
+
+      await _client.from('group_members').insert({
+        'group_id': groupId,
+        'user_id': _userId,
+        'role': 'member',
+        'status': status,
+      });
+
+      // Increment member count only for direct joins
+      if (status == 'active') {
         await _client.rpc(
           'increment_counter',
           params: {
@@ -203,11 +225,9 @@ class CommunityService {
             'amount': 1,
           },
         );
-        debugPrint('✅ Successfully joined group!');
-      } else {
-        debugPrint('⚠️ User is already a member of this group');
-        throw Exception('Already a member of this group');
       }
+
+      return status;
     } catch (e) {
       debugPrint('❌ Error joining group: $e');
       rethrow;
@@ -236,7 +256,7 @@ class CommunityService {
     );
   }
 
-  /// Update a group (only for group owner)
+  /// Update a group (owner or admin can update - RLS enforced)
   Future<CommunityGroup> updateGroup({
     required String groupId,
     String? name,
@@ -268,7 +288,6 @@ class CommunityService {
             .from('groups')
             .update(updateData)
             .eq('id', groupId)
-            .eq('created_by', _userId!) // Only owner can update
             .select()
             .single();
 
@@ -306,6 +325,142 @@ class CommunityService {
 
     if (response == null) return false;
     return response['created_by'] == _userId;
+  }
+
+  /// Check if current user is owner or admin of the group
+  Future<bool> isGroupOwnerOrAdmin(String groupId) async {
+    if (_userId == null) return false;
+
+    final membership =
+        await _client
+            .from('group_members')
+            .select('role')
+            .eq('group_id', groupId)
+            .eq('user_id', _userId!)
+            .eq('status', 'active')
+            .maybeSingle();
+
+    if (membership == null) return false;
+    return membership['role'] == 'owner' || membership['role'] == 'admin';
+  }
+
+  /// Get pending member requests (for owner/admin)
+  Future<List<GroupMember>> getPendingMembers(String groupId) async {
+    if (_userId == null) return [];
+
+    final response = await _client
+        .from('group_members')
+        .select('*, profiles(username, display_name, avatar_url)')
+        .eq('group_id', groupId)
+        .eq('status', 'pending')
+        .order('joined_at');
+
+    return (response as List).map((m) => GroupMember.fromJson(m)).toList();
+  }
+
+  /// Approve a pending member request (owner/admin only - uses RPC for security)
+  Future<void> approveMember(String groupId, String userId) async {
+    if (_userId == null) throw Exception('User not authenticated');
+
+    try {
+      await _client.rpc('approve_group_member', params: {
+        'p_group_id': groupId,
+        'p_user_id': userId,
+      });
+      debugPrint('✅ Member approved: $userId');
+    } catch (e) {
+      debugPrint('❌ Error approving member: $e');
+      rethrow;
+    }
+  }
+
+  /// Reject a pending member request (owner/admin only - uses RPC for security)
+  Future<void> rejectMember(String groupId, String userId) async {
+    if (_userId == null) throw Exception('User not authenticated');
+
+    try {
+      await _client.rpc('reject_group_member', params: {
+        'p_group_id': groupId,
+        'p_user_id': userId,
+      });
+      debugPrint('✅ Member rejected: $userId');
+    } catch (e) {
+      debugPrint('❌ Error rejecting member: $e');
+      rethrow;
+    }
+  }
+
+  /// Ban a member from group (owner/admin only - RLS enforced)
+  Future<void> banMember(String groupId, String userId) async {
+    if (_userId == null) throw Exception('User not authenticated');
+
+    await _client
+        .from('group_members')
+        .update({'status': 'banned'})
+        .eq('group_id', groupId)
+        .eq('user_id', userId);
+
+    // Decrement member count
+    await _client.rpc(
+      'increment_counter',
+      params: {
+        'table_name': 'groups',
+        'column_name': 'member_count',
+        'row_id': groupId,
+        'amount': -1,
+      },
+    );
+  }
+
+  /// Remove a member from group (owner/admin only - uses RPC for security)
+  Future<void> removeMember(String groupId, String userId) async {
+    if (_userId == null) throw Exception('User not authenticated');
+
+    try {
+      await _client.rpc('kick_group_member', params: {
+        'p_group_id': groupId,
+        'p_user_id': userId,
+      });
+      debugPrint('✅ Member kicked: $userId');
+    } catch (e) {
+      debugPrint('❌ Error kicking member: $e');
+      rethrow;
+    }
+  }
+
+  /// Update member role (owner only - uses RPC for security)
+  Future<void> updateMemberRole(String groupId, String userId, String role) async {
+    if (_userId == null) throw Exception('User not authenticated');
+
+    try {
+      if (role == 'admin') {
+        await _client.rpc('promote_to_admin', params: {
+          'p_group_id': groupId,
+          'p_user_id': userId,
+        });
+      } else if (role == 'member') {
+        await _client.rpc('demote_from_admin', params: {
+          'p_group_id': groupId,
+          'p_user_id': userId,
+        });
+      }
+      debugPrint('✅ Member role updated: $userId -> $role');
+    } catch (e) {
+      debugPrint('❌ Error updating member role: $e');
+      rethrow;
+    }
+  }
+
+  /// Get current user's membership status in a group
+  Future<Map<String, dynamic>?> getMyMembership(String groupId) async {
+    if (_userId == null) return null;
+
+    return await _client
+        .from('group_members')
+        .select('role, status')
+        .eq('group_id', groupId)
+        .eq('user_id', _userId!)
+        .maybeSingle();
   }
 
   /// Get group members
@@ -432,25 +587,19 @@ class CommunityService {
     return Challenge.fromJson(response);
   }
 
-  /// Join a challenge
+  /// Join a challenge (uses RPC to handle ON CONFLICT)
   Future<void> joinChallenge(String challengeId) async {
     if (_userId == null) throw Exception('User not authenticated');
 
-    await _client.from('challenge_participants').insert({
-      'challenge_id': challengeId,
-      'user_id': _userId,
-    });
-
-    // Increment participant count
-    await _client.rpc(
-      'increment_counter',
-      params: {
-        'table_name': 'challenges',
-        'column_name': 'participant_count',
-        'row_id': challengeId,
-        'amount': 1,
-      },
-    );
+    try {
+      await _client.rpc('join_challenge', params: {
+        'p_challenge_id': challengeId,
+      });
+      debugPrint('✅ Joined challenge: $challengeId');
+    } catch (e) {
+      debugPrint('❌ Error joining challenge: $e');
+      rethrow;
+    }
   }
 
   /// Update challenge progress

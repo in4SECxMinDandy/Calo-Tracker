@@ -7,6 +7,8 @@ import '../../services/database_service.dart';
 import '../../services/notification_service.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
+import '../../theme/animated_app_icons.dart';
+import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
 import '../../widgets/glass_card.dart';
 
 class GymSchedulerScreen extends StatefulWidget {
@@ -68,11 +70,12 @@ class _GymSchedulerScreenState extends State<GymSchedulerScreen> {
         context: context,
         builder:
             (context) => AlertDialog(
-              title: const Row(
+              title: Row(
                 children: [
-                  Icon(
-                    CupertinoIcons.bell_slash,
+                  AnimatedAppIcons.bell(
+                    size: 24,
                     color: AppColors.warningOrange,
+                    trigger: lucide.AnimationTrigger.onTap,
                   ),
                   SizedBox(width: 12),
                   Text('Cần bật thông báo'),
@@ -490,7 +493,11 @@ class _GymSchedulerScreenState extends State<GymSchedulerScreen> {
               height: 56,
               child: ElevatedButton.icon(
                 onPressed: _saveSession,
-                icon: const Icon(CupertinoIcons.bell_fill),
+                icon: AnimatedAppIcons.bell(
+                  size: 24,
+                  color: Theme.of(context).iconTheme.color ?? Colors.white,
+                  trigger: lucide.AnimationTrigger.onTap,
+                ),
                 label: const Text('Đặt thông báo'),
               ),
             ),
@@ -534,10 +541,10 @@ class _GymSchedulerScreenState extends State<GymSchedulerScreen> {
                     ),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(
-                    CupertinoIcons.calendar,
-                    color: Colors.white,
+                  child: AnimatedAppIcons.calendar(
                     size: 24,
+                    color: Colors.white,
+                    trigger: lucide.AnimationTrigger.onTap,
                   ),
                 ),
                 const SizedBox(width: 16),

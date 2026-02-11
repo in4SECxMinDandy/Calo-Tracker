@@ -19,7 +19,10 @@ DROP POLICY IF EXISTS "Admins can manage members" ON public.group_members;
 
 -- Step 2: Create a security definer function to check group membership
 -- This avoids infinite recursion by using SECURITY DEFINER
-CREATE OR REPLACE FUNCTION public.is_group_member(check_group_id UUID, check_user_id UUID)
+-- Drop first with CASCADE to remove dependent policies (they are recreated below)
+DROP FUNCTION IF EXISTS public.is_group_member(UUID, UUID) CASCADE;
+
+CREATE FUNCTION public.is_group_member(check_group_id UUID, check_user_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
   RETURN EXISTS (

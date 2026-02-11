@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import '../../models/sleep_record.dart';
 import '../../services/sleep_service.dart';
 import '../../theme/colors.dart';
+import '../../theme/animated_app_icons.dart';
+import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
 import '../../widgets/glass_card.dart';
 
 class SleepTrackingScreen extends StatefulWidget {
@@ -91,7 +93,11 @@ class _SleepTrackingScreenState extends State<SleepTrackingScreen>
             ),
             actions: [
               IconButton(
-                icon: const Icon(CupertinoIcons.add_circled_solid),
+                icon: AnimatedAppIcons.plus(
+                  size: 24,
+                  color: Theme.of(context).iconTheme.color ?? Colors.black87,
+                  trigger: lucide.AnimationTrigger.onTap,
+                ),
                 onPressed: () => _showAddSleepDialog(context),
                 tooltip: 'Thêm giấc ngủ',
               ),
@@ -191,10 +197,10 @@ class _SleepTrackingScreenState extends State<SleepTrackingScreen>
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              const Icon(
-                CupertinoIcons.moon_zzz,
+              AnimatedAppIcons.moon(
                 size: 48,
                 color: Colors.white,
+                trigger: lucide.AnimationTrigger.onHover,
               ),
               const SizedBox(height: 12),
               const Text(
@@ -363,10 +369,10 @@ class _SleepTrackingScreenState extends State<SleepTrackingScreen>
                 color: Colors.indigo.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                CupertinoIcons.plus_circle_fill,
-                color: Colors.indigo,
+              child: AnimatedAppIcons.plus(
                 size: 24,
+                color: Colors.indigo,
+                trigger: lucide.AnimationTrigger.onTap,
               ),
             ),
             const SizedBox(width: 16),
@@ -486,13 +492,13 @@ class _SleepTrackingScreenState extends State<SleepTrackingScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              CupertinoIcons.moon_zzz,
+            AnimatedAppIcons.moon(
               size: 64,
               color:
                   isDark
                       ? AppColors.darkTextSecondary
                       : AppColors.lightTextSecondary,
+              trigger: lucide.AnimationTrigger.onHover,
             ),
             const SizedBox(height: 16),
             Text(

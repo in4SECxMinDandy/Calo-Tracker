@@ -5,12 +5,13 @@
 -- ===================================================================
 
 -- ===================================================================
--- STEP 0: Drop existing functions first (to avoid parameter name conflicts)
+-- STEP 0: Drop existing functions first (CASCADE to remove dependent policies)
+-- All policies are recreated in STEP 5 and STEP 6 below
 -- ===================================================================
-DROP FUNCTION IF EXISTS public.is_group_public(UUID);
-DROP FUNCTION IF EXISTS public.is_group_creator(UUID, UUID);
-DROP FUNCTION IF EXISTS public.is_group_member(UUID, UUID);
-DROP FUNCTION IF EXISTS public.is_group_admin(UUID, UUID);
+DROP FUNCTION IF EXISTS public.is_group_public(UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.is_group_creator(UUID, UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.is_group_member(UUID, UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.is_group_admin(UUID, UUID) CASCADE;
 
 -- ===================================================================
 -- STEP 1: Create helper functions with SECURITY DEFINER

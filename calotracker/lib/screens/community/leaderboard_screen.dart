@@ -70,7 +70,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = 'Không thể tải bảng xếp hạng. Vui lòng thử lại sau.';
           _isLoading = false;
         });
       }

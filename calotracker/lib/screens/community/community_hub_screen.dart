@@ -13,6 +13,8 @@ import '../../models/community_group.dart';
 import '../../models/challenge.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
+import '../../theme/animated_app_icons.dart';
+import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
 import '../../widgets/glass_card.dart';
 import '../auth/login_screen.dart';
 import '../profile/my_profile_screen.dart';
@@ -225,10 +227,10 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
                           ),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(
-                          CupertinoIcons.flame,
-                          color: Colors.white,
+                        child: AnimatedAppIcons.flame(
                           size: 18,
+                          color: Colors.white,
+                          trigger: lucide.AnimationTrigger.onTap,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -249,10 +251,10 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                CupertinoIcons.sparkles,
+                              AnimatedAppIcons.ai(
                                 size: 14,
                                 color: AppColors.warningOrange,
+                                trigger: lucide.AnimationTrigger.onHover,
                               ),
                               const SizedBox(width: 4),
                               Text(
@@ -325,10 +327,10 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
               ),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              CupertinoIcons.heart_fill,
-              color: Colors.white,
+            child: AnimatedAppIcons.heart(
               size: 20,
+              color: Colors.white,
+              trigger: lucide.AnimationTrigger.onTap,
             ),
           ),
           const SizedBox(width: 10),
@@ -375,9 +377,10 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
           icon: Badge(
             isLabelVisible: _unreadMessages > 0,
             label: Text(_unreadMessages > 9 ? '9+' : '$_unreadMessages'),
-            child: Icon(
-              CupertinoIcons.chat_bubble,
+            child: AnimatedAppIcons.messageCircle(
+              size: 24,
               color: isDark ? Colors.white70 : Colors.black54,
+              trigger: lucide.AnimationTrigger.onTap,
             ),
           ),
           onPressed: _authService.isAuthenticated ? _openMessages : _openLogin,
@@ -387,9 +390,10 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
           icon: Badge(
             isLabelVisible: _unreadNotifications > 0,
             label: Text('$_unreadNotifications'),
-            child: Icon(
-              CupertinoIcons.bell,
+            child: AnimatedAppIcons.bell(
+              size: 24,
               color: isDark ? Colors.white70 : Colors.black54,
+              trigger: lucide.AnimationTrigger.onTap,
             ),
           ),
           onPressed:
@@ -663,10 +667,10 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
                   ),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
-                  CupertinoIcons.flame_fill,
-                  color: Colors.white,
+                child: AnimatedAppIcons.flame(
                   size: 16,
+                  color: Colors.white,
+                  trigger: lucide.AnimationTrigger.onTap,
                 ),
               ),
               const SizedBox(width: 10),
@@ -944,10 +948,10 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
         onPressed: _createPost,
         backgroundColor: AppColors.primaryBlue,
         elevation: 0,
-        icon: const Icon(
-          CupertinoIcons.plus_circle_fill,
-          color: Colors.white,
+        icon: AnimatedAppIcons.plus(
           size: 22,
+          color: Colors.white,
+          trigger: lucide.AnimationTrigger.onTap,
         ),
         label: const Text(
           'Đăng bài',

@@ -1,10 +1,10 @@
 // Forgot Password Screen
-// Allows users to request a password reset email
+// Allows users to request a password reset OTP
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../services/supabase_auth_service.dart';
 import '../../theme/colors.dart';
+import 'otp_verification_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -21,7 +21,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
   final _emailFocus = FocusNode();
 
   bool _isLoading = false;
-  bool _emailSent = false;
   String? _errorMessage;
 
   late AnimationController _animController;
@@ -56,7 +55,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     super.dispose();
   }
 
-  Future<void> _sendResetEmail() async {
+  Future<void> _sendResetOtp() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -65,13 +64,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     });
 
     try {
-      await _authService.resetPassword(_emailController.text.trim());
+      await _authService.requestPasswordResetOtp(_emailController.text.trim());
 
       if (mounted) {
-        setState(() {
-          _emailSent = true;
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
+
+        // Navigate to OTP verification screen
+        Navigator.push(
+          context,
+          CupertinoPageRoute(
+            builder:
+                (_) =>
+                    OtpVerificationScreen(email: _emailController.text.trim()),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -86,22 +92,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
   String _getErrorMessage(String error) {
     final errorLower = error.toLowerCase();
 
-    // Email provider disabled
-    if (errorLower.contains('email_provider_disabled') ||
-        errorLower.contains('email provider disabled')) {
-      return '⚠️ Dịch vụ email chưa được kích hoạt.\n\nVui lòng liên hệ quản trị viên để bật Email Provider trong Supabase Dashboard.';
+    // Rate limiting (moved to top as most common for OTP)
+    if (errorLower.contains('rate_limit') || errorLower.contains('too many')) {
+      return 'Bạn đã gửi quá nhiều yêu cầu.\nVui lòng thử lại sau 15 phút.';
     }
 
     // Invalid email
     if (errorLower.contains('invalid_email') ||
         errorLower.contains('invalid email')) {
       return 'Email không hợp lệ. Vui lòng kiểm tra lại.';
-    }
-
-    // User not found
-    if (errorLower.contains('user_not_found') ||
-        errorLower.contains('user not found')) {
-      return 'Email này chưa được đăng ký.';
     }
 
     // Network error
@@ -111,27 +110,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
       return 'Lỗi kết nối mạng. Vui lòng kiểm tra internet.';
     }
 
-    // Rate limiting
-    if (errorLower.contains('rate_limit') || errorLower.contains('too many')) {
-      return 'Quá nhiều yêu cầu. Vui lòng chờ vài phút.';
-    }
-
-    // Default error
-    return 'Không thể gửi email. Vui lòng thử lại sau.\n\nChi tiết: ${error.length > 100 ? '${error.substring(0, 100)}...' : error}';
-  }
-
-  Future<void> _openEmailApp() async {
-    final uri = Uri.parse('mailto:');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
-  }
-
-  void _resetForm() {
-    setState(() {
-      _emailSent = false;
-      _errorMessage = null;
-    });
+    // Default error (security: don't reveal if email exists)
+    return 'Đã xảy ra lỗi. Vui lòng thử lại sau.';
   }
 
   @override
@@ -166,10 +146,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                     position: _slideAnimation,
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child:
-                          _emailSent
-                              ? _buildSuccessContent(isDark)
-                              : _buildFormContent(isDark),
+                      child: _buildFormContent(isDark),
                     ),
                   ),
                 ),
@@ -309,7 +286,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
 
           // Submit button
           _buildPrimaryButton(
-            onPressed: _isLoading ? null : _sendResetEmail,
+            onPressed: _isLoading ? null : _sendResetOtp,
             child:
                 _isLoading
                     ? const SizedBox(
@@ -324,7 +301,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: const [
                         Text(
-                          'Gửi link đặt lại',
+                          'Gửi mã OTP',
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w600,
@@ -354,146 +331,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
           const SizedBox(height: 32),
         ],
       ),
-    );
-  }
-
-  Widget _buildSuccessContent(bool isDark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        const SizedBox(height: 60),
-
-        // Success icon
-        Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.green.withValues(alpha: 0.2),
-                Colors.green.withValues(alpha: 0.05),
-              ],
-            ),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            CupertinoIcons.checkmark_circle_fill,
-            size: 56,
-            color: Colors.green,
-          ),
-        ),
-        const SizedBox(height: 32),
-
-        // Title
-        Text(
-          'Email đã được gửi! 📧',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16),
-
-        // Description
-        Text(
-          'Chúng tôi đã gửi link đặt lại mật khẩu đến:',
-          style: TextStyle(
-            fontSize: 16,
-            color: isDark ? Colors.white60 : Colors.grey[600],
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColors.primaryBlue.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            _emailController.text.trim(),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.primaryBlue,
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Info box
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? Colors.white10 : Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    CupertinoIcons.info_circle,
-                    color: isDark ? Colors.white54 : Colors.grey[600],
-                    size: 20,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Hãy kiểm tra hộp thư (cả spam) và click vào link trong email.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDark ? Colors.white60 : Colors.grey[600],
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 40),
-
-        // Open email button
-        _buildPrimaryButton(
-          onPressed: _openEmailApp,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(CupertinoIcons.mail, size: 20),
-              SizedBox(width: 10),
-              Text(
-                'Mở ứng dụng Email',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Resend button
-        OutlinedButton(
-          onPressed: _resetForm,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primaryBlue,
-            side: BorderSide(color: AppColors.primaryBlue),
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
-          child: const Text(
-            'Gửi lại email',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-        ),
-        const SizedBox(height: 32),
-      ],
     );
   }
 

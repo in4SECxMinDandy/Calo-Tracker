@@ -88,13 +88,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     setState(() => _isJoining = true);
 
     try {
-      await _communityService.joinGroup(widget.groupId);
+      final status = await _communityService.joinGroup(widget.groupId);
 
       if (mounted) {
-        // Check if group requires approval
-        final requiresApproval = _group?.requireApproval ?? false;
-
-        if (requiresApproval) {
+        if (status == 'pending') {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Row(

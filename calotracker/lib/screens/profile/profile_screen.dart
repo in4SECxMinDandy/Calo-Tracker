@@ -14,6 +14,8 @@ import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/glass_card.dart';
 import '../../theme/app_icons.dart';
+import '../../theme/animated_app_icons.dart';
+import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -214,7 +216,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: const Text('Hồ sơ'),
         centerTitle: true,
         actions: [
-          IconButton(icon: const Icon(AppIcons.edit), onPressed: _editProfile),
+          IconButton(
+            icon: AnimatedAppIcons.settings(
+              size: 22,
+              color: Theme.of(context).iconTheme.color ?? Colors.black87,
+              trigger: lucide.AnimationTrigger.onTap,
+            ),
+            onPressed: _editProfile,
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -259,9 +268,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Row(
             children: [
-              Icon(
-                CupertinoIcons.person_circle,
+              AnimatedAppIcons.profile(
+                size: 24,
                 color: isDark ? Colors.white70 : Colors.black54,
+                trigger: lucide.AnimationTrigger.onTap,
               ),
               const SizedBox(width: 8),
               Text(
@@ -742,7 +752,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Row(
             children: [
-              const Icon(AppIcons.calories, color: Colors.orange),
+              AnimatedAppIcons.flame(
+                size: 24,
+                color: Colors.orange,
+                trigger: lucide.AnimationTrigger.onTap,
+              ),
               const SizedBox(width: 8),
               const Text('Chỉ số BMR', style: AppTextStyles.heading3),
             ],

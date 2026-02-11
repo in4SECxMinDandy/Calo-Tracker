@@ -166,11 +166,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
             if (mounted) {
               showDialog(
                 context: context,
+                barrierDismissible: false,
                 builder:
                     (context) => AlertDialog(
-                      title: const Text('Đăng ký thành công!'),
+                      title: Row(
+                        children: [
+                          Icon(
+                            CupertinoIcons.check_mark_circled_solid,
+                            color: AppColors.successGreen,
+                            size: 28,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Đăng ký thành công!'),
+                        ],
+                      ),
                       content: const Text(
-                        'Tài khoản đã được tạo. Vui lòng đăng nhập với email và mật khẩu vừa tạo.',
+                        'Tài khoản của bạn đã được tạo thành công!\n\n'
+                        '📧 Nếu yêu cầu xác nhận email, vui lòng kiểm tra hộp thư (và spam) để xác nhận trước khi đăng nhập.\n\n'
+                        '✅ Sau đó hãy đăng nhập với email và mật khẩu vừa tạo.',
                       ),
                       actions: [
                         TextButton(
@@ -178,7 +191,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             Navigator.of(context).pop(); // Close dialog
                             Navigator.of(context).pop(); // Go back to login
                           },
-                          child: const Text('OK'),
+                          child: const Text('Đóng'),
                         ),
                       ],
                     ),

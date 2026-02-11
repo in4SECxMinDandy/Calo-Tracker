@@ -67,9 +67,10 @@ class UnifiedCommunityService {
     return _realService.getMyGroups();
   }
 
-  Future<void> joinGroup(String groupId) async {
+  Future<String> joinGroup(String groupId) async {
     if (isDemoMode) {
-      return _mockService.joinGroup(groupId);
+      await _mockService.joinGroup(groupId);
+      return 'active';
     }
     return _realService.joinGroup(groupId);
   }
@@ -180,6 +181,46 @@ class UnifiedCommunityService {
       return group?.createdBy == MockCommunityService.demoUserId;
     }
     return _realService.isGroupOwner(groupId);
+  }
+
+  Future<bool> isGroupOwnerOrAdmin(String groupId) async {
+    if (isDemoMode) return isGroupOwner(groupId);
+    return _realService.isGroupOwnerOrAdmin(groupId);
+  }
+
+  Future<List<GroupMember>> getPendingMembers(String groupId) async {
+    if (isDemoMode) return [];
+    return _realService.getPendingMembers(groupId);
+  }
+
+  Future<void> approveMember(String groupId, String userId) async {
+    if (isDemoMode) return;
+    return _realService.approveMember(groupId, userId);
+  }
+
+  Future<void> rejectMember(String groupId, String userId) async {
+    if (isDemoMode) return;
+    return _realService.rejectMember(groupId, userId);
+  }
+
+  Future<void> banMember(String groupId, String userId) async {
+    if (isDemoMode) return;
+    return _realService.banMember(groupId, userId);
+  }
+
+  Future<void> removeMember(String groupId, String userId) async {
+    if (isDemoMode) return;
+    return _realService.removeMember(groupId, userId);
+  }
+
+  Future<void> updateMemberRole(String groupId, String userId, String role) async {
+    if (isDemoMode) return;
+    return _realService.updateMemberRole(groupId, userId, role);
+  }
+
+  Future<Map<String, dynamic>?> getMyMembership(String groupId) async {
+    if (isDemoMode) return {'role': 'member', 'status': 'active'};
+    return _realService.getMyMembership(groupId);
   }
 
   // ============================================

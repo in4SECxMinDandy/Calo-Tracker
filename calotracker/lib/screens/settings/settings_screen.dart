@@ -8,6 +8,8 @@ import '../../services/database_service.dart';
 import '../../services/notification_service.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
+import '../../theme/animated_app_icons.dart';
+import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
 import '../../widgets/glass_card.dart';
 import 'privacy_policy_screen.dart';
 import 'terms_of_service_screen.dart';
@@ -113,8 +115,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Appearance Section
             _buildSectionTitle('Giao diện'),
             _buildSettingCard([
-              _buildSwitchTile(
-                icon: CupertinoIcons.moon_fill,
+              _buildAnimatedSwitchTile(
+                iconWidget: AnimatedAppIcons.moon(
+                  size: 20,
+                  color: Colors.purple,
+                  trigger: lucide.AnimationTrigger.onTap,
+                ),
                 iconColor: Colors.purple,
                 title: 'Chế độ tối',
                 subtitle: _isDarkMode ? 'Đang bật' : 'Đang tắt',
@@ -135,8 +141,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Notifications Section
             _buildSectionTitle('Thông báo'),
             _buildSettingCard([
-              _buildSwitchTile(
-                icon: CupertinoIcons.bell_fill,
+              _buildAnimatedSwitchTile(
+                iconWidget: AnimatedAppIcons.bell(
+                  size: 20,
+                  color: Colors.orange,
+                  trigger: lucide.AnimationTrigger.onTap,
+                ),
                 iconColor: Colors.orange,
                 title: 'Thông báo',
                 subtitle: _notificationsEnabled ? 'Đang bật' : 'Đang tắt',
@@ -327,8 +337,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSwitchTile({
-    required IconData icon,
+  Widget _buildAnimatedSwitchTile({
+    required Widget iconWidget,
     required Color iconColor,
     required String title,
     required String subtitle,
@@ -342,7 +352,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           color: iconColor.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: iconColor, size: 20),
+        child: iconWidget,
       ),
       title: Text(title, style: AppTextStyles.bodyLarge),
       subtitle: Text(subtitle, style: AppTextStyles.caption),

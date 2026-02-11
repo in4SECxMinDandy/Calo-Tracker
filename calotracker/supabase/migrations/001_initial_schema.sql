@@ -734,35 +734,47 @@ CREATE POLICY "Users can delete their own posts" ON public.posts FOR DELETE USIN
 -- ============================================
 -- COMMENTS POLICIES
 -- ============================================
+DROP POLICY IF EXISTS "Anyone can view non-hidden comments" ON public.comments;
 CREATE POLICY "Anyone can view non-hidden comments" ON public.comments FOR
 SELECT USING (is_hidden = false);
+DROP POLICY IF EXISTS "Users can create comments" ON public.comments;
 CREATE POLICY "Users can create comments" ON public.comments FOR
 INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own comments" ON public.comments;
 CREATE POLICY "Users can update their own comments" ON public.comments FOR
 UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own comments" ON public.comments;
 CREATE POLICY "Users can delete their own comments" ON public.comments FOR DELETE USING (auth.uid() = user_id);
 -- ============================================
 -- LIKES POLICIES
 -- ============================================
+DROP POLICY IF EXISTS "Anyone can view likes" ON public.likes;
 CREATE POLICY "Anyone can view likes" ON public.likes FOR
 SELECT USING (true);
+DROP POLICY IF EXISTS "Users can create likes" ON public.likes;
 CREATE POLICY "Users can create likes" ON public.likes FOR
 INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own likes" ON public.likes;
 CREATE POLICY "Users can delete their own likes" ON public.likes FOR DELETE USING (auth.uid() = user_id);
 -- ============================================
 -- NOTIFICATIONS POLICIES
 -- ============================================
+DROP POLICY IF EXISTS "Users can view their own notifications" ON public.notifications;
 CREATE POLICY "Users can view their own notifications" ON public.notifications FOR
 SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own notifications" ON public.notifications;
 CREATE POLICY "Users can update their own notifications" ON public.notifications FOR
 UPDATE USING (auth.uid() = user_id);
 -- ============================================
 -- REPORTS POLICIES
 -- ============================================
+DROP POLICY IF EXISTS "Users can create reports" ON public.reports;
 CREATE POLICY "Users can create reports" ON public.reports FOR
 INSERT WITH CHECK (auth.uid() = reporter_id);
+DROP POLICY IF EXISTS "Users can view their own reports" ON public.reports;
 CREATE POLICY "Users can view their own reports" ON public.reports FOR
 SELECT USING (auth.uid() = reporter_id);
+DROP POLICY IF EXISTS "Moderators can view all reports" ON public.reports;
 CREATE POLICY "Moderators can view all reports" ON public.reports FOR
 SELECT USING (
     EXISTS (
@@ -772,6 +784,7 @@ SELECT USING (
         AND role IN ('admin', 'moderator')
     )
   );
+DROP POLICY IF EXISTS "Moderators can update reports" ON public.reports;
 CREATE POLICY "Moderators can update reports" ON public.reports FOR
 UPDATE USING (
     EXISTS (
@@ -784,22 +797,28 @@ UPDATE USING (
 -- ============================================
 -- USER HEALTH RECORDS POLICIES
 -- ============================================
+DROP POLICY IF EXISTS "Users can view their own health records" ON public.user_health_records;
 CREATE POLICY "Users can view their own health records" ON public.user_health_records FOR
 SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert their own health records" ON public.user_health_records;
 CREATE POLICY "Users can insert their own health records" ON public.user_health_records FOR
 INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own health records" ON public.user_health_records;
 CREATE POLICY "Users can update their own health records" ON public.user_health_records FOR
 UPDATE USING (auth.uid() = user_id);
 -- ============================================
 -- ACHIEVEMENTS POLICIES
 -- ============================================
+DROP POLICY IF EXISTS "Anyone can view achievements" ON public.achievements;
 CREATE POLICY "Anyone can view achievements" ON public.achievements FOR
 SELECT USING (true);
+DROP POLICY IF EXISTS "Users can view their earned achievements" ON public.user_achievements;
 CREATE POLICY "Users can view their earned achievements" ON public.user_achievements FOR
 SELECT USING (auth.uid() = user_id);
 -- ============================================
 -- ADMIN OVERRIDE POLICIES
 -- ============================================
+DROP POLICY IF EXISTS "Admins have full access to profiles" ON public.profiles;
 CREATE POLICY "Admins have full access to profiles" ON public.profiles FOR ALL USING (
   EXISTS (
     SELECT 1
@@ -808,6 +827,7 @@ CREATE POLICY "Admins have full access to profiles" ON public.profiles FOR ALL U
       AND role = 'admin'
   )
 );
+DROP POLICY IF EXISTS "Admins have full access to posts" ON public.posts;
 CREATE POLICY "Admins have full access to posts" ON public.posts FOR ALL USING (
   EXISTS (
     SELECT 1
@@ -816,6 +836,7 @@ CREATE POLICY "Admins have full access to posts" ON public.posts FOR ALL USING (
       AND role = 'admin'
   )
 );
+DROP POLICY IF EXISTS "Admins have full access to comments" ON public.comments;
 CREATE POLICY "Admins have full access to comments" ON public.comments FOR ALL USING (
   EXISTS (
     SELECT 1
@@ -824,6 +845,7 @@ CREATE POLICY "Admins have full access to comments" ON public.comments FOR ALL U
       AND role = 'admin'
   )
 );
+DROP POLICY IF EXISTS "Admins have full access to bans" ON public.bans;
 CREATE POLICY "Admins have full access to bans" ON public.bans FOR ALL USING (
   EXISTS (
     SELECT 1

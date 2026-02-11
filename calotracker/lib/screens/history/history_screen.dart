@@ -10,6 +10,8 @@ import '../../services/database_service.dart';
 import '../../services/storage_service.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
+import '../../theme/animated_app_icons.dart';
+import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
 import '../../widgets/glass_card.dart';
 import '../../widgets/dual_line_chart.dart';
 
@@ -178,10 +180,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(
-                                        CupertinoIcons.chart_bar_alt_fill,
-                                        color: Colors.white,
+                                      AnimatedAppIcons.statistics(
                                         size: 28,
+                                        color: Colors.white,
+                                        trigger: lucide.AnimationTrigger.onTap,
                                       ),
                                       const SizedBox(width: 12),
                                       const Text(
@@ -261,10 +263,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                             8,
                                           ),
                                         ),
-                                        child: const Icon(
-                                          CupertinoIcons.graph_square,
-                                          color: AppColors.primaryBlue,
+                                        child: AnimatedAppIcons.statistics(
                                           size: 20,
+                                          color: AppColors.primaryBlue,
+                                          trigger:
+                                              lucide.AnimationTrigger.onTap,
                                         ),
                                       ),
                                       const SizedBox(width: 12),
@@ -372,9 +375,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 color: AppColors.primaryBlue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                CupertinoIcons.calendar,
+              child: AnimatedAppIcons.calendar(
+                size: 24,
                 color: AppColors.primaryBlue,
+                trigger: lucide.AnimationTrigger.onTap,
               ),
             ),
             const SizedBox(width: 16),

@@ -102,12 +102,16 @@ class _GroupsScreenState extends State<GroupsScreen> {
     }
 
     try {
-      await _communityService.joinGroup(group.id);
+      final status = await _communityService.joinGroup(group.id);
       if (mounted) {
+        final message = status == 'pending'
+            ? 'Đã gửi yêu cầu tham gia ${group.name}. Chờ duyệt.'
+            : 'Đã tham gia ${group.name}';
+        final color = status == 'pending' ? Colors.orange : AppColors.successGreen;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Đã tham gia ${group.name}'),
-            backgroundColor: AppColors.successGreen,
+            content: Text(message),
+            backgroundColor: color,
           ),
         );
         _loadGroups();

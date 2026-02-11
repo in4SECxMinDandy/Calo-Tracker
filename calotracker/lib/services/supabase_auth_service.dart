@@ -92,11 +92,12 @@ class SupabaseAuthService {
 
     // Ensure profile exists after login
     if (response.user != null) {
-      final profile = await _client
-          .from('profiles')
-          .select('id')
-          .eq('id', response.user!.id)
-          .maybeSingle();
+      final profile =
+          await _client
+              .from('profiles')
+              .select('id')
+              .eq('id', response.user!.id)
+              .maybeSingle();
       if (profile == null) {
         await _ensureProfileExists();
       }
@@ -163,11 +164,7 @@ class SupabaseAuthService {
   // Get any user's profile by ID
   Future<Map<String, dynamic>?> getUserProfileById(String userId) async {
     final response =
-        await _client
-            .from('profiles')
-            .select()
-            .eq('id', userId)
-            .maybeSingle();
+        await _client.from('profiles').select().eq('id', userId).maybeSingle();
 
     return response;
   }
@@ -183,7 +180,11 @@ class SupabaseAuthService {
       await _client.from('profiles').insert({
         'id': user.id,
         'username': metadata['username'] ?? 'user_${user.id.substring(0, 8)}',
-        'display_name': metadata['display_name'] ?? metadata['full_name'] ?? user.email ?? 'Người dùng mới',
+        'display_name':
+            metadata['display_name'] ??
+            metadata['full_name'] ??
+            user.email ??
+            'Người dùng mới',
         'avatar_url': metadata['avatar_url'],
       });
 
@@ -348,5 +349,95 @@ class SupabaseAuthService {
             .maybeSingle();
 
     return response != null;
+  }
+
+  // ============================================================================
+  // OTP-Based Password Reset Methods
+  // ============================================================================
+
+  /// Request OTP for password reset
+  /// Returns success even if email doesn't exist (prevents email enumeration)
+  Future<Map<String, dynamic>> requestPasswordResetOtp(String email) async {
+    debugPrint('[OTP] Requesting OTP for email: $email');
+
+    final response = await _client.functions.invoke(
+      'request-password-otp',
+      body: {'email': email.trim().toLowerCase()},
+    );
+
+    debugPrint('[OTP] Response status: ${response.status}');
+    debugPrint('[OTP] Response data: ${response.data}');
+
+    if (response.status != 200) {
+      final errorMsg =
+          response.data != null && response.data is Map
+              ? (response.data['error'] ?? 'Failed to request OTP')
+              : 'Failed to request OTP';
+      debugPrint('[OTP] Error: $errorMsg');
+      throw AuthException(errorMsg);
+    }
+
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Verify OTP and get reset token
+  /// Throws AuthException with specific error codes:
+  /// - OTP_EXPIRED: OTP has expired
+  /// - OTP_INCORRECT: Wrong OTP code
+  /// - MAX_ATTEMPTS_EXCEEDED: Too many wrong attempts
+  /// - RATE_LIMIT_EXCEEDED: Too many verification attempts
+  Future<String> verifyPasswordResetOtp({
+    required String email,
+    required String otp,
+  }) async {
+    final response = await _client.functions.invoke(
+      'verify-password-otp',
+      body: {'email': email.trim().toLowerCase(), 'otp': otp.trim()},
+    );
+
+    if (response.status == 429) {
+      final errorMsg =
+          response.data != null && response.data is Map
+              ? (response.data['error'] ?? 'Too many attempts')
+              : 'Too many attempts';
+      throw AuthException(errorMsg, statusCode: '429');
+    }
+
+    if (response.status != 200) {
+      final errorData =
+          response.data is Map<String, dynamic>
+              ? response.data as Map<String, dynamic>
+              : <String, dynamic>{};
+      throw AuthException(
+        errorData['error'] ?? 'OTP verification failed',
+        statusCode: errorData['code'] ?? 'VERIFICATION_FAILED',
+      );
+    }
+
+    final data = response.data as Map<String, dynamic>;
+    return data['reset_token'] as String;
+  }
+
+  /// Reset password using reset token (obtained after OTP verification)
+  /// Throws AuthException if token is invalid or expired
+  Future<void> resetPasswordWithToken({
+    required String resetToken,
+    required String newPassword,
+  }) async {
+    final response = await _client.functions.invoke(
+      'reset-password-with-token',
+      body: {'reset_token': resetToken, 'new_password': newPassword},
+    );
+
+    if (response.status != 200) {
+      final errorData =
+          response.data is Map<String, dynamic>
+              ? response.data as Map<String, dynamic>
+              : <String, dynamic>{};
+      throw AuthException(
+        errorData['error'] ?? 'Password reset failed',
+        statusCode: errorData['code'] ?? 'RESET_FAILED',
+      );
+    }
   }
 }

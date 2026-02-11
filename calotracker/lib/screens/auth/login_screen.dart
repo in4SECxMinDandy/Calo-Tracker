@@ -83,6 +83,12 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.of(context).pop();
       }
     } catch (e) {
+      debugPrint('❌ Login error: $e');
+      debugPrint('❌ Login error type: ${e.runtimeType}');
+      if (e is AuthException) {
+        debugPrint('❌ AuthException message: ${e.message}');
+        debugPrint('❌ AuthException statusCode: ${e.statusCode}');
+      }
       setState(() {
         _errorMessage = _getErrorMessage(e.toString());
       });
@@ -113,12 +119,22 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   String _getErrorMessage(String error) {
-    if (error.contains('Invalid login credentials')) {
+    final errorLower = error.toLowerCase();
+
+    if (errorLower.contains('invalid login credentials') ||
+        errorLower.contains('invalid_grant')) {
       return 'Email hoặc mật khẩu không đúng';
-    } else if (error.contains('Email not confirmed')) {
-      return 'Vui lòng xác nhận email của bạn';
-    } else if (error.contains('Too many requests')) {
-      return 'Quá nhiều yêu cầu. Vui lòng thử lại sau';
+    } else if (errorLower.contains('email not confirmed') ||
+        errorLower.contains('email_not_confirmed')) {
+      return 'Vui lòng xác nhận email của bạn trước khi đăng nhập.\nKiểm tra hộp thư đến và spam.';
+    } else if (errorLower.contains('too many requests') ||
+        errorLower.contains('rate_limit')) {
+      return 'Quá nhiều yêu cầu. Vui lòng thử lại sau vài phút';
+    } else if (errorLower.contains('user not found')) {
+      return 'Tài khoản không tồn tại. Vui lòng đăng ký trước.';
+    } else if (errorLower.contains('network') ||
+        errorLower.contains('connection')) {
+      return 'Lỗi kết nối. Vui lòng kiểm tra internet.';
     }
     return 'Đăng nhập thất bại. Vui lòng thử lại';
   }
