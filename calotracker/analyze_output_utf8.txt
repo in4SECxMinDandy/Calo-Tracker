@@ -1,0 +1,117 @@
+﻿Analyzing calotracker...                                        
+
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\community\blocked_users_screen.dart:127:39 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\community\blocked_users_screen.dart:127:60 - undefined_getter
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\community\blocked_users_screen.dart:134:39 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\community\blocked_users_screen.dart:134:60 - undefined_getter
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\community\blocked_users_screen.dart:225:52 - deprecated_member_use
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\community\blocked_users_screen.dart:252:47 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\community\blocked_users_screen.dart:252:68 - undefined_getter
+warning - The value of the field '_hasError' isn't used - lib\screens\community\notifications_screen.dart:24:8 - unused_field
+warning - The declaration '_groupNotificationsByDate' isn't referenced - lib\screens\community\notifications_screen.dart:58:38 - unused_element
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\community\report_dialog.dart:106:47 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\community\report_dialog.dart:106:68 - undefined_getter
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\community\report_dialog.dart:116:51 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\community\report_dialog.dart:116:72 - undefined_getter
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\community\report_dialog.dart:138:45 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\community\report_dialog.dart:138:66 - undefined_getter
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\community\report_dialog.dart:151:49 - deprecated_member_use
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\community\report_dialog.dart:203:53 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\community\report_dialog.dart:204:53 - undefined_getter
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\community\report_dialog.dart:237:49 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\community\report_dialog.dart:237:70 - undefined_getter
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\community\report_dialog.dart:264:61 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\community\report_dialog.dart:265:62 - deprecated_member_use
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\community\report_dialog.dart:281:49 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\community\report_dialog.dart:281:70 - undefined_getter
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\community\saved_posts_screen.dart:98:39 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\community\saved_posts_screen.dart:98:60 - undefined_getter
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\community\saved_posts_screen.dart:105:39 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\community\saved_posts_screen.dart:105:60 - undefined_getter
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:196:19 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:203:21 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:209:21 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:213:19 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:218:19 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:222:19 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:253:15 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:279:29 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:298:23 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:312:29 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:332:35 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:347:29 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:359:33 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:414:15 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:455:25 - creation_with_non_type
+  error - The named parameter 'child' isn't defined - lib\screens\community\widgets\post_card.dart:531:7 - undefined_named_parameter
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:550:17 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:572:23 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:647:23 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:668:23 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:673:23 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:679:23 - creation_with_non_type
+  error - The name 'SizedBox' isn't a class - lib\screens\community\widgets\post_card.dart:735:25 - creation_with_non_type
+   info - The variable name 'ListTile' isn't a lowerCamelCase identifier - lib\screens\community\widgets\post_card.dart:742:19 - non_constant_identifier_names
+  error - Named parameters must be enclosed in curly braces ('{' and '}') - lib\screens\community\widgets\post_card.dart:743:28 - named_parameter_outside_group
+  error - Using a colon as the separator before a default value is no longer supported - lib\screens\community\widgets\post_card.dart:743:28 - obsolete_colon_for_default_value
+  error - Named parameters must be enclosed in curly braces ('{' and '}') - lib\screens\community\widgets\post_card.dart:744:26 - named_parameter_outside_group
+  error - Using a colon as the separator before a default value is no longer supported - lib\screens\community\widgets\post_card.dart:744:26 - obsolete_colon_for_default_value
+  error - Named parameters must be enclosed in curly braces ('{' and '}') - lib\screens\community\widgets\post_card.dart:745:26 - named_parameter_outside_group
+  error - Using a colon as the separator before a default value is no longer supported - lib\screens\community\widgets\post_card.dart:745:26 - obsolete_colon_for_default_value
+  error - The default value of an optional parameter must be constant - lib\screens\community\widgets\post_card.dart:745:28 - non_constant_default_value
+  error - A function body must be provided - lib\screens\community\widgets\post_card.dart:746:20 - missing_function_body
+  error - Expected a class member - lib\screens\community\widgets\post_card.dart:746:20 - expected_class_member
+   info - The variable name 'ListTile' isn't a lowerCamelCase identifier - lib\screens\community\widgets\post_card.dart:747:19 - non_constant_identifier_names
+  error - The name 'ListTile' is already defined - lib\screens\community\widgets\post_card.dart:747:19 - duplicate_definition
+  error - Named parameters must be enclosed in curly braces ('{' and '}') - lib\screens\community\widgets\post_card.dart:748:28 - named_parameter_outside_group
+  error - Using a colon as the separator before a default value is no longer supported - lib\screens\community\widgets\post_card.dart:748:28 - obsolete_colon_for_default_value
+  error - Named parameters must be enclosed in curly braces ('{' and '}') - lib\screens\community\widgets\post_card.dart:749:26 - named_parameter_outside_group
+  error - Using a colon as the separator before a default value is no longer supported - lib\screens\community\widgets\post_card.dart:749:26 - obsolete_colon_for_default_value
+  error - Named parameters must be enclosed in curly braces ('{' and '}') - lib\screens\community\widgets\post_card.dart:750:26 - named_parameter_outside_group
+  error - Using a colon as the separator before a default value is no longer supported - lib\screens\community\widgets\post_card.dart:750:26 - obsolete_colon_for_default_value
+  error - The default value of an optional parameter must be constant - lib\screens\community\widgets\post_card.dart:750:28 - non_constant_default_value
+  error - A function body must be provided - lib\screens\community\widgets\post_card.dart:751:20 - missing_function_body
+  error - Expected a class member - lib\screens\community\widgets\post_card.dart:751:20 - expected_class_member
+  error - Getters, setters and methods can't be declared to be 'const' - lib\screens\community\widgets\post_card.dart:752:19 - const_method
+   info - The variable name 'SizedBox' isn't a lowerCamelCase identifier - lib\screens\community\widgets\post_card.dart:752:25 - non_constant_identifier_names
+  error - Named parameters must be enclosed in curly braces ('{' and '}') - lib\screens\community\widgets\post_card.dart:752:40 - named_parameter_outside_group
+  error - Using a colon as the separator before a default value is no longer supported - lib\screens\community\widgets\post_card.dart:752:40 - obsolete_colon_for_default_value
+  error - A function body must be provided - lib\screens\community\widgets\post_card.dart:752:44 - missing_function_body
+  error - Expected a class member - lib\screens\community\widgets\post_card.dart:752:44 - expected_class_member
+  error - Expected a class member - lib\screens\community\widgets\post_card.dart:753:17 - expected_class_member
+  error - Expected a class member - lib\screens\community\widgets\post_card.dart:753:18 - expected_class_member
+  error - Expected a class member - lib\screens\community\widgets\post_card.dart:754:15 - expected_class_member
+  error - Expected a class member - lib\screens\community\widgets\post_card.dart:754:16 - expected_class_member
+  error - Expected a class member - lib\screens\community\widgets\post_card.dart:755:13 - expected_class_member
+  error - Expected a class member - lib\screens\community\widgets\post_card.dart:755:14 - expected_class_member
+  error - Expected a class member - lib\screens\community\widgets\post_card.dart:756:11 - expected_class_member
+  error - Expected a class member - lib\screens\community\widgets\post_card.dart:756:12 - expected_class_member
+  error - Expected a class member - lib\screens\community\widgets\post_card.dart:757:5 - expected_class_member
+  error - Expected a class member - lib\screens\community\widgets\post_card.dart:757:6 - expected_class_member
+  error - Expected a method, getter, setter or operator declaration - lib\screens\community\widgets\post_card.dart:759:1 - expected_executable
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\search\global_search_screen.dart:162:39 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\search\global_search_screen.dart:162:60 - undefined_getter
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\search\global_search_screen.dart:171:39 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\search\global_search_screen.dart:171:60 - undefined_getter
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\search\global_search_screen.dart:237:47 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\search\global_search_screen.dart:237:68 - undefined_getter
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\search\global_search_screen.dart:277:43 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\search\global_search_screen.dart:277:64 - undefined_getter
+  error - The getter 'darkText' isn't defined for the type 'AppColors' - lib\screens\search\global_search_screen.dart:431:37 - undefined_getter
+  error - The getter 'lightText' isn't defined for the type 'AppColors' - lib\screens\search\global_search_screen.dart:431:58 - undefined_getter
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\search\global_search_screen.dart:444:50 - deprecated_member_use
+  error - Too many positional arguments: 1 expected, but 2 found - lib\services\blocking_service.dart:127:25 - extra_positional_arguments
+  error - The name 'FetchOptions' isn't a class - lib\services\blocking_service.dart:127:31 - creation_with_non_type
+  error - The getter 'count' isn't defined for the type 'PostgrestList' - lib\services\blocking_service.dart:130:23 - undefined_getter
+  error - Directives must appear before any declarations - lib\services\blocking_service.dart:181:1 - directive_after_declaration
+  error - The method 'eq' isn't defined for the type 'PostgrestTransformBuilder' - lib\services\report_service.dart:89:23 - undefined_method
+
+flutter : 105 issues found. (ran in 3.4s)
+At line:1 char:1
++ flutter analyze > analyze_output.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (105 is 
+   sues found. (ran in 3.4s):String) [], RemoteExc  
+  eption
+    + FullyQualifiedErrorId : NativeCommandError
+ 

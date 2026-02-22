@@ -123,81 +123,64 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final response = await _authService.signUpWithEmail(
         email: _emailController.text.trim(),
-        password: _passwordController.text,
+        password: _passwordController.text.trim(),
         username: _usernameController.text.trim(),
         displayName: _displayNameController.text.trim(),
       );
 
       if (mounted) {
-        // Check if user is already logged in (Supabase auto-confirms in some cases)
-        if (response.user != null) {
-          // Success - user is registered and logged in
+        // Check if user needs email confirmation
+        // Supabase returns user with identities when auto-confirmed,
+        // or user with empty/null session when email confirmation is required
+        if (response.session != null) {
+          // Auto-confirmed - user is logged in
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('🎉 Đăng ký thành công!'),
               backgroundColor: Colors.green,
             ),
           );
-
-          // Call success callback and navigate back
           widget.onRegisterSuccess?.call();
           Navigator.of(context).pop();
         } else {
-          // Fallback: Try to auto-login with the just-created credentials
-          try {
-            await _authService.signInWithEmail(
-              email: _emailController.text.trim(),
-              password: _passwordController.text,
-            );
-
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('🎉 Đăng ký và đăng nhập thành công!'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-
-              widget.onRegisterSuccess?.call();
-              Navigator.of(context).pop();
-            }
-          } catch (loginError) {
-            // If auto-login fails, show message but still consider registration successful
-            if (mounted) {
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder:
-                    (context) => AlertDialog(
-                      title: Row(
-                        children: [
-                          Icon(
-                            CupertinoIcons.check_mark_circled_solid,
-                            color: AppColors.successGreen,
-                            size: 28,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text('Đăng ký thành công!'),
-                        ],
+          // Email confirmation required - show dialog
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder:
+                (context) => AlertDialog(
+                  title: Row(
+                    children: [
+                      Icon(
+                        CupertinoIcons.mail,
+                        color: AppColors.primaryBlue,
+                        size: 28,
                       ),
-                      content: const Text(
-                        'Tài khoản của bạn đã được tạo thành công!\n\n'
-                        '📧 Nếu yêu cầu xác nhận email, vui lòng kiểm tra hộp thư (và spam) để xác nhận trước khi đăng nhập.\n\n'
-                        '✅ Sau đó hãy đăng nhập với email và mật khẩu vừa tạo.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop(); // Close dialog
-                            Navigator.of(context).pop(); // Go back to login
-                          },
-                          child: const Text('Đóng'),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Xác nhận Email',
+                          style: TextStyle(fontSize: 18),
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  content: const Text(
+                    'Đăng ký thành công! 🎉\n\n'
+                    'Chúng tôi đã gửi email xác nhận đến hộp thư của bạn. '
+                    'Vui lòng kiểm tra hộp thư đến (và thư rác) rồi nhấn vào link xác nhận trước khi đăng nhập.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Close dialog
+                        Navigator.of(context).pop(); // Go back to login
+                      },
+                      child: const Text('Đã hiểu, về Đăng nhập'),
                     ),
-              );
-            }
-          }
+                  ],
+                ),
+          );
         }
       }
     } catch (e) {
@@ -283,6 +266,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor:
           isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
@@ -293,8 +277,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: SafeArea(
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
         child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -589,6 +576,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

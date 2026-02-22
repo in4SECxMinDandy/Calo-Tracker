@@ -100,12 +100,15 @@ class _ChallengesScreenState extends State<ChallengesScreen>
     }
 
     try {
-      await _communityService.joinChallenge(challenge.id);
+      final result = await _communityService.joinChallenge(challenge.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Đã tham gia "${challenge.title}"'),
+            content: Text(
+              result['message'] ?? 'Đã tham gia "${challenge.title}"',
+            ),
             backgroundColor: AppColors.successGreen,
+            behavior: SnackBarBehavior.floating,
           ),
         );
         _loadChallenges();
@@ -116,6 +119,7 @@ class _ChallengesScreenState extends State<ChallengesScreen>
           SnackBar(
             content: Text('Lỗi: $e'),
             backgroundColor: AppColors.errorRed,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }

@@ -10,6 +10,9 @@ import '../../../theme/colors.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/full_screen_image_viewer.dart';
 import '../user_profile_screen.dart';
+import '../../../services/community_service.dart';
+import '../../../services/report_service.dart';
+import '../report_dialog.dart';
 
 class PostCard extends StatefulWidget {
   final Post post;
@@ -17,6 +20,8 @@ class PostCard extends StatefulWidget {
   final VoidCallback? onComment;
   final VoidCallback? onShare;
   final VoidCallback? onTap;
+  final VoidCallback? onUnsave;
+  final bool isSaved;
 
   const PostCard({
     super.key,
@@ -25,6 +30,8 @@ class PostCard extends StatefulWidget {
     this.onComment,
     this.onShare,
     this.onTap,
+    this.onUnsave,
+    this.isSaved = false,
   });
 
   @override
@@ -33,14 +40,18 @@ class PostCard extends StatefulWidget {
 
 class _PostCardState extends State<PostCard>
     with SingleTickerProviderStateMixin {
+  final _communityService = CommunityService();
   late AnimationController _likeController;
   late Animation<double> _scaleAnimation;
   bool _isLiked = false;
+  bool _isSaved = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
     _isLiked = widget.post.isLikedByMe ?? false;
+    _isSaved = widget.isSaved;
     _likeController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -49,6 +60,18 @@ class _PostCardState extends State<PostCard>
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.3), weight: 50),
       TweenSequenceItem(tween: Tween(begin: 1.3, end: 1.0), weight: 50),
     ]).animate(CurvedAnimation(parent: _likeController, curve: Curves.easeOut));
+    _checkIfSaved();
+  }
+
+  Future<void> _checkIfSaved() async {
+    try {
+      final saved = await _communityService.isPostSaved(widget.post.id);
+      if (mounted) {
+        setState(() => _isSaved = saved);
+      }
+    } catch (e) {
+      debugPrint('Error checking if post is saved: $e');
+    }
   }
 
   @override
@@ -106,6 +129,53 @@ class _PostCardState extends State<PostCard>
 
     Share.share(shareText, subject: 'Chia sẻ từ CaloTracker');
     widget.onShare?.call();
+  }
+
+  Future<void> _handleSave() async {
+    if (_isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      if (_isSaved) {
+        await _communityService.unsavePost(widget.post.id);
+        if (mounted) {
+          setState(() => _isSaved = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Đã bỏ lưu bài viết'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+          widget.onUnsave?.call();
+        }
+      } else {
+        await _communityService.savePost(widget.post.id);
+        if (mounted) {
+          setState(() => _isSaved = true);
+          HapticFeedback.lightImpact();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Đã lưu bài viết'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
@@ -635,21 +705,33 @@ class _PostCardState extends State<PostCard>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Save/Unsave
                   ListTile(
-                    leading: const Icon(CupertinoIcons.bookmark),
-                    title: const Text('Lưu bài viết'),
-                    onTap: () => Navigator.pop(context),
+                    leading: Icon(
+                      _isSaved ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark,
+                      color: _isSaved ? AppColors.primaryBlue : null,
+                    ),
+                    title: Text(_isSaved ? 'Bỏ lưu bài viết' : 'Lưu bài viết'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _handleSave();
+                    },
                   ),
+
+                  // Report
                   ListTile(
-                    leading: const Icon(CupertinoIcons.bell_slash),
-                    title: const Text('Tắt thông báo'),
-                    onTap: () => Navigator.pop(context),
+                    leading: const Icon(CupertinoIcons.flag, color: Colors.red),
+                    title: const Text('Báo cáo bài viết'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      showReportDialog(
+                        context,
+                        contentType: ReportContentType.post,
+                        contentId: widget.post.id,
+                      );
+                    },
                   ),
-                  ListTile(
-                    leading: const Icon(CupertinoIcons.flag),
-                    title: const Text('Báo cáo'),
-                    onTap: () => Navigator.pop(context),
-                  ),
+
                   const SizedBox(height: 8),
                 ],
               ),

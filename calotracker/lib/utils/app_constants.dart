@@ -55,6 +55,7 @@ class AppConstants {
   static const int maxNoteLength = 500;
   static const int maxMealsPerDay = 20;
   static const double maxCaloriesPerMeal = 5000;
+  static const int maxMessageLength = 2000; // Max chars per chat message
   static const double minWeight = 20;
   static const double maxWeight = 300;
   static const double minHeight = 100;
@@ -92,8 +93,9 @@ class ValidationPatterns {
   static final RegExp email = RegExp(
     r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
   );
+  // SECURITY: Requires at least one letter, one digit, and one special character
   static final RegExp password = RegExp(
-    r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$',
+    r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&#^()\-_=+])[A-Za-z\d@$!%*?&#^()\-_=+]{8,}$',
   );
   static final RegExp phone = RegExp(r'^[0-9]{10,11}$');
   static final RegExp name = RegExp(r'^[a-zA-ZÀ-ỹ\s]{2,50}$');

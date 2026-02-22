@@ -1,12 +1,16 @@
 // Chat Screen
 // Private messaging between two users with real-time updates
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
 import '../../services/messaging_service.dart';
 import '../../services/supabase_auth_service.dart';
+import '../../services/blocking_service.dart';
 import '../../models/message.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
+import '../../theme/animated_app_icons.dart';
 
 class ChatScreen extends StatefulWidget {
   final String otherUserId;
@@ -117,17 +121,16 @@ class _ChatScreenState extends State<ChatScreen> {
     _messageController.clear();
 
     try {
-      final message = await _messagingService.sendMessage(
+      // BUG FIX: Do NOT manually add the message to _messages here.
+      // The realtime subscription (_subscribeToMessages) will receive
+      // the new message and add it, avoiding duplicates.
+      await _messagingService.sendMessage(
         receiverId: widget.otherUserId,
         content: content,
       );
 
       if (mounted) {
-        setState(() {
-          _messages.add(message);
-          _isSending = false;
-        });
-        _scrollToBottom();
+        setState(() => _isSending = false);
       }
     } catch (e) {
       if (mounted) {
@@ -205,17 +208,25 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
       actions: [
-        IconButton(icon: const Icon(Icons.more_vert), onPressed: _showOptions),
+        IconButton(
+          icon: Icon(CupertinoIcons.ellipsis_vertical, size: 24),
+          onPressed: _showOptions,
+        ),
       ],
     );
   }
 
   Widget _buildEmptyState() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[400]),
+          AnimatedAppIcons.messageCircle(
+            size: 64,
+            color: isDark ? Colors.grey[600]! : Colors.grey[400]!,
+            trigger: lucide.AnimationTrigger.onTap,
+          ),
           const SizedBox(height: 16),
           Text(
             'Chưa có tin nhắn',
@@ -420,7 +431,11 @@ class _ChatScreenState extends State<ChatScreen> {
                           valueColor: AlwaysStoppedAnimation(Colors.white),
                         ),
                       )
-                      : const Icon(Icons.send, color: Colors.white),
+                      : Icon(
+                        CupertinoIcons.paperplane_fill,
+                        color: Colors.white,
+                        size: 20,
+                      ),
             ),
           ),
         ],
@@ -437,7 +452,7 @@ class _ChatScreenState extends State<ChatScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
-                  leading: const Icon(Icons.person),
+                  leading: Icon(CupertinoIcons.person_circle, size: 24),
                   title: const Text('Xem hồ sơ'),
                   onTap: () {
                     Navigator.pop(context);
@@ -445,7 +460,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.block, color: Colors.red),
+                  leading: Icon(
+                    CupertinoIcons.nosign,
+                    color: Colors.red,
+                    size: 24,
+                  ),
                   title: const Text(
                     'Chặn người dùng',
                     style: TextStyle(color: Colors.red),
@@ -465,20 +484,46 @@ class _ChatScreenState extends State<ChatScreen> {
     showDialog(
       context: context,
       builder:
-          (context) => AlertDialog(
+          (dialogContext) => AlertDialog(
             title: const Text('Chặn người dùng'),
             content: Text(
               'Bạn có chắc muốn chặn $_displayName? Bạn sẽ không nhận được tin nhắn từ người này.',
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Hủy'),
               ),
               TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // Block user logic
+                onPressed: () async {
+                  Navigator.pop(dialogContext);
+                  // Capture references before async gap to satisfy lint
+                  final messenger = ScaffoldMessenger.of(context);
+                  final navigator = Navigator.of(context);
+                  try {
+                    await BlockingService().blockUser(
+                      blockedUserId: widget.otherUserId,
+                      reason: 'Blocked from chat',
+                    );
+                    if (mounted) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text('Đã chặn $_displayName'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                      navigator.pop(); // Exit chat screen
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text('Lỗi: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
                 },
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
                 child: const Text('Chặn'),

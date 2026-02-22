@@ -213,7 +213,11 @@ class UnifiedCommunityService {
     return _realService.removeMember(groupId, userId);
   }
 
-  Future<void> updateMemberRole(String groupId, String userId, String role) async {
+  Future<void> updateMemberRole(
+    String groupId,
+    String userId,
+    String role,
+  ) async {
     if (isDemoMode) return;
     return _realService.updateMemberRole(groupId, userId, role);
   }
@@ -241,7 +245,7 @@ class UnifiedCommunityService {
     return _realService.getChallenge(challengeId);
   }
 
-  Future<void> joinChallenge(String challengeId) async {
+  Future<Map<String, dynamic>> joinChallenge(String challengeId) async {
     if (isDemoMode) {
       return _mockService.joinChallenge(challengeId);
     }
@@ -343,8 +347,18 @@ class UnifiedCommunityService {
     if (isDemoMode) {
       return _mockService.getProfile(userId);
     }
-    // Real service doesn't have getProfile, return mock data for now
-    return _mockService.getProfile(userId);
+    // Delegate to the real service's getProfile method
+    try {
+      final profile = await _realService.getProfile(userId);
+      if (profile != null) {
+        return profile;
+      }
+      // Profile not found in DB, fallback to mock
+      return _mockService.getProfile(userId);
+    } catch (_) {
+      // On error, gracefully degrade to mock data
+      return _mockService.getProfile(userId);
+    }
   }
 
   Future<List<Post>> getUserPosts(String userId, {int limit = 20}) async {
@@ -363,5 +377,14 @@ class UnifiedCommunityService {
       return _mockService.getNotifications(limit: limit);
     }
     return _realService.getNotifications(limit: limit);
+  }
+
+  /// Get unread notification count from the real backend.
+  /// In demo mode returns a static count of 3.
+  Future<int> getUnreadNotificationCount() async {
+    if (isDemoMode) {
+      return 3;
+    }
+    return _realService.getUnreadNotificationCount();
   }
 }

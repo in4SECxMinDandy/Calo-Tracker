@@ -9,6 +9,8 @@ import '../../services/supabase_auth_service.dart';
 import '../../services/community_service.dart';
 import '../../services/friends_service.dart';
 import '../../services/presence_service.dart';
+import '../../services/blocking_service.dart';
+import '../../services/report_service.dart';
 import '../../models/community_profile.dart';
 import '../../models/post.dart';
 import '../../models/friendship.dart';
@@ -19,6 +21,7 @@ import '../../widgets/glass_card.dart';
 import '../../widgets/online_indicator.dart';
 import 'widgets/post_card.dart';
 import 'chat_screen.dart';
+import 'report_dialog.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final String? userId;
@@ -35,6 +38,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   final _communityService = CommunityService();
   final _friendsService = FriendsService();
   final _presenceService = PresenceService();
+  final _blockingService = BlockingService();
   final _imagePicker = ImagePicker();
 
   late TabController _tabController;
@@ -43,6 +47,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   bool _isLoading = true;
   bool _isFollowing = false;
   bool _isOwnProfile = false;
+  bool _isBlocked = false;
   FriendshipStatus? _friendshipStatus;
   UserPresence? _userPresence;
   StreamSubscription? _presenceSubscription;
@@ -84,12 +89,13 @@ class _UserProfileScreenState extends State<UserProfileScreen>
       // Load posts
       _posts = await _communityService.getUserPosts(targetUserId);
 
-      // Check if following
+      // Check if following and if blocked
       if (!_isOwnProfile && currentUserId != null) {
         _isFollowing = await _communityService.isFollowing(targetUserId);
         _friendshipStatus = await _friendsService.getFriendshipStatus(
           targetUserId,
         );
+        _isBlocked = await _blockingService.isUserBlocked(targetUserId);
       }
 
       // Load presence and subscribe to updates
@@ -304,9 +310,136 @@ class _UserProfileScreenState extends State<UserProfileScreen>
           IconButton(
             icon: const Icon(CupertinoIcons.gear, color: Colors.white),
             onPressed: _editProfile,
+          )
+        else
+          IconButton(
+            icon: const Icon(CupertinoIcons.ellipsis, color: Colors.white),
+            onPressed: () => _showUserMenu(context),
           ),
       ],
     );
+  }
+
+  void _showUserMenu(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : AppColors.lightCard,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Block/Unblock
+              ListTile(
+                leading: Icon(
+                  _isBlocked
+                      ? CupertinoIcons.person_crop_circle_badge_checkmark
+                      : CupertinoIcons.person_crop_circle_badge_xmark,
+                  color: _isBlocked ? Colors.green : Colors.orange,
+                ),
+                title: Text(_isBlocked ? 'Bỏ chặn người dùng' : 'Chặn người dùng'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _handleBlockUser();
+                },
+              ),
+
+              // Report
+              ListTile(
+                leading: const Icon(CupertinoIcons.flag, color: Colors.red),
+                title: const Text('Báo cáo người dùng'),
+                onTap: () {
+                  Navigator.pop(context);
+                  if (_profile?.id != null) {
+                    showReportDialog(
+                      context,
+                      contentType: ReportContentType.user,
+                      contentId: _profile!.id,
+                    );
+                  }
+                },
+              ),
+
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleBlockUser() async {
+    if (_profile?.id == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_isBlocked ? 'Bỏ chặn người dùng' : 'Chặn người dùng'),
+        content: Text(
+          _isBlocked
+              ? 'Bạn có chắc muốn bỏ chặn ${_profile?.displayName}?\n\n'
+                  'Người này sẽ có thể nhìn thấy bài viết của bạn và gửi tin nhắn cho bạn.'
+              : 'Bạn có chắc muốn chặn ${_profile?.displayName}?\n\n'
+                  'Người này sẽ không thể nhìn thấy bài viết của bạn hoặc gửi tin nhắn cho bạn. '
+                  'Bạn cũng sẽ tự động bỏ kết bạn.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: _isBlocked ? Colors.green : Colors.red,
+            ),
+            child: Text(_isBlocked ? 'Bỏ chặn' : 'Chặn'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      if (_isBlocked) {
+        await _blockingService.unblockUser(_profile!.id);
+        if (mounted) {
+          setState(() => _isBlocked = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Đã bỏ chặn ${_profile?.displayName}')),
+          );
+        }
+      } else {
+        await _blockingService.blockUser(
+          blockedUserId: _profile!.id,
+          reason: 'user_initiated',
+        );
+        if (mounted) {
+          setState(() => _isBlocked = true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Đã chặn ${_profile?.displayName}')),
+          );
+          // Optionally navigate back
+          Navigator.pop(context);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildProfileHeader(bool isDark) {

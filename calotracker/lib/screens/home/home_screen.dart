@@ -283,21 +283,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(0, CupertinoIcons.house_fill, 'Trang chủ', isDark),
               _buildNavItem(
-                1,
-                CupertinoIcons.person_2_fill,
-                'Cộng đồng',
+                0,
+                CupertinoIcons.house,
+                CupertinoIcons.house_fill,
+                'Trang chủ',
                 isDark,
               ),
               _buildNavItem(
+                1,
+                CupertinoIcons.person_3,
+                CupertinoIcons.person_3_fill,
+                'Cộng đồng',
+                isDark,
+                activeColor: const Color(0xFF1877F2), // Facebook blue
+              ),
+              _buildNavItem(
                 2,
+                CupertinoIcons.chart_bar,
                 CupertinoIcons.chart_bar_fill,
                 'Lịch sử',
                 isDark,
               ),
-              _buildNavItem(3, CupertinoIcons.sparkles, 'AI', isDark),
-              _buildNavItem(4, CupertinoIcons.person_fill, 'Cá nhân', isDark),
+              _buildNavItem(
+                3,
+                CupertinoIcons.sparkles,
+                CupertinoIcons.sparkles,
+                'AI',
+                isDark,
+              ),
+              _buildNavItem(
+                4,
+                CupertinoIcons.person,
+                CupertinoIcons.person_fill,
+                'Cá nhân',
+                isDark,
+              ),
             ],
           ),
         ),
@@ -305,12 +326,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label, bool isDark) {
+  Widget _buildNavItem(
+    int index,
+    IconData icon,
+    IconData activeIcon,
+    String label,
+    bool isDark, {
+    Color? activeColor,
+  }) {
     final isSelected = _currentIndex == index;
+    final selectedColor = activeColor ?? WellnessColors.sageGreen;
     final color =
-        isSelected
-            ? WellnessColors.sageGreen
-            : (isDark ? Colors.white54 : Colors.black45);
+        isSelected ? selectedColor : (isDark ? Colors.white54 : Colors.black45);
 
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
@@ -323,7 +350,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             AnimatedScale(
               scale: isSelected ? 1.15 : 1.0,
               duration: const Duration(milliseconds: 200),
-              child: Icon(icon, size: 24, color: color),
+              child: Icon(
+                isSelected ? activeIcon : icon,
+                size: 24,
+                color: color,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -332,6 +363,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 color: color,
+              ),
+            ),
+            // Active indicator bar (Facebook-style)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: 2,
+              width: isSelected ? 20 : 0,
+              margin: const EdgeInsets.only(top: 3),
+              decoration: BoxDecoration(
+                color: isSelected ? selectedColor : Colors.transparent,
+                borderRadius: BorderRadius.circular(1),
               ),
             ),
           ],
@@ -438,29 +480,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
           const SizedBox(width: 8),
 
-          // Settings
+          // Settings - Increased touch target
           GestureDetector(
             onTap: _openSettings,
+            behavior: HitTestBehavior.opaque,
             child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white10 : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow:
-                    isDark
-                        ? []
-                        : [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-              ),
-              child: AnimatedAppIcons.settings(
-                size: 18,
-                color: isDark ? Colors.white70 : WellnessColors.warmGray,
-                trigger: lucide.AnimationTrigger.onTap,
+              // Ensure minimum 44x44 touch target
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              alignment: Alignment.center,
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white10 : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow:
+                      isDark
+                          ? []
+                          : [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                ),
+                child: AnimatedAppIcons.settings(
+                  size: 18,
+                  color: isDark ? Colors.white70 : WellnessColors.warmGray,
+                  trigger: lucide.AnimationTrigger.onTap,
+                ),
               ),
             ),
           ),

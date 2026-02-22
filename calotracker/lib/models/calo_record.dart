@@ -78,13 +78,20 @@ class CaloRecord {
   }
 
   /// Get DateTime from date string
+  /// Returns current date if the stored date string is malformed
   DateTime get dateTime {
-    final parts = date.split('-');
-    return DateTime(
-      int.parse(parts[0]),
-      int.parse(parts[1]),
-      int.parse(parts[2]),
-    );
+    try {
+      final parts = date.split('-');
+      if (parts.length != 3) return DateTime.now();
+      return DateTime(
+        int.parse(parts[0]),
+        int.parse(parts[1]),
+        int.parse(parts[2]),
+      );
+    } catch (_) {
+      // SECURITY: Defensive parsing — malformed data should not crash the app
+      return DateTime.now();
+    }
   }
 
   /// Calculate progress percentage against target

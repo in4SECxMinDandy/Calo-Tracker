@@ -31,12 +31,24 @@ class MessagingService {
   // ==================== MESSAGES ====================
 
   /// Send a message
+  /// Maximum allowed message length to prevent abuse (ISO/IEC 27034 ONF-6)
+  static const int maxMessageLength = 2000;
+
   Future<Message> sendMessage({
     required String receiverId,
     required String content,
   }) async {
     if (_userId == null) throw Exception('User not authenticated');
-    if (content.trim().isEmpty) throw Exception('Message cannot be empty');
+
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) throw Exception('Message cannot be empty');
+
+    // SECURITY: Enforce message length limit to prevent resource exhaustion
+    if (trimmed.length > maxMessageLength) {
+      throw Exception(
+        'Message exceeds maximum length of $maxMessageLength characters',
+      );
+    }
 
     final response =
         await _client
@@ -44,7 +56,7 @@ class MessagingService {
             .insert({
               'sender_id': _userId,
               'receiver_id': receiverId,
-              'content': content.trim(),
+              'content': trimmed,
             })
             .select()
             .single();
@@ -167,7 +179,7 @@ class MessagingService {
       if (profile != null) {
         conversations.add(
           Conversation(
-            oderId: entry.key,
+            otherUserId: entry.key,
             otherUsername: profile['username'] as String? ?? 'user',
             otherDisplayName: profile['display_name'] as String?,
             otherAvatarUrl: profile['avatar_url'] as String?,

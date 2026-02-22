@@ -70,11 +70,12 @@ class PresenceService {
   /// Get presence for a specific user
   Future<UserPresence?> getUserPresence(String userId) async {
     try {
-      final response = await _client
-          .from('user_presence')
-          .select()
-          .eq('user_id', userId)
-          .maybeSingle();
+      final response =
+          await _client
+              .from('user_presence')
+              .select()
+              .eq('user_id', userId)
+              .maybeSingle();
 
       if (response == null) return null;
       return UserPresence.fromJson(response);
@@ -114,7 +115,9 @@ class PresenceService {
     if (userIds.isEmpty) return;
 
     try {
-      debugPrint('👀 Subscribing to presence updates for ${userIds.length} users');
+      debugPrint(
+        '👀 Subscribing to presence updates for ${userIds.length} users',
+      );
 
       _presenceSubscription = _client
           .from('user_presence')

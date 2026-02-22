@@ -170,7 +170,7 @@ class FriendsService {
         friendships.add(
           Friendship(
             id: json['id'] as String,
-            oderId: json['user_id'] as String,
+            otherUserId: json['user_id'] as String,
             friendId: friendId as String,
             status: FriendshipStatus.accepted,
             createdAt: DateTime.parse(json['created_at'] as String),
@@ -194,21 +194,64 @@ class FriendsService {
   Future<List<FriendRequest>> getPendingRequests() async {
     if (_userId == null) return [];
 
+    try {
+      final response = await _client
+          .from('friendships')
+          .select('''
+            id,
+            user_id,
+            created_at,
+            user:user_id!inner(username, display_name, avatar_url)
+          ''')
+          .eq('friend_id', _userId!)
+          .eq('status', 'pending')
+          .order('created_at', ascending: false);
+
+      return (response as List)
+          .map((json) => FriendRequest.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('❌ Error getting pending requests: $e');
+      // Fallback: fetch requests without joins
+      return _getPendingRequestsFallback();
+    }
+  }
+
+  Future<List<FriendRequest>> _getPendingRequestsFallback() async {
     final response = await _client
         .from('friendships')
-        .select('''
-          id,
-          user_id,
-          created_at,
-          requester:user_id(username, display_name, avatar_url)
-        ''')
+        .select('id, user_id, created_at')
         .eq('friend_id', _userId!)
         .eq('status', 'pending')
         .order('created_at', ascending: false);
 
-    return (response as List)
-        .map((json) => FriendRequest.fromJson(json as Map<String, dynamic>))
-        .toList();
+    final requests = <FriendRequest>[];
+    for (final json in response as List) {
+      final senderId = json['user_id'] as String;
+
+      // Get sender profile separately
+      final profile =
+          await _client
+              .from('profiles')
+              .select('username, display_name, avatar_url')
+              .eq('id', senderId)
+              .maybeSingle();
+
+      if (profile != null) {
+        requests.add(
+          FriendRequest(
+            id: json['id'] as String,
+            senderId: senderId,
+            senderUsername: profile['username'] as String? ?? 'user',
+            senderDisplayName: profile['display_name'] as String?,
+            senderAvatarUrl: profile['avatar_url'] as String?,
+            createdAt: DateTime.parse(json['created_at'] as String),
+          ),
+        );
+      }
+    }
+
+    return requests;
   }
 
   /// Get sent friend requests (pending)

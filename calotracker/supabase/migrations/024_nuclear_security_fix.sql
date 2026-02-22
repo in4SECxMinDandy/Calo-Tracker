@@ -5,7 +5,7 @@
 -- This migration drops ALL policies on every affected table, then recreates
 -- only the correct ones with TO authenticated / TO service_role.
 -- Also adds policies for group_invites and user_roles (RLS enabled, no policy).
--- ============================================
+-- ============================================s
 -- ============================================
 -- HELPER: Drop ALL policies on a table dynamically
 -- ============================================

@@ -37,6 +37,10 @@ class AppColors {
   static const Color darkTextSecondary = Color(0xFF9CA3AF);
   static const Color darkDivider = Color(0xFF374151);
 
+  // Aliases for convenience (used in new screens)
+  static const Color lightText = lightTextPrimary;
+  static const Color darkText = darkTextPrimary;
+
   // Glass morphism colors
   static Color glassLight = Colors.white.withValues(alpha: 0.9);
   static Color glassDark = Colors.white.withValues(alpha: 0.1);

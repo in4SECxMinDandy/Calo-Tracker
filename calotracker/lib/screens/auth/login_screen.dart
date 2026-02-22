@@ -75,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await _authService.signInWithEmail(
         email: _emailController.text.trim(),
-        password: _passwordController.text,
+        password: _passwordController.text.trim(),
       );
 
       if (mounted) {
@@ -121,19 +121,22 @@ class _LoginScreenState extends State<LoginScreen> {
   String _getErrorMessage(String error) {
     final errorLower = error.toLowerCase();
 
-    if (errorLower.contains('invalid login credentials') ||
-        errorLower.contains('invalid_grant')) {
-      return 'Email hoặc mật khẩu không đúng';
-    } else if (errorLower.contains('email not confirmed') ||
+    if (errorLower.contains('email chưa được xác nhận') ||
+        errorLower.contains('email not confirmed') ||
         errorLower.contains('email_not_confirmed')) {
-      return 'Vui lòng xác nhận email của bạn trước khi đăng nhập.\nKiểm tra hộp thư đến và spam.';
+      return 'Email chưa được xác nhận.\nVui lòng kiểm tra hộp thư đến (và thư rác) để xác nhận email trước khi đăng nhập.';
+    } else if (errorLower.contains('invalid login credentials') ||
+        errorLower.contains('invalid_grant') ||
+        errorLower.contains('invalid_credentials')) {
+      return 'Email hoặc mật khẩu không đúng.\nNếu bạn vừa đăng ký, hãy kiểm tra email xác nhận trước.';
     } else if (errorLower.contains('too many requests') ||
         errorLower.contains('rate_limit')) {
       return 'Quá nhiều yêu cầu. Vui lòng thử lại sau vài phút';
     } else if (errorLower.contains('user not found')) {
       return 'Tài khoản không tồn tại. Vui lòng đăng ký trước.';
     } else if (errorLower.contains('network') ||
-        errorLower.contains('connection')) {
+        errorLower.contains('connection') ||
+        errorLower.contains('socketexception')) {
       return 'Lỗi kết nối. Vui lòng kiểm tra internet.';
     }
     return 'Đăng nhập thất bại. Vui lòng thử lại';
@@ -250,10 +253,14 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor:
           isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      body: SafeArea(
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
         child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -558,6 +565,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

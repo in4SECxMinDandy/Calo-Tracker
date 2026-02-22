@@ -1,11 +1,14 @@
 // Conversations Screen (Inbox)
 // List of all conversations with unread indicators
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
 import '../../services/messaging_service.dart';
 import '../../models/message.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
+import '../../theme/animated_app_icons.dart';
 import 'chat_screen.dart';
 import 'friends_screen.dart';
 
@@ -95,7 +98,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.people),
+            icon: Icon(CupertinoIcons.person_2, size: 24),
             onPressed: _openFriends,
             tooltip: 'Bạn bè',
           ),
@@ -111,17 +114,26 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         heroTag: 'conversations_fab',
         onPressed: _openFriends,
         backgroundColor: AppColors.primaryBlue,
-        child: const Icon(Icons.chat, color: Colors.white),
+        child: Icon(
+          CupertinoIcons.chat_bubble_2_fill,
+          color: Colors.white,
+          size: 24,
+        ),
       ),
     );
   }
 
   Widget _buildEmptyState() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.inbox_outlined, size: 80, color: Colors.grey[400]),
+          AnimatedAppIcons.messageCircle(
+            size: 80,
+            color: isDark ? Colors.grey[600]! : Colors.grey[400]!,
+            trigger: lucide.AnimationTrigger.onTap,
+          ),
           const SizedBox(height: 16),
           Text(
             'Chưa có tin nhắn',
@@ -135,7 +147,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: _openFriends,
-            icon: const Icon(Icons.people),
+            icon: Icon(CupertinoIcons.person_2, size: 20),
             label: const Text('Tìm bạn bè'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryBlue,
@@ -290,7 +302,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
       MaterialPageRoute(
         builder:
             (_) => ChatScreen(
-              otherUserId: conversation.oderId,
+              otherUserId: conversation.otherUserId,
               otherUsername: conversation.otherUsername,
               otherDisplayName: conversation.otherDisplayName,
               otherAvatarUrl: conversation.otherAvatarUrl,

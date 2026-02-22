@@ -6,6 +6,7 @@ import '../../../main.dart';
 import '../../../services/storage_service.dart';
 import '../../../theme/colors.dart';
 import '../../../theme/text_styles.dart';
+import '../../community/blocked_users_screen.dart';
 
 class SettingsSheet extends StatefulWidget {
   final VoidCallback? onSettingsChanged;
@@ -138,6 +139,24 @@ class _SettingsSheetState extends State<SettingsSheet> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Blocked Users
+                    _buildSettingRow(
+                      icon: CupertinoIcons.xmark_shield,
+                      title: 'Người dùng đã chặn',
+                      subtitle: 'Quản lý danh sách chặn',
+                      trailing: const Icon(CupertinoIcons.chevron_right, size: 20),
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          CupertinoPageRoute(
+                            builder: (_) => const BlockedUsersScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
                     // Version info
                     _buildSettingRow(
                       icon: CupertinoIcons.info,
@@ -196,8 +215,9 @@ class _SettingsSheetState extends State<SettingsSheet> {
     required String title,
     String? subtitle,
     Widget? trailing,
+    VoidCallback? onTap,
   }) {
-    return Container(
+    final widget = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
@@ -233,5 +253,15 @@ class _SettingsSheetState extends State<SettingsSheet> {
         ],
       ),
     );
+
+    if (onTap != null) {
+      return GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: widget,
+      );
+    }
+
+    return widget;
   }
 }

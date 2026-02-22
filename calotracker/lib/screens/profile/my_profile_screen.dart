@@ -13,6 +13,7 @@ import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../community/widgets/post_card.dart';
 import '../community/widgets/comment_sheet.dart';
+import '../community/saved_posts_screen.dart';
 import '../auth/login_screen.dart';
 
 class MyProfileScreen extends StatefulWidget {
@@ -338,6 +339,19 @@ class _MyProfileScreenState extends State<MyProfileScreen>
         ),
         centerTitle: true,
       ),
+      actions: [
+        // Quick access to Saved Posts screen
+        IconButton(
+          icon: const Icon(CupertinoIcons.bookmark_fill, color: Colors.white),
+          onPressed: () {
+            Navigator.push(
+              context,
+              CupertinoPageRoute(builder: (_) => const SavedPostsScreen()),
+            );
+          },
+          tooltip: 'Bài viết đã lưu',
+        ),
+      ],
     );
   }
 

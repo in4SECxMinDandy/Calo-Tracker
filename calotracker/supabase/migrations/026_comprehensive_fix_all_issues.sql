@@ -25,6 +25,19 @@
 -- PART 1: FRIENDSHIPS SYSTEM COMPLETE FIX
 -- ============================================
 
+-- Ensure friendships table has updated_at column
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+    AND table_name = 'friendships'
+    AND column_name = 'updated_at'
+  ) THEN
+    ALTER TABLE public.friendships ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW();
+  END IF;
+END $$;
+
 -- Drop all existing friendship policies
 DO $$
 DECLARE pol RECORD;
@@ -48,13 +61,7 @@ CREATE POLICY "friendships_insert"
 ON public.friendships FOR INSERT
 WITH CHECK (
   auth.uid() = user_id AND
-  auth.uid() != friend_id AND
-  -- Prevent duplicate requests
-  NOT EXISTS (
-    SELECT 1 FROM public.friendships
-    WHERE (user_id = auth.uid() AND friend_id = NEW.friend_id)
-       OR (user_id = NEW.friend_id AND friend_id = auth.uid())
-  )
+  auth.uid() != friend_id
 );
 
 CREATE POLICY "friendships_update_sender"
@@ -335,13 +342,33 @@ GRANT EXECUTE ON FUNCTION public.join_challenge(UUID) TO authenticated;
 -- PART 5: USER PRESENCE TABLE (FOR ONLINE STATUS)
 -- ============================================
 
--- Ensure user_presence table exists with correct structure
-CREATE TABLE IF NOT EXISTS public.user_presence (
-  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  status TEXT DEFAULT 'offline' CHECK (status IN ('online', 'offline', 'away')),
-  last_seen TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- Note: user_presence was created in migration 014 with is_online (BOOLEAN)
+-- We'll add status column for more granular presence states while keeping is_online for backward compatibility
+
+-- Add status column if it doesn't exist (migration 014 only has is_online)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+    AND table_name = 'user_presence'
+    AND column_name = 'status'
+  ) THEN
+    ALTER TABLE public.user_presence ADD COLUMN status TEXT DEFAULT 'offline';
+  END IF;
+END $$;
+
+-- Add check constraint for status column (if not already exists)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.constraint_column_usage
+    WHERE table_name = 'user_presence' AND constraint_name = 'user_presence_status_check'
+  ) THEN
+    ALTER TABLE public.user_presence ADD CONSTRAINT user_presence_status_check
+      CHECK (status IN ('online', 'offline', 'away'));
+  END IF;
+END $$;
 
 -- Drop existing policies
 DO $$
@@ -369,7 +396,7 @@ ON public.user_presence FOR UPDATE
 USING (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);
 
--- Heartbeat function
+-- Heartbeat function - updates both status and is_online for backward compatibility
 CREATE OR REPLACE FUNCTION public.update_presence(
   p_status TEXT DEFAULT 'online'
 )
@@ -379,10 +406,11 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
-  INSERT INTO public.user_presence (user_id, status, last_seen, updated_at)
-  VALUES (auth.uid(), p_status, NOW(), NOW())
+  INSERT INTO public.user_presence (user_id, status, is_online, last_seen, updated_at)
+  VALUES (auth.uid(), p_status, (p_status = 'online'), NOW(), NOW())
   ON CONFLICT (user_id) DO UPDATE
   SET status = p_status,
+      is_online = (p_status = 'online'),
       last_seen = NOW(),
       updated_at = NOW();
 END;
@@ -584,28 +612,25 @@ GRANT EXECUTE ON FUNCTION public.demote_from_admin(UUID, UUID) TO authenticated;
 -- ============================================
 
 -- Create comprehensive view for health reports
+-- Uses only columns that exist in user_health_records:
+-- id, user_id, date, calo_intake, calo_burned, net_calo, water_intake,
+-- weight, sleep_hours, sleep_quality, workouts_completed, steps, meals_logged
 CREATE OR REPLACE VIEW public.health_report_data AS
 SELECT
   uhr.user_id,
   uhr.date,
   uhr.weight,
-  uhr.body_fat_percentage,
-  uhr.muscle_mass,
-  uhr.bmi,
-  uhr.bmr,
-  uhr.daily_calories,
-  uhr.daily_protein,
-  uhr.daily_carbs,
-  uhr.daily_fat,
+  uhr.calo_intake,
+  uhr.calo_burned,
+  uhr.net_calo,
   uhr.water_intake,
-  uhr.steps_count,
-  uhr.exercise_minutes,
+  uhr.steps,
   uhr.sleep_hours,
-  uhr.notes,
+  uhr.sleep_quality,
+  uhr.workouts_completed,
+  uhr.meals_logged,
   -- Calculate progress metrics
   LAG(uhr.weight) OVER (PARTITION BY uhr.user_id ORDER BY uhr.date) AS prev_weight,
-  LAG(uhr.body_fat_percentage) OVER (PARTITION BY uhr.user_id ORDER BY uhr.date) AS prev_body_fat,
-  LAG(uhr.muscle_mass) OVER (PARTITION BY uhr.user_id ORDER BY uhr.date) AS prev_muscle,
   -- User profile data
   p.display_name,
   p.height,
@@ -626,14 +651,12 @@ RETURNS TABLE (
   total_records BIGINT,
   avg_weight NUMERIC,
   weight_change NUMERIC,
-  avg_body_fat NUMERIC,
-  body_fat_change NUMERIC,
-  avg_muscle NUMERIC,
-  muscle_change NUMERIC,
-  total_exercise_minutes NUMERIC,
+  avg_calo_intake NUMERIC,
+  avg_calo_burned NUMERIC,
   avg_sleep_hours NUMERIC,
   avg_water_intake NUMERIC,
-  total_steps BIGINT
+  total_steps BIGINT,
+  total_workouts BIGINT
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -645,14 +668,12 @@ BEGIN
     COUNT(*)::BIGINT AS total_records,
     ROUND(AVG(weight)::NUMERIC, 2) AS avg_weight,
     ROUND((MAX(weight) - MIN(weight))::NUMERIC, 2) AS weight_change,
-    ROUND(AVG(body_fat_percentage)::NUMERIC, 2) AS avg_body_fat,
-    ROUND((MAX(body_fat_percentage) - MIN(body_fat_percentage))::NUMERIC, 2) AS body_fat_change,
-    ROUND(AVG(muscle_mass)::NUMERIC, 2) AS avg_muscle,
-    ROUND((MAX(muscle_mass) - MIN(muscle_mass))::NUMERIC, 2) AS muscle_change,
-    ROUND(SUM(exercise_minutes)::NUMERIC, 0) AS total_exercise_minutes,
+    ROUND(AVG(calo_intake)::NUMERIC, 0) AS avg_calo_intake,
+    ROUND(AVG(calo_burned)::NUMERIC, 0) AS avg_calo_burned,
     ROUND(AVG(sleep_hours)::NUMERIC, 1) AS avg_sleep_hours,
     ROUND(AVG(water_intake)::NUMERIC, 0) AS avg_water_intake,
-    COALESCE(SUM(steps_count), 0)::BIGINT AS total_steps
+    COALESCE(SUM(steps), 0)::BIGINT AS total_steps,
+    COALESCE(SUM(workouts_completed), 0)::BIGINT AS total_workouts
   FROM public.user_health_records
   WHERE user_id = auth.uid()
     AND date BETWEEN start_date AND end_date;
@@ -669,8 +690,21 @@ GRANT EXECUTE ON FUNCTION public.get_health_summary(DATE, DATE) TO authenticated
 CREATE INDEX IF NOT EXISTS idx_friendships_user_status ON public.friendships(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_friendships_friend_status ON public.friendships(friend_id, status);
 
--- User presence indexes
-CREATE INDEX IF NOT EXISTS idx_user_presence_status ON public.user_presence(status);
+-- User presence indexes (status column added in this migration)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+    AND table_name = 'user_presence'
+    AND column_name = 'status'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_user_presence_status ON public.user_presence(status);
+  END IF;
+END $$;
+
+-- is_online index (from migration 014)
+CREATE INDEX IF NOT EXISTS idx_user_presence_is_online ON public.user_presence(is_online);
 CREATE INDEX IF NOT EXISTS idx_user_presence_last_seen ON public.user_presence(last_seen);
 
 -- Health records indexes for reporting
@@ -680,14 +714,14 @@ CREATE INDEX IF NOT EXISTS idx_health_records_user_date ON public.user_health_re
 -- DONE!
 -- ============================================
 
-COMMENT ON MIGRATION '026_comprehensive_fix_all_issues' IS
-'Comprehensive fix for all 9 issues:
-1. Auto-add group creator as owner (trigger)
-2. Group members can post/like/comment (RLS fixed in 025)
-3. Owner/admin can manage members (RPC functions)
-4. Join button status (handled by Flutter + RLS)
-5. RenderFlex overflow (Flutter UI fix)
-6. Friend actions working (complete RLS + RPC)
-7. Online status (user_presence + Realtime)
-8. Challenge duplicate key (ON CONFLICT in join_challenge)
-9. PDF export (health_report_data view + summary function)';
+-- Migration 026 Summary:
+-- Comprehensive fix for all 9 issues:
+-- 1. Auto-add group creator as owner (trigger)
+-- 2. Group members can post/like/comment (RLS fixed in 025)
+-- 3. Owner/admin can manage members (RPC functions)
+-- 4. Join button status (handled by Flutter + RLS)
+-- 5. RenderFlex overflow (Flutter UI fix)
+-- 6. Friend actions working (complete RLS + RPC)
+-- 7. Online status (user_presence + Realtime)
+-- 8. Challenge duplicate key (ON CONFLICT in join_challenge)
+-- 9. PDF export (health_report_data view + summary function)

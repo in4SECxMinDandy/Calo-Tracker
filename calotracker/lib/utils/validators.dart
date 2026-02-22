@@ -151,9 +151,31 @@ class Sanitizers {
     return value.replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), '');
   }
 
-  /// Sanitize for database
+  /// Sanitize for database queries.
+  /// WARNING (ISO/IEC 27034 ONF-5): This is a basic escape and should NOT
+  /// be relied upon for SQL injection prevention. Always use parameterized
+  /// queries (Supabase/Postgrest handles this automatically via its API).
+  /// This method only exists as a defense-in-depth secondary layer.
   static String sanitizeForDb(String value) {
-    return value.replaceAll("'", "''");
+    return value
+        .replaceAll("'", "''")
+        .replaceAll('\\', '\\\\')
+        .replaceAll('\x00', ''); // Strip null bytes
+  }
+
+  /// Sanitize message content for display and storage.
+  /// Strips control characters, trims whitespace, enforces max length.
+  static String sanitizeMessageContent(String value, {int maxLength = 2000}) {
+    // Strip control characters (except newlines and tabs)
+    final stripped = value.replaceAll(
+      RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'),
+      '',
+    );
+    final trimmed = stripped.trim();
+    if (trimmed.length > maxLength) {
+      return trimmed.substring(0, maxLength);
+    }
+    return trimmed;
   }
 
   // Private constructor

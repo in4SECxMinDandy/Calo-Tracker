@@ -101,7 +101,7 @@ class Message {
 
 // Conversation summary for inbox list
 class Conversation {
-  final String oderId;
+  final String otherUserId;
   final String otherUsername;
   final String? otherDisplayName;
   final String? otherAvatarUrl;
@@ -111,7 +111,7 @@ class Conversation {
   final int unreadCount;
 
   const Conversation({
-    required this.oderId,
+    required this.otherUserId,
     required this.otherUsername,
     this.otherDisplayName,
     this.otherAvatarUrl,
@@ -123,7 +123,7 @@ class Conversation {
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
     return Conversation(
-      oderId: json['other_user_id'] as String,
+      otherUserId: json['other_user_id'] as String,
       otherUsername: json['username'] as String,
       otherDisplayName: json['display_name'] as String?,
       otherAvatarUrl: json['avatar_url'] as String?,

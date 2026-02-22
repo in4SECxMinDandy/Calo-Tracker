@@ -1,0 +1,16 @@
+﻿Analyzing calotracker...                                        
+
+  error - A value of type 'PostgrestResponse<PostgrestList>' can't be returned from the method 'getBlockedUsersCount' because it has a return type of 'Future<int>' - lib\services\blocking_service.dart:133:14 - return_of_invalid_type
+  error - A try block must be followed by an 'on', 'catch', or 'finally' clause - lib\services\report_service.dart:73:5 - missing_catch_or_finally
+  error - The method 'eq' isn't defined for the type 'SupabaseQueryBuilder' - lib\services\report_service.dart:80:26 - undefined_method
+  error - Expected to find '}' - lib\services\report_service.dart:104:3 - expected_token
+
+flutter : 4 issues found. (ran in 3.5s)
+At line:1 char:1
++ flutter analyze > analyze_output_2.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (4 issu 
+   es found. (ran in 3.5s):String) [], RemoteExcep  
+  tion
+    + FullyQualifiedErrorId : NativeCommandError
+ 

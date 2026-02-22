@@ -18,24 +18,11 @@ import 'screens/auth/login_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize services
+  // Critical services only - must be ready before UI
   await StorageService.init();
-  await NotificationService.init();
-  await AnalyticsService.init();
-  await AuthService.init();
-
-  // Initialize Supabase (optional - won't fail if not configured)
-  try {
-    await SupabaseConfig.initialize();
-  } catch (e) {
-    debugPrint('Supabase not configured: $e');
-  }
 
   // Initialize date formatting for Vietnamese
   await initializeDateFormatting('vi', null);
-
-  // Log app opened
-  await AnalyticsService.logAppOpened();
 
   // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
@@ -43,7 +30,24 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  // Run app immediately - defer heavy init to avoid skipped frames
   runApp(const CaloTrackerApp());
+
+  // Defer non-critical initialization to after first frame
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    await NotificationService.init();
+    await AnalyticsService.init();
+    await AuthService.init();
+
+    // Initialize Supabase (optional - won't fail if not configured)
+    try {
+      await SupabaseConfig.initialize();
+    } catch (e) {
+      debugPrint('Supabase not configured: $e');
+    }
+
+    await AnalyticsService.logAppOpened();
+  });
 }
 
 class CaloTrackerApp extends StatefulWidget {

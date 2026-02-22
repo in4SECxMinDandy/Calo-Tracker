@@ -148,7 +148,9 @@ class CommunityService {
           'role': 'owner',
         });
       } else {
-        debugPrint('⚠️ Creator already exists with role: ${existingMember['role']}');
+        debugPrint(
+          '⚠️ Creator already exists with role: ${existingMember['role']}',
+        );
         // If exists but role is not owner, update it
         if (existingMember['role'] != 'owner') {
           debugPrint('🔧 Updating role to owner...');
@@ -194,11 +196,12 @@ class CommunityService {
       }
 
       // Check if group is public or private
-      final group = await _client
-          .from('groups')
-          .select('visibility, require_approval')
-          .eq('id', groupId)
-          .single();
+      final group =
+          await _client
+              .from('groups')
+              .select('visibility, require_approval')
+              .eq('id', groupId)
+              .single();
 
       final isPublic = group['visibility'] == 'public';
       final requireApproval = group['require_approval'] == true;
@@ -363,10 +366,10 @@ class CommunityService {
     if (_userId == null) throw Exception('User not authenticated');
 
     try {
-      await _client.rpc('approve_group_member', params: {
-        'p_group_id': groupId,
-        'p_user_id': userId,
-      });
+      await _client.rpc(
+        'approve_group_member',
+        params: {'p_group_id': groupId, 'p_user_id': userId},
+      );
       debugPrint('✅ Member approved: $userId');
     } catch (e) {
       debugPrint('❌ Error approving member: $e');
@@ -379,10 +382,10 @@ class CommunityService {
     if (_userId == null) throw Exception('User not authenticated');
 
     try {
-      await _client.rpc('reject_group_member', params: {
-        'p_group_id': groupId,
-        'p_user_id': userId,
-      });
+      await _client.rpc(
+        'reject_group_member',
+        params: {'p_group_id': groupId, 'p_user_id': userId},
+      );
       debugPrint('✅ Member rejected: $userId');
     } catch (e) {
       debugPrint('❌ Error rejecting member: $e');
@@ -417,10 +420,10 @@ class CommunityService {
     if (_userId == null) throw Exception('User not authenticated');
 
     try {
-      await _client.rpc('kick_group_member', params: {
-        'p_group_id': groupId,
-        'p_user_id': userId,
-      });
+      await _client.rpc(
+        'kick_group_member',
+        params: {'p_group_id': groupId, 'p_user_id': userId},
+      );
       debugPrint('✅ Member kicked: $userId');
     } catch (e) {
       debugPrint('❌ Error kicking member: $e');
@@ -429,20 +432,24 @@ class CommunityService {
   }
 
   /// Update member role (owner only - uses RPC for security)
-  Future<void> updateMemberRole(String groupId, String userId, String role) async {
+  Future<void> updateMemberRole(
+    String groupId,
+    String userId,
+    String role,
+  ) async {
     if (_userId == null) throw Exception('User not authenticated');
 
     try {
       if (role == 'admin') {
-        await _client.rpc('promote_to_admin', params: {
-          'p_group_id': groupId,
-          'p_user_id': userId,
-        });
+        await _client.rpc(
+          'promote_to_admin',
+          params: {'p_group_id': groupId, 'p_user_id': userId},
+        );
       } else if (role == 'member') {
-        await _client.rpc('demote_from_admin', params: {
-          'p_group_id': groupId,
-          'p_user_id': userId,
-        });
+        await _client.rpc(
+          'demote_from_admin',
+          params: {'p_group_id': groupId, 'p_user_id': userId},
+        );
       }
       debugPrint('✅ Member role updated: $userId -> $role');
     } catch (e) {
@@ -588,17 +595,81 @@ class CommunityService {
   }
 
   /// Join a challenge (uses RPC to handle ON CONFLICT)
-  Future<void> joinChallenge(String challengeId) async {
+  Future<Map<String, dynamic>> joinChallenge(String challengeId) async {
     if (_userId == null) throw Exception('User not authenticated');
 
     try {
-      await _client.rpc('join_challenge', params: {
-        'p_challenge_id': challengeId,
-      });
-      debugPrint('✅ Joined challenge: $challengeId');
+      // Try RPC first
+      final rpcResult = await _client.rpc(
+        'join_challenge',
+        params: {'p_challenge_id': challengeId},
+      );
+
+      debugPrint(
+        '✅ Joined challenge via RPC: $challengeId (result: $rpcResult)',
+      );
+
+      // Handle both return types:
+      // - Migration 026 returns UUID (string)
+      // - Migration 035 returns JSONB (map)
+      if (rpcResult is Map<String, dynamic>) {
+        return rpcResult;
+      }
+
+      // UUID returned = success (026 version)
+      return {
+        'success': true,
+        'already_joined': false,
+        'message': 'Tham gia thử thách thành công!',
+      };
     } catch (e) {
-      debugPrint('❌ Error joining challenge: $e');
-      rethrow;
+      debugPrint('⚠️ RPC failed, using fallback method: $e');
+
+      // Fallback: Direct database insert
+      try {
+        // Check if already joined
+        final existing =
+            await _client
+                .from('challenge_participants')
+                .select()
+                .eq('challenge_id', challengeId)
+                .eq('user_id', _userId!)
+                .maybeSingle();
+
+        if (existing != null) {
+          debugPrint('✅ Already joined challenge: $challengeId');
+          return {
+            'success': true,
+            'already_joined': true,
+            'message': 'Bạn đã tham gia thử thách này rồi',
+          };
+        }
+
+        // Insert new participant
+        await _client.from('challenge_participants').insert({
+          'challenge_id': challengeId,
+          'user_id': _userId!,
+          'status': 'active',
+          'progress': {
+            'current_value': 0,
+            'goal_value': 0,
+            'last_updated': DateTime.now().toIso8601String(),
+            'daily_logs': [],
+          },
+          'joined_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+
+        debugPrint('✅ Joined challenge via fallback: $challengeId');
+        return {
+          'success': true,
+          'already_joined': false,
+          'message': 'Tham gia thử thách thành công!',
+        };
+      } catch (fallbackError) {
+        debugPrint('❌ Fallback also failed: $fallbackError');
+        rethrow;
+      }
     }
   }
 
@@ -1098,6 +1169,22 @@ class CommunityService {
     return (response as List).cast<Map<String, dynamic>>();
   }
 
+  /// Get a user's community profile by ID (defaults to current user)
+  Future<CommunityProfile?> getProfile([String? userId]) async {
+    final targetId = userId ?? _userId;
+    if (targetId == null) return null;
+
+    final response =
+        await _client
+            .from('profiles')
+            .select()
+            .eq('id', targetId)
+            .maybeSingle();
+
+    if (response == null) return null;
+    return CommunityProfile.fromJson(response);
+  }
+
   /// Get global leaderboard (top users by points)
   Future<List<CommunityProfile>> getLeaderboard({int limit = 50}) async {
     final response = await _client
@@ -1114,10 +1201,7 @@ class CommunityService {
   // ============================================
 
   /// Get posts that the user has liked
-  Future<List<Post>> getLikedPosts({
-    int limit = 20,
-    int offset = 0,
-  }) async {
+  Future<List<Post>> getLikedPosts({int limit = 20, int offset = 0}) async {
     if (_userId == null) return [];
 
     final response = await _client
@@ -1137,16 +1221,11 @@ class CommunityService {
 
     final posts = response as List;
 
-    return posts
-        .map((p) => Post.fromJson(p, isLikedByMe: true))
-        .toList();
+    return posts.map((p) => Post.fromJson(p, isLikedByMe: true)).toList();
   }
 
   /// Get posts that the user has saved
-  Future<List<Post>> getSavedPosts({
-    int limit = 20,
-    int offset = 0,
-  }) async {
+  Future<List<Post>> getSavedPosts({int limit = 20, int offset = 0}) async {
     if (_userId == null) return [];
 
     // Get saved post IDs first
@@ -1157,7 +1236,8 @@ class CommunityService {
         .order('created_at', ascending: false)
         .range(offset, offset + limit - 1);
 
-    final postIds = (savedData as List).map((s) => s['post_id'] as String).toList();
+    final postIds =
+        (savedData as List).map((s) => s['post_id'] as String).toList();
 
     if (postIds.isEmpty) return [];
 
@@ -1178,8 +1258,7 @@ class CommunityService {
           .select('post_id')
           .eq('user_id', _userId!)
           .inFilter('post_id', postIds);
-      likedPostIds =
-          (likes as List).map((l) => l['post_id'] as String).toSet();
+      likedPostIds = (likes as List).map((l) => l['post_id'] as String).toSet();
     } catch (_) {}
 
     return posts
@@ -1214,12 +1293,13 @@ class CommunityService {
   Future<bool> isPostSaved(String postId) async {
     if (_userId == null) return false;
 
-    final response = await _client
-        .from('saved_posts')
-        .select('id')
-        .eq('user_id', _userId!)
-        .eq('post_id', postId)
-        .maybeSingle();
+    final response =
+        await _client
+            .from('saved_posts')
+            .select('id')
+            .eq('user_id', _userId!)
+            .eq('post_id', postId)
+            .maybeSingle();
 
     return response != null;
   }

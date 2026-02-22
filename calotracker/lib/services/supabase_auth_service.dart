@@ -72,8 +72,8 @@ class SupabaseAuthService {
     }
 
     final response = await _client.auth.signUp(
-      email: email,
-      password: password,
+      email: email.trim(),
+      password: password.trim(),
       data: {'username': username, 'display_name': displayName},
     );
 
@@ -85,25 +85,41 @@ class SupabaseAuthService {
     required String email,
     required String password,
   }) async {
-    final response = await _client.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
+    try {
+      final response = await _client.auth.signInWithPassword(
+        email: email.trim(),
+        password: password.trim(),
+      );
 
-    // Ensure profile exists after login
-    if (response.user != null) {
-      final profile =
-          await _client
-              .from('profiles')
-              .select('id')
-              .eq('id', response.user!.id)
-              .maybeSingle();
-      if (profile == null) {
-        await _ensureProfileExists();
+      // Ensure profile exists after login
+      if (response.user != null) {
+        final profile =
+            await _client
+                .from('profiles')
+                .select('id')
+                .eq('id', response.user!.id)
+                .maybeSingle();
+        if (profile == null) {
+          await _ensureProfileExists();
+        }
       }
-    }
 
-    return response;
+      return response;
+    } on AuthException catch (e) {
+      // SECURITY: Return a generic error message for invalid credentials.
+      // Do NOT attempt to distinguish between "wrong password" and
+      // "unconfirmed email" — doing so (e.g. via fake signup) creates
+      // garbage DB records and enables email enumeration attacks.
+      // (ISO/IEC 27034 ONF-2: Authentication security)
+      if (e.message.contains('Invalid login credentials') ||
+          e.message.contains('invalid_credentials')) {
+        throw AuthException(
+          'Email hoặc mật khẩu không đúng. Nếu bạn chưa xác nhận email, vui lòng kiểm tra hộp thư.',
+          statusCode: '400',
+        );
+      }
+      rethrow;
+    }
   }
 
   // Sign in with Google
@@ -358,7 +374,8 @@ class SupabaseAuthService {
   /// Request OTP for password reset
   /// Returns success even if email doesn't exist (prevents email enumeration)
   Future<Map<String, dynamic>> requestPasswordResetOtp(String email) async {
-    debugPrint('[OTP] Requesting OTP for email: $email');
+    // SECURITY: Do not log email addresses (ISO/IEC 27034 ONF-3: Data Protection)
+    debugPrint('[OTP] Requesting password reset OTP');
 
     final response = await _client.functions.invoke(
       'request-password-otp',
@@ -366,7 +383,7 @@ class SupabaseAuthService {
     );
 
     debugPrint('[OTP] Response status: ${response.status}');
-    debugPrint('[OTP] Response data: ${response.data}');
+    // SECURITY: Do not log response data — may contain sensitive tokens
 
     if (response.status != 200) {
       final errorMsg =

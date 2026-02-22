@@ -36,7 +36,7 @@ enum FriendshipStatus {
 
 class Friendship {
   final String id;
-  final String oderId;
+  final String otherUserId;
   final String friendId;
   final FriendshipStatus status;
   final DateTime createdAt;
@@ -51,7 +51,7 @@ class Friendship {
 
   const Friendship({
     required this.id,
-    required this.oderId,
+    required this.otherUserId,
     required this.friendId,
     this.status = FriendshipStatus.pending,
     required this.createdAt,
@@ -70,7 +70,7 @@ class Friendship {
 
     return Friendship(
       id: json['id'] as String,
-      oderId: json['user_id'] as String,
+      otherUserId: json['user_id'] as String,
       friendId: json['friend_id'] as String,
       status: FriendshipStatus.fromString(
         json['status'] as String? ?? 'pending',
@@ -95,7 +95,7 @@ class Friendship {
   factory Friendship.fromFunctionResult(Map<String, dynamic> json) {
     return Friendship(
       id: json['friendship_id'] as String,
-      oderId: '',
+      otherUserId: '',
       friendId: json['friend_id'] as String,
       status: FriendshipStatus.fromString(
         json['friendship_status'] as String? ?? 'accepted',
@@ -150,7 +150,9 @@ class FriendRequest {
   });
 
   factory FriendRequest.fromJson(Map<String, dynamic> json) {
-    final profile = json['requester'] as Map<String, dynamic>?;
+    // Support both 'requester' (old) and 'user' (new FK syntax)
+    final profile =
+        (json['requester'] ?? json['user']) as Map<String, dynamic>?;
 
     return FriendRequest(
       id: json['id'] as String,

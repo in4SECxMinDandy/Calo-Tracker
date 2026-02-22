@@ -284,11 +284,19 @@ class MockCommunityService {
     }
   }
 
-  Future<void> joinChallenge(String challengeId) async {
+  Future<Map<String, dynamic>> joinChallenge(String challengeId) async {
     await _simulateDelay();
-    if (!_joinedChallenges.contains(challengeId)) {
+    final alreadyJoined = _joinedChallenges.contains(challengeId);
+    if (!alreadyJoined) {
       _joinedChallenges.add(challengeId);
     }
+    return {
+      'success': true,
+      'already_joined': alreadyJoined,
+      'message': alreadyJoined
+          ? 'Bạn đã tham gia thử thách này rồi'
+          : 'Tham gia thử thách thành công!',
+    };
   }
 
   Future<List<ChallengeParticipant>> getChallengeLeaderboard(

@@ -2,13 +2,16 @@
 // Display friends list with online status and friend requests
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
 import '../../services/friends_service.dart';
 import '../../services/presence_service.dart';
 import '../../models/friendship.dart';
 import '../../models/user_presence.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
+import '../../theme/animated_app_icons.dart';
 import '../../widgets/online_indicator.dart';
 import 'chat_screen.dart';
 import 'user_profile_screen.dart';
@@ -69,7 +72,9 @@ class _FriendsScreenState extends State<FriendsScreen>
 
           // Subscribe to presence updates
           _presenceSubscription?.cancel();
-          _presenceSubscription = _presenceService.presenceStream.listen((presence) {
+          _presenceSubscription = _presenceService.presenceStream.listen((
+            presence,
+          ) {
             if (mounted) {
               setState(() {
                 _presenceMap[presence.userId] = presence;
@@ -172,11 +177,16 @@ class _FriendsScreenState extends State<FriendsScreen>
 
   Widget _buildFriendsList() {
     if (_friends.isEmpty) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
+            AnimatedAppIcons.community(
+              size: 64,
+              color: isDark ? Colors.grey[600]! : Colors.grey[400]!,
+              trigger: lucide.AnimationTrigger.onTap,
+            ),
             const SizedBox(height: 16),
             Text(
               'Chưa có bạn bè',
@@ -249,7 +259,7 @@ class _FriendsScreenState extends State<FriendsScreen>
               // Message button
               IconButton(
                 onPressed: () => _openChat(friendship),
-                icon: const Icon(Icons.chat_bubble_outline),
+                icon: Icon(CupertinoIcons.chat_bubble, size: 24),
                 color: AppColors.primaryBlue,
               ),
             ],
@@ -261,11 +271,16 @@ class _FriendsScreenState extends State<FriendsScreen>
 
   Widget _buildRequestsList() {
     if (_requests.isEmpty) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.mail_outline, size: 64, color: Colors.grey[400]),
+            AnimatedAppIcons.bell(
+              size: 64,
+              color: isDark ? Colors.grey[600]! : Colors.grey[400]!,
+              trigger: lucide.AnimationTrigger.onTap,
+            ),
             const SizedBox(height: 16),
             Text(
               'Không có lời mời kết bạn',
@@ -342,13 +357,13 @@ class _FriendsScreenState extends State<FriendsScreen>
               children: [
                 IconButton(
                   onPressed: () => _acceptRequest(request),
-                  icon: const Icon(Icons.check_circle),
+                  icon: Icon(CupertinoIcons.check_mark_circled, size: 28),
                   color: Colors.green,
                   tooltip: 'Chấp nhận',
                 ),
                 IconButton(
                   onPressed: () => _rejectRequest(request),
-                  icon: const Icon(Icons.cancel),
+                  icon: Icon(CupertinoIcons.xmark_circle, size: 28),
                   color: Colors.red,
                   tooltip: 'Từ chối',
                 ),

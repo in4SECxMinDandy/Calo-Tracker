@@ -8,6 +8,7 @@ import '../../models/meal.dart';
 import '../../models/user_profile.dart';
 import '../../services/database_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/data_sync_service.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../theme/animated_app_icons.dart';
@@ -29,7 +30,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<Meal> _selectedDayMeals = [];
   UserProfile? _userProfile;
   bool _isLoading = true;
+  bool _isSyncing = false;
   int _chartRange = 7; // Days to show in chart
+
+  final _syncService = DataSyncService();
 
   @override
   void initState() {
@@ -39,6 +43,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
+
+    // Auto-sync on load if available
+    if (_syncService.canSync) {
+      _syncData(silent: true);
+    }
 
     final profile = StorageService.getUserProfile();
     final endDate = _selectedDate;
@@ -104,6 +113,45 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void _changeChartRange(int days) {
     setState(() => _chartRange = days);
     _loadData();
+  }
+
+  Future<void> _syncData({bool silent = false}) async {
+    if (_isSyncing) return;
+
+    setState(() => _isSyncing = true);
+
+    try {
+      final result = await _syncService.syncAll();
+
+      if (!silent && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message),
+            backgroundColor: result.success ? AppColors.successGreen : AppColors.errorRed,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+
+      if (result.success) {
+        // Reload data after successful sync
+        _loadData();
+      }
+    } catch (e) {
+      if (!silent && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi đồng bộ: $e'),
+            backgroundColor: AppColors.errorRed,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncing = false);
+      }
+    }
   }
 
   Future<void> _deleteMeal(Meal meal) async {
@@ -229,6 +277,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                         onPressed: () => Navigator.pop(context),
                       ),
+                      actions: [
+                        // Manual sync button
+                        if (_syncService.canSync)
+                          IconButton(
+                            icon: _isSyncing
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(
+                                    CupertinoIcons.arrow_2_circlepath,
+                                    color: Colors.white,
+                                  ),
+                            onPressed: _isSyncing ? null : () => _syncData(silent: false),
+                            tooltip: 'Đồng bộ dữ liệu',
+                          ),
+                      ],
                     ),
 
                     // Main content

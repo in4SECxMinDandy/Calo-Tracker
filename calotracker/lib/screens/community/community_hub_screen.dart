@@ -27,6 +27,7 @@ import 'leaderboard_screen.dart';
 import 'widgets/post_card.dart';
 import 'widgets/create_post_sheet.dart';
 import 'widgets/comment_sheet.dart';
+import '../search/global_search_screen.dart';
 
 class CommunityHubScreen extends StatefulWidget {
   const CommunityHubScreen({super.key});
@@ -99,6 +100,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
         _communityService.getFeedPosts(limit: 20),
         _communityService.getMyGroups(),
         _communityService.getActiveChallenges(limit: 5),
+        _communityService.getUnreadNotificationCount(),
       ]);
 
       if (mounted) {
@@ -106,7 +108,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
           _feedPosts = results[0] as List<Post>;
           _myGroups = results[1] as List<CommunityGroup>;
           _activeChallenges = results[2] as List<Challenge>;
-          _unreadNotifications = _communityService.isDemoMode ? 3 : 0;
+          _unreadNotifications = results[3] as int;
           _isLoading = false;
         });
       }
@@ -150,6 +152,13 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
     Navigator.push(
       context,
       CupertinoPageRoute(builder: (_) => const FriendsScreen()),
+    );
+  }
+
+  void _openSearch() {
+    Navigator.push(
+      context,
+      CupertinoPageRoute(builder: (_) => const GlobalSearchScreen()),
     );
   }
 
@@ -318,19 +327,19 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
       toolbarHeight: 65,
       title: Row(
         children: [
-          // Logo/Brand
+          // Logo/Brand — Facebook-style community icon
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: AppColors.communityCardGradient,
+                colors: [Color(0xFF1877F2), Color(0xFF42A5F5)],
               ),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: AnimatedAppIcons.heart(
-              size: 20,
+            child: const Icon(
+              CupertinoIcons.person_3_fill,
+              size: 22,
               color: Colors.white,
-              trigger: lucide.AnimationTrigger.onTap,
             ),
           ),
           const SizedBox(width: 10),
@@ -364,26 +373,74 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
         ],
       ),
       actions: [
-        // Friends
-        IconButton(
-          icon: Icon(
-            CupertinoIcons.person_2,
-            color: isDark ? Colors.white70 : Colors.black54,
-          ),
-          onPressed: _authService.isAuthenticated ? _openFriends : _openLogin,
-        ),
-        // Messages
-        IconButton(
-          icon: Badge(
-            isLabelVisible: _unreadMessages > 0,
-            label: Text(_unreadMessages > 9 ? '9+' : '$_unreadMessages'),
-            child: AnimatedAppIcons.messageCircle(
-              size: 24,
+        // Search
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: IconButton(
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+            icon: Icon(
+              CupertinoIcons.search,
               color: isDark ? Colors.white70 : Colors.black54,
-              trigger: lucide.AnimationTrigger.onTap,
             ),
+            onPressed: () {
+              debugPrint(
+                'Search button pressed, isAuth: ${_authService.isAuthenticated}',
+              );
+              if (_authService.isAuthenticated) {
+                _openSearch();
+              } else {
+                _openLogin();
+              }
+            },
+            tooltip: 'Tìm kiếm',
           ),
-          onPressed: _authService.isAuthenticated ? _openMessages : _openLogin,
+        ),
+        // Friends - Increased touch target
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: IconButton(
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+            icon: Icon(
+              CupertinoIcons.person_2,
+              color: isDark ? Colors.white70 : Colors.black54,
+            ),
+            onPressed: () {
+              debugPrint(
+                'Friends button pressed, isAuth: ${_authService.isAuthenticated}',
+              );
+              if (_authService.isAuthenticated) {
+                _openFriends();
+              } else {
+                _openLogin();
+              }
+            },
+          ),
+        ),
+        // Messages - Increased touch target
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: IconButton(
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+            icon: Badge(
+              isLabelVisible: _unreadMessages > 0,
+              label: Text(_unreadMessages > 9 ? '9+' : '$_unreadMessages'),
+              child: AnimatedAppIcons.messageCircle(
+                size: 24,
+                color: isDark ? Colors.white70 : Colors.black54,
+                trigger: lucide.AnimationTrigger.onTap,
+              ),
+            ),
+            onPressed: () {
+              debugPrint(
+                'Messages button pressed, isAuth: ${_authService.isAuthenticated}',
+              );
+              if (_authService.isAuthenticated) {
+                _openMessages();
+              } else {
+                _openLogin();
+              }
+            },
+          ),
         ),
         // Notifications
         IconButton(
