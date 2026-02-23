@@ -94,20 +94,20 @@ class _WorkoutProgramScreenState extends State<WorkoutProgramScreen> {
         ),
       ),
       actions: [
-        // Progress button
+        // Settings button
         IconButton(
-          icon: const Icon(CupertinoIcons.chart_bar),
+          icon: const Icon(CupertinoIcons.gear_alt, size: 22),
           onPressed: () {
-            // Navigate to progress tracker
-            Navigator.pushNamed(context, '/workout/progress');
-          },
-        ),
-        // Schedule button
-        IconButton(
-          icon: const Icon(CupertinoIcons.calendar),
-          onPressed: () {
-            // Navigate to weekly schedule
-            Navigator.pushNamed(context, '/workout/schedule');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('⚙️ Cài đặt tập luyện — Sắp ra mắt!'),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                duration: const Duration(seconds: 2),
+              ),
+            );
           },
         ),
       ],
@@ -390,8 +390,9 @@ class _WorkoutProgramScreenState extends State<WorkoutProgramScreen> {
                           context,
                           CupertinoPageRoute(
                             builder:
-                                (context) =>
-                                    ExerciseDetailScreen(exerciseId: exercise.id),
+                                (context) => ExerciseDetailScreen(
+                                  exerciseId: exercise.id,
+                                ),
                           ),
                         );
                       },
@@ -416,146 +417,165 @@ class _WorkoutProgramScreenState extends State<WorkoutProgramScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.75,
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            // Handle
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Theme.of(context).dividerColor,
-                borderRadius: BorderRadius.circular(2),
+      builder:
+          (context) => Container(
+            height: MediaQuery.of(context).size.height * 0.75,
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
               ),
             ),
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  Text(exercise.icon, style: const TextStyle(fontSize: 32)),
-                  const SizedBox(width: 16),
-                  Expanded(
+            child: Column(
+              children: [
+                // Handle
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).dividerColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                // Header
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Text(exercise.icon, style: const TextStyle(fontSize: 32)),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(exercise.name, style: AppTextStyles.heading3),
+                            Text(
+                              '${exercise.displayReps} × ${exercise.sets} sets • ${exercise.totalCalories} kcal',
+                              style: AppTextStyles.caption,
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(CupertinoIcons.xmark_circle_fill),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                // Content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(exercise.name, style: AppTextStyles.heading3),
+                        // Description
+                        Text('Mô tả', style: AppTextStyles.labelLarge),
+                        const SizedBox(height: 8),
                         Text(
-                          '${exercise.displayReps} × ${exercise.sets} sets • ${exercise.totalCalories} kcal',
-                          style: AppTextStyles.caption,
+                          exercise.description,
+                          style: AppTextStyles.bodyMedium,
                         ),
+                        const SizedBox(height: 20),
+                        // Instructions
+                        Text('Cách thực hiện', style: AppTextStyles.labelLarge),
+                        const SizedBox(height: 12),
+                        ...exercise.instructions.asMap().entries.map((entry) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryBlue,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '${entry.key + 1}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    entry.value,
+                                    style: AppTextStyles.bodyMedium,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        // Tips
+                        if (exercise.tips.isNotEmpty) ...[
+                          const SizedBox(height: 20),
+                          Text('Mẹo hay', style: AppTextStyles.labelLarge),
+                          const SizedBox(height: 8),
+                          ...exercise.tips.map(
+                            (tip) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('💡 '),
+                                  Expanded(
+                                    child: Text(
+                                      tip,
+                                      style: AppTextStyles.bodyMedium,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(CupertinoIcons.xmark_circle_fill),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            // Content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Description
-                    Text('Mô tả', style: AppTextStyles.labelLarge),
-                    const SizedBox(height: 8),
-                    Text(exercise.description, style: AppTextStyles.bodyMedium),
-                    const SizedBox(height: 20),
-                    // Instructions
-                    Text('Cách thực hiện', style: AppTextStyles.labelLarge),
-                    const SizedBox(height: 12),
-                    ...exercise.instructions.asMap().entries.map((entry) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryBlue,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '${entry.key + 1}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
+                ),
+                // Bottom button
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          CupertinoPageRoute(
+                            builder:
+                                (context) => ExerciseDetailScreen(
+                                  exerciseId: exercise.id,
                                 ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(entry.value, style: AppTextStyles.bodyMedium),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                    // Tips
-                    if (exercise.tips.isNotEmpty) ...[
-                      const SizedBox(height: 20),
-                      Text('Mẹo hay', style: AppTextStyles.labelLarge),
-                      const SizedBox(height: 8),
-                      ...exercise.tips.map((tip) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('💡 '),
-                            Expanded(child: Text(tip, style: AppTextStyles.bodyMedium)),
-                          ],
-                        ),
-                      )),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            // Bottom button
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      CupertinoPageRoute(
-                        builder: (context) => ExerciseDetailScreen(exerciseId: exercise.id),
+                          ),
+                        );
+                      },
+                      icon: const Icon(CupertinoIcons.play_circle),
+                      label: const Text('Xem chi tiết & Video'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBlue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                    );
-                  },
-                  icon: const Icon(CupertinoIcons.play_circle),
-                  label: const Text('Xem chi tiết & Video'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 }

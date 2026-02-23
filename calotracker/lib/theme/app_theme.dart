@@ -41,7 +41,7 @@ class AppTheme {
     cardTheme: CardThemeData(
       elevation: 0,
       color: AppColors.lightCardBackground,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       margin: EdgeInsets.zero,
     ),
 
@@ -51,19 +51,19 @@ class AppTheme {
       fillColor: AppColors.lightSurface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AppColors.lightDivider),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AppColors.lightDivider),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AppColors.primaryBlue, width: 2),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AppColors.errorRed),
       ),
       hintStyle: AppTextStyles.bodyMedium.copyWith(
@@ -76,7 +76,7 @@ class AppTheme {
       style: ElevatedButton.styleFrom(
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         backgroundColor: AppColors.primaryBlue,
         foregroundColor: Colors.white,
         textStyle: AppTextStyles.buttonText,
@@ -155,7 +155,7 @@ class AppTheme {
     cardTheme: CardThemeData(
       elevation: 0,
       color: AppColors.darkCardBackground,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       margin: EdgeInsets.zero,
     ),
 
@@ -165,22 +165,22 @@ class AppTheme {
       fillColor: AppColors.darkSurface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AppColors.darkDivider),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AppColors.darkDivider),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(
           color: AppColors.primaryBlueDark,
           width: 2,
         ),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AppColors.errorRed),
       ),
       hintStyle: AppTextStyles.bodyMedium.copyWith(
@@ -193,7 +193,7 @@ class AppTheme {
       style: ElevatedButton.styleFrom(
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         backgroundColor: AppColors.primaryBlueDark,
         foregroundColor: Colors.white,
         textStyle: AppTextStyles.buttonText,

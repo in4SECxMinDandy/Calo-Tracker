@@ -21,8 +21,8 @@ class GlassCard extends StatelessWidget {
     required this.child,
     this.padding,
     this.margin,
-    this.borderRadius = 20,
-    this.blur = 20,
+    this.borderRadius = 24,
+    this.blur = 24,
     this.backgroundColor,
     this.gradient,
     this.onTap,
@@ -39,30 +39,34 @@ class GlassCard extends StatelessWidget {
         (isDark ? AppColors.glassDark : AppColors.glassLight);
 
     // Enhanced border color with theme-aware opacity
-    final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : Colors.white.withValues(alpha: 0.6);
+    final borderColor =
+        isDark
+            ? Colors.white.withValues(alpha: 0.06)
+            : Colors.white.withValues(alpha: 0.5);
 
     // Softer, layered shadows for depth
-    final shadows = enableShadow
-        ? [
-            BoxShadow(
-              color: isDark
-                  ? Colors.black.withValues(alpha: 0.3)
-                  : Colors.black.withValues(alpha: 0.04),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-              spreadRadius: -2,
-            ),
-            BoxShadow(
-              color: isDark
-                  ? Colors.black.withValues(alpha: 0.15)
-                  : Colors.black.withValues(alpha: 0.02),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ]
-        : <BoxShadow>[];
+    final shadows =
+        enableShadow
+            ? [
+              BoxShadow(
+                color:
+                    isDark
+                        ? Colors.black.withValues(alpha: 0.3)
+                        : Colors.black.withValues(alpha: 0.04),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+                spreadRadius: -2,
+              ),
+              BoxShadow(
+                color:
+                    isDark
+                        ? Colors.black.withValues(alpha: 0.15)
+                        : Colors.black.withValues(alpha: 0.02),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ]
+            : <BoxShadow>[];
 
     Widget content = ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
@@ -74,9 +78,8 @@ class GlassCard extends StatelessWidget {
             color: gradient == null ? bgColor : null,
             gradient: gradient,
             borderRadius: BorderRadius.circular(borderRadius),
-            border: enableBorder
-                ? Border.all(color: borderColor, width: 1)
-                : null,
+            border:
+                enableBorder ? Border.all(color: borderColor, width: 1) : null,
             boxShadow: shadows,
           ),
           child: child,
@@ -110,7 +113,7 @@ class SimpleCard extends StatelessWidget {
     required this.child,
     this.padding,
     this.margin,
-    this.borderRadius = 16,
+    this.borderRadius = 20,
     this.backgroundColor,
     this.onTap,
   });
@@ -123,16 +126,22 @@ class SimpleCard extends StatelessWidget {
         backgroundColor ??
         (isDark ? AppColors.darkCardBackground : AppColors.lightCardBackground);
 
+    final borderColor =
+        isDark
+            ? AppColors.darkDivider.withValues(alpha: 0.5)
+            : AppColors.lightDivider.withValues(alpha: 0.5);
+
     Widget content = Container(
-      padding: padding ?? const EdgeInsets.all(16),
+      padding: padding ?? const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(color: borderColor, width: 1),
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
               offset: const Offset(0, 2),
             ),
         ],

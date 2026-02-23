@@ -1003,24 +1003,30 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Icon(
-                CupertinoIcons.scope,
-                color: Colors.white.withValues(alpha: 0.9),
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Mục tiêu hàng ngày',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
+          Flexible(
+            child: Row(
+              children: [
+                Icon(
+                  CupertinoIcons.scope,
                   color: Colors.white.withValues(alpha: 0.9),
+                  size: 24,
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    'Mục tiêu hàng ngày',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withValues(alpha: 0.9),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [

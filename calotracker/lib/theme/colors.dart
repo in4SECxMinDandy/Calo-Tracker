@@ -17,34 +17,45 @@ class AppColors {
   static const Color warningCoral = Color(0xFFFF7F50); // New warning color
   static const Color errorRed = Color(0xFFEF4444);
 
+  // Accent Colors (New from redesign)
+  static const Color accentMint = Color(0xFF06D6A0);
+  static const Color accentLime = Color(0xFF84CC16);
+  static const Color accentCyan = Color(0xFF06B6D4);
+
   // Community Colors (Soft Orange / Teal)
   static const Color communityOrange = Color(0xFFFF8A65);
   static const Color communityTeal = Color(0xFF26A69A);
+  static const Color facebookBlue = Color(0xFF1877F2);
+  static const Color facebookBlueLight = Color(0xFF42A5F5);
 
   // Light Theme Colors
-  static const Color lightBackground = Color(0xFFF8F9FA);
+  static const Color lightBackground = Color(0xFFF5F7FA);
   static const Color lightSurface = Color(0xFFFFFFFF);
   static const Color lightCardBackground = Color(0xFFFFFFFF);
-  static const Color lightTextPrimary = Color(0xFF1F2937);
+  static const Color lightTextPrimary = Color(0xFF111827);
   static const Color lightTextSecondary = Color(0xFF6B7280);
+  static const Color lightTextTertiary = Color(0xFF9CA3AF);
   static const Color lightDivider = Color(0xFFE5E7EB);
+  static const Color lightMuted = Color(0xFFF3F4F6);
 
   // Dark Theme Colors
-  static const Color darkBackground = Color(0xFF0F0F23);
-  static const Color darkSurface = Color(0xFF1A1A2E);
-  static const Color darkCardBackground = Color(0xFF1A1A2E);
+  static const Color darkBackground = Color(0xFF0A0A1A);
+  static const Color darkSurface = Color(0xFF141428);
+  static const Color darkCardBackground = Color(0xFF1A1A32);
   static const Color darkTextPrimary = Color(0xFFF9FAFB);
   static const Color darkTextSecondary = Color(0xFF9CA3AF);
-  static const Color darkDivider = Color(0xFF374151);
+  static const Color darkTextTertiary = Color(0xFF6B7280);
+  static const Color darkDivider = Color(0xFF2D2D4A);
+  static const Color darkMuted = Color(0xFF1E1E36);
 
   // Aliases for convenience (used in new screens)
   static const Color lightText = lightTextPrimary;
   static const Color darkText = darkTextPrimary;
 
   // Glass morphism colors
-  static Color glassLight = Colors.white.withValues(alpha: 0.9);
-  static Color glassDark = Colors.white.withValues(alpha: 0.1);
-  static Color glassBorder = Colors.white.withValues(alpha: 0.2);
+  static Color glassLight = Colors.white.withValues(alpha: 0.85);
+  static Color glassDark = const Color(0xFF1A1A32).withValues(alpha: 0.8);
+  static Color glassBorder = Colors.white.withValues(alpha: 0.06);
 
   // Gradient Colors for Cards
   static const List<Color> cameraCardGradient = [

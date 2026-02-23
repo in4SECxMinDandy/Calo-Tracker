@@ -1,8 +1,8 @@
 // Home Screen - Modern Health & Social Wellness Ecosystem
 // Redesigned with Apple Health + Strava + Instagram aesthetics
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'dart:math' as math;
 import '../../models/user_profile.dart';
 import '../../models/calo_record.dart';
 import '../../models/gym_session.dart';
@@ -16,19 +16,19 @@ import '../camera/camera_scan_screen.dart';
 import '../gym/gym_scheduler_screen.dart';
 import '../history/history_screen.dart';
 import '../workout/workout_program_screen.dart';
-import '../healthy_food/healthy_food_screen.dart';
+
 import 'widgets/settings_sheet.dart';
 import 'widgets/water_intake_widget.dart';
 
 import 'widgets/level_badge_widget.dart';
-import '../barcode/barcode_scanner_screen.dart';
+
 import 'widgets/meal_suggestion_widget.dart';
 import 'widgets/sleep_widget.dart';
 import '../community/community_hub_screen.dart';
-import '../../theme/app_icons.dart';
-import '../../theme/animated_app_icons.dart';
-import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
+
 import '../profile/profile_screen.dart';
+import '../../widgets/redesign/health_rings.dart';
+import '../../widgets/redesign/macro_bar.dart';
 
 // Modern color palette
 class WellnessColors {
@@ -59,27 +59,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   final _friendsService = FriendsService();
 
-  late AnimationController _ringAnimationController;
-  late Animation<double> _ringAnimation;
-
   @override
   void initState() {
     super.initState();
-    _ringAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-    _ringAnimation = CurvedAnimation(
-      parent: _ringAnimationController,
-      curve: Curves.easeOutCubic,
-    );
     _loadData();
-  }
-
-  @override
-  void dispose() {
-    _ringAnimationController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -109,7 +92,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _friends = friends;
         _isLoading = false;
       });
-      _ringAnimationController.forward(from: 0);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -163,9 +145,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Chào buổi sáng';
-    if (hour < 18) return 'Chào buổi chiều';
-    return 'Chào buổi tối';
+    if (hour < 12) return 'Chào buổi sáng ☀️';
+    if (hour < 18) return 'Chào buổi chiều 🌤️';
+    return 'Chào buổi tối 🌙';
   }
 
   @override
@@ -218,6 +200,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               child: _buildHealthRings(isDark, intake, burned, dailyTarget),
             ),
 
+            // Macro Bars - Daily nutrition breakdown
+            SliverToBoxAdapter(child: _buildMacroBars(isDark)),
+
             // Quick Actions - Pill buttons
             SliverToBoxAdapter(child: _buildQuickActions(isDark)),
 
@@ -266,125 +251,184 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildBottomBar(bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                0,
-                CupertinoIcons.house,
-                CupertinoIcons.house_fill,
-                'Trang chủ',
-                isDark,
+    final tabs = [
+      {
+        'icon': CupertinoIcons.house,
+        'activeIcon': CupertinoIcons.house_fill,
+        'label': 'Trang chủ',
+      },
+      {
+        'icon': CupertinoIcons.person_3,
+        'activeIcon': CupertinoIcons.person_3_fill,
+        'label': 'Cộng đồng',
+      },
+      {
+        'icon': CupertinoIcons.chart_bar,
+        'activeIcon': CupertinoIcons.chart_bar_fill,
+        'label': 'Lịch sử',
+      },
+      {
+        'icon': CupertinoIcons.sparkles,
+        'activeIcon': CupertinoIcons.sparkles,
+        'label': 'AI',
+      },
+      {
+        'icon': CupertinoIcons.person,
+        'activeIcon': CupertinoIcons.person_fill,
+        'label': 'Hồ sơ',
+      },
+    ];
+
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          decoration: BoxDecoration(
+            color:
+                isDark
+                    ? AppColors.darkSurface.withValues(alpha: 0.8)
+                    : Colors.white.withValues(alpha: 0.85),
+            border: Border(
+              top: BorderSide(
+                color:
+                    isDark
+                        ? AppColors.darkDivider.withValues(alpha: 0.3)
+                        : AppColors.lightDivider.withValues(alpha: 0.3),
               ),
-              _buildNavItem(
-                1,
-                CupertinoIcons.person_3,
-                CupertinoIcons.person_3_fill,
-                'Cộng đồng',
-                isDark,
-                activeColor: const Color(0xFF1877F2), // Facebook blue
-              ),
-              _buildNavItem(
-                2,
-                CupertinoIcons.chart_bar,
-                CupertinoIcons.chart_bar_fill,
-                'Lịch sử',
-                isDark,
-              ),
-              _buildNavItem(
-                3,
-                CupertinoIcons.sparkles,
-                CupertinoIcons.sparkles,
-                'AI',
-                isDark,
-              ),
-              _buildNavItem(
-                4,
-                CupertinoIcons.person,
-                CupertinoIcons.person_fill,
-                'Cá nhân',
-                isDark,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.08),
+                blurRadius: 30,
+                offset: const Offset(0, -4),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
+          child: SafeArea(
+            child: SizedBox(
+              height: 72,
+              child: Stack(
+                children: [
+                  // Active pill indicator
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOutCubic,
+                    top: 8,
+                    left:
+                        (_currentIndex *
+                            (MediaQuery.of(context).size.width / tabs.length)) +
+                        (MediaQuery.of(context).size.width / tabs.length * 0.1),
+                    child: Container(
+                      width:
+                          MediaQuery.of(context).size.width / tabs.length * 0.8,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primaryBlue.withValues(alpha: 0.1),
+                            AppColors.primaryIndigo.withValues(alpha: 0.08),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Tab items
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: List.generate(tabs.length, (i) {
+                      final tab = tabs[i];
+                      final isSelected = _currentIndex == i;
+                      final activeColor =
+                          i == 1
+                              ? AppColors.facebookBlue
+                              : AppColors.primaryBlue;
+                      final color =
+                          isSelected
+                              ? activeColor
+                              : (isDark
+                                  ? AppColors.darkTextTertiary
+                                  : AppColors.lightTextTertiary);
 
-  Widget _buildNavItem(
-    int index,
-    IconData icon,
-    IconData activeIcon,
-    String label,
-    bool isDark, {
-    Color? activeColor,
-  }) {
-    final isSelected = _currentIndex == index;
-    final selectedColor = activeColor ?? WellnessColors.sageGreen;
-    final color =
-        isSelected ? selectedColor : (isDark ? Colors.white54 : Colors.black45);
-
-    return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedScale(
-              scale: isSelected ? 1.15 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                isSelected ? activeIcon : icon,
-                size: 24,
-                color: color,
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _currentIndex = i),
+                          behavior: HitTestBehavior.opaque,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              AnimatedSlide(
+                                offset:
+                                    isSelected
+                                        ? const Offset(0, -0.05)
+                                        : Offset.zero,
+                                duration: const Duration(milliseconds: 250),
+                                child: Icon(
+                                  isSelected
+                                      ? tab['activeIcon'] as IconData
+                                      : tab['icon'] as IconData,
+                                  size: 22,
+                                  color: color,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                tab['label'] as String,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight:
+                                      isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                  color: color,
+                                ),
+                              ),
+                              // Active dot
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 250),
+                                height: 4,
+                                width: isSelected ? 4 : 0,
+                                margin: const EdgeInsets.only(top: 2),
+                                decoration: BoxDecoration(
+                                  color:
+                                      isSelected
+                                          ? activeColor
+                                          : Colors.transparent,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: color,
-              ),
-            ),
-            // Active indicator bar (Facebook-style)
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              height: 2,
-              width: isSelected ? 20 : 0,
-              margin: const EdgeInsets.only(top: 3),
-              decoration: BoxDecoration(
-                color: isSelected ? selectedColor : Colors.transparent,
-                borderRadius: BorderRadius.circular(1),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildCompactHeader(bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      decoration: BoxDecoration(
+        color:
+            isDark
+                ? AppColors.darkSurface.withValues(alpha: 0.8)
+                : Colors.white.withValues(alpha: 0.85),
+        border: Border(
+          bottom: BorderSide(
+            color:
+                isDark
+                    ? AppColors.darkDivider.withValues(alpha: 0.3)
+                    : AppColors.lightDivider.withValues(alpha: 0.3),
+          ),
+        ),
+      ),
       child: Row(
         children: [
           // Avatar & Greeting
@@ -395,10 +439,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [WellnessColors.sageGreen, WellnessColors.mint],
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF10B981), Color(0xFF06D6A0)],
                     ),
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Center(
                     child: Text(
@@ -406,7 +459,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -418,17 +471,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     Text(
                       _getGreeting(),
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         color:
-                            isDark ? Colors.white60 : WellnessColors.warmGray,
+                            isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary,
                       ),
                     ),
                     Text(
-                      _userProfile?.name ?? 'Bạn',
+                      _userProfile?.name ?? 'Người dùng',
                       style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color:
+                            isDark
+                                ? AppColors.darkTextPrimary
+                                : AppColors.lightTextPrimary,
                       ),
                     ),
                   ],
@@ -437,78 +495,45 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // AI Assistant Badge
+          // Notification Bell
           GestureDetector(
-            onTap: _openChatbot,
+            onTap: _openSettings,
             child: Container(
-              padding: const EdgeInsets.all(10),
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: isDark ? Colors.white10 : Colors.white,
+                color: isDark ? AppColors.darkMuted : AppColors.lightMuted,
                 borderRadius: BorderRadius.circular(12),
-                boxShadow:
-                    isDark
-                        ? []
-                        : [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+              child: Stack(
                 children: [
-                  AnimatedAppIcons.ai(
-                    size: 16,
-                    color: WellnessColors.lavender,
-                    trigger: lucide.AnimationTrigger.onTap,
+                  Center(
+                    child: Icon(
+                      CupertinoIcons.bell,
+                      size: 18,
+                      color:
+                          isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.lightTextPrimary,
+                    ),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'AI',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white70 : Colors.black54,
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: AppColors.errorRed,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDark ? AppColors.darkCard : Colors.white,
+                          width: 2,
+                        ),
+                      ),
                     ),
                   ),
                 ],
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 8),
-
-          // Settings - Increased touch target
-          GestureDetector(
-            onTap: _openSettings,
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              // Ensure minimum 44x44 touch target
-              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-              alignment: Alignment.center,
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white10 : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow:
-                      isDark
-                          ? []
-                          : [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                ),
-                child: AnimatedAppIcons.settings(
-                  size: 18,
-                  color: isDark ? Colors.white70 : WellnessColors.warmGray,
-                  trigger: lucide.AnimationTrigger.onTap,
-                ),
               ),
             ),
           ),
@@ -520,29 +545,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildStoriesBar(bool isDark) {
     final stories = [
       {
-        'icon': AppIcons.flag,
-        'label': 'Thử thách tuần',
-        'color': AppColors.communityOrange,
+        'emoji': '🏆',
+        'label': 'Thử thách',
+        'colors': [const Color(0xFFF59E0B), const Color(0xFFFF7F50)],
       },
       {
-        'icon': AppIcons.group,
-        'label': 'Bạn bè tập',
-        'color': AppColors.communityTeal,
+        'emoji': '💪',
+        'label': 'Mục tiêu',
+        'colors': [const Color(0xFF10B981), const Color(0xFF06D6A0)],
       },
       {
-        'icon': AppIcons.heart,
-        'label': 'Giảm cân',
-        'color': AppColors.successGreen,
+        'emoji': '🔥',
+        'label': 'Streak',
+        'colors': [const Color(0xFFEF4444), const Color(0xFFF97316)],
       },
       {
-        'icon': AppIcons.calories,
-        'label': 'Trending',
-        'color': AppColors.primaryIndigo,
-      },
-      {
-        'icon': AppIcons.star,
+        'emoji': '⭐',
         'label': 'Thành tích',
-        'color': WellnessColors.mint,
+        'colors': [const Color(0xFF6366F1), const Color(0xFF8B5CF6)],
+      },
+      {
+        'emoji': '👥',
+        'label': 'Bạn bè',
+        'colors': [const Color(0xFF3B82F6), const Color(0xFF06B6D4)],
       },
     ];
 
@@ -554,6 +579,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         itemCount: stories.length,
         itemBuilder: (context, index) {
           final story = stories[index];
+          final colors = story['colors'] as List<Color>;
           return GestureDetector(
             onTap: _openCommunity,
             child: Container(
@@ -562,27 +588,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               child: Column(
                 children: [
                   Container(
-                    width: 58,
-                    height: 58,
+                    width: 60,
+                    height: 60,
+                    padding: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [
-                          (story['color'] as Color),
-                          (story['color'] as Color).withValues(alpha: 0.6),
-                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
+                        colors: colors,
                       ),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: (story['color'] as Color).withValues(alpha: 0.3),
-                        width: 2,
-                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors[0].withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
-                    child: Icon(
-                      story['icon'] as IconData,
-                      color: Colors.white,
-                      size: 24,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.darkCard : Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Center(
+                        child: Text(
+                          story['emoji'] as String,
+                          style: const TextStyle(fontSize: 24),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -591,7 +625,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w500,
-                      color: isDark ? Colors.white70 : Colors.black54,
+                      color:
+                          isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -612,12 +649,49 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     double burned,
     double target,
   ) {
-    final moveProgress = (intake / target).clamp(0.0, 1.0);
-    final exerciseProgress = (burned / 500).clamp(
-      0.0,
-      1.0,
-    ); // 500 cal exercise goal
-    final standProgress = 0.7; // Mock: 7/10 hours standing
+    // Use redesigned HealthRings component
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow:
+            isDark
+                ? []
+                : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+      ),
+      child: HealthRings(
+        consumed: intake,
+        burned: burned,
+        target: target,
+        size: 200,
+      ),
+    );
+  }
+
+  Widget _buildMacroBars(bool isDark) {
+    // TODO: Get actual macros from meal tracking once implemented
+    // For now, use example values based on total calories
+    final todayCalories = _todayRecord?.caloIntake ?? 0.0;
+    final dailyTarget = _userProfile?.dailyTarget ?? 2000;
+
+    // Estimate macros from total calories (rough approximation)
+    // Assuming standard macro split: 30% protein, 40% carbs, 30% fat
+    final protein = (todayCalories * 0.30) / 4; // 4 cal per gram
+    final carbs = (todayCalories * 0.40) / 4;
+    final fat = (todayCalories * 0.30) / 9; // 9 cal per gram
+
+    // Calculate targets
+    final proteinTarget = (dailyTarget * 0.30) / 4;
+    final carbsTarget = (dailyTarget * 0.40) / 4;
+    final fatTarget = (dailyTarget * 0.30) / 9;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -636,206 +710,151 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Three rings - Apple Watch style
-          AnimatedBuilder(
-            animation: _ringAnimation,
-            builder: (context, child) {
-              return SizedBox(
-                width: 120,
-                height: 120,
-                child: CustomPaint(
-                  painter: HealthRingsPainter(
-                    moveProgress: moveProgress * _ringAnimation.value,
-                    exerciseProgress: exerciseProgress * _ringAnimation.value,
-                    standProgress: standProgress * _ringAnimation.value,
-                  ),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${(moveProgress * 100).toInt()}%',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                        ),
-                        Text(
-                          'mục tiêu',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: isDark ? Colors.white70 : Colors.black54,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-
-          const SizedBox(width: 20),
-
-          // Ring legends
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildRingLegend(
-                  'Calories',
-                  '${intake.toInt()}/${target.toInt()} kcal',
-                  AppColors.primaryIndigo,
-                  isDark,
-                ),
-                const SizedBox(height: 12),
-                _buildRingLegend(
-                  'Vận động',
-                  '${burned.toInt()}/500 kcal',
-                  AppColors.successGreen,
-                  isDark,
-                ),
-                const SizedBox(height: 12),
-                _buildRingLegend(
-                  'Hoạt động',
-                  '7/10 giờ',
-                  AppColors.communityTeal,
-                  isDark,
-                ),
-              ],
+          Text(
+            'Dinh dưỡng hôm nay',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
             ),
+          ),
+          const SizedBox(height: 16),
+          MacroBar(
+            label: 'Protein',
+            value: protein,
+            max: proteinTarget,
+            color: AppColors.primaryIndigo,
+            size: MacroBarSize.small,
+          ),
+          const SizedBox(height: 12),
+          MacroBar(
+            label: 'Carbs',
+            value: carbs,
+            max: carbsTarget,
+            color: AppColors.successGreen,
+            size: MacroBarSize.small,
+          ),
+          const SizedBox(height: 12),
+          MacroBar(
+            label: 'Fat',
+            value: fat,
+            max: fatTarget,
+            color: AppColors.warningOrange,
+            size: MacroBarSize.small,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRingLegend(
-    String title,
-    String value,
-    Color color,
-    bool isDark,
-  ) {
-    return Row(
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: isDark ? Colors.white70 : Colors.black54,
-                ),
-              ),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildQuickActions(bool isDark) {
     final actions = [
-      {'icon': AppIcons.scan, 'label': 'Scan', 'onTap': _openCamera},
       {
-        'icon': AppIcons.barcode,
-        'label': 'Mã vạch',
-        'onTap': () {
-          Navigator.push(
-            context,
-            CupertinoPageRoute(
-              builder: (_) => BarcodeScannerScreen(onMealAdded: _loadData),
-            ),
-          );
-        },
+        'icon': CupertinoIcons.camera_fill,
+        'label': 'Scan',
+        'gradient': [const Color(0xFF10B981), const Color(0xFF06D6A0)],
+        'shadow': const Color(0xFF10B981),
+        'onTap': _openCamera,
       },
       {
-        'icon': AppIcons.calendar,
-        'label': 'Lịch tập',
+        'icon': CupertinoIcons.flame_fill,
+        'label': 'Gym',
+        'gradient': [const Color(0xFFF59E0B), const Color(0xFFFF7F50)],
+        'shadow': const Color(0xFFF59E0B),
         'onTap': _openGymScheduler,
       },
       {
-        'icon': AppIcons.leaf,
-        'label': 'Dinh dưỡng',
-        'onTap': () {
-          Navigator.push(
-            context,
-            CupertinoPageRoute(builder: (_) => const HealthyFoodScreen()),
-          );
-        },
+        'icon': CupertinoIcons.sparkles,
+        'label': 'AI Chat',
+        'gradient': [const Color(0xFF6366F1), const Color(0xFF8B5CF6)],
+        'shadow': const Color(0xFF6366F1),
+        'onTap': _openChatbot,
+      },
+      {
+        'icon': CupertinoIcons.drop_fill,
+        'label': 'Nước',
+        'gradient': [const Color(0xFF3B82F6), const Color(0xFF06B6D4)],
+        'shadow': const Color(0xFF3B82F6),
+        'onTap': () {},
       },
     ];
 
-    return SizedBox(
-      height: 44,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: actions.length,
-        itemBuilder: (context, index) {
-          final action = actions[index];
-          return GestureDetector(
-            onTap: action['onTap'] as VoidCallback,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white10 : Colors.white,
-                borderRadius: BorderRadius.circular(22),
-                boxShadow:
-                    isDark
-                        ? []
-                        : [
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Hành động nhanh',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color:
+                  isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.lightTextPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: List.generate(actions.length, (i) {
+              final action = actions[i];
+              final gradient = action['gradient'] as List<Color>;
+              final shadowColor = action['shadow'] as Color;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: i > 0 ? 6 : 0,
+                    right: i < actions.length - 1 ? 6 : 0,
+                  ),
+                  child: GestureDetector(
+                    onTap: action['onTap'] as VoidCallback,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: gradient,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                            color: shadowColor.withValues(alpha: 0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 6),
                           ),
                         ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    action['icon'] as IconData,
-                    size: 16,
-                    color: isDark ? Colors.white70 : WellnessColors.warmGray,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    action['label'] as String,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: isDark ? Colors.white : Colors.black87,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            action['icon'] as IconData,
+                            size: 24,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            action['label'] as String,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          );
-        },
+                ),
+              );
+            }),
+          ),
+        ],
       ),
     );
   }
@@ -1025,180 +1044,193 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildNextWorkoutCard(bool isDark) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          CupertinoPageRoute(builder: (_) => const WorkoutProgramScreen()),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkCard : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow:
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors:
               isDark
-                  ? []
+                  ? [AppColors.darkCard, AppColors.darkCard]
                   : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
+                    const Color(0xFFF59E0B).withValues(alpha: 0.05),
+                    const Color(0xFFFF7F50).withValues(alpha: 0.05),
                   ],
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
+        border: Border.all(
+          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+        ),
+        boxShadow:
+            isDark
+                ? []
+                : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  CupertinoIcons.arrow_up_right,
+                  color: Color(0xFFF59E0B),
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Buổi tập tiếp theo',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color:
+                        isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _nextGymSession?.timeStr ?? '18:00',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFFF59E0B),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _nextGymSession?.gymType ?? 'Tập gym toàn thân',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color:
+                  isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.lightTextPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Dự kiến đốt cháy ~400 kcal · 45 phút',
+            style: TextStyle(
+              fontSize: 12,
+              color:
+                  isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                CupertinoPageRoute(
+                  builder: (_) => const WorkoutProgramScreen(),
+                ),
+              );
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [WellnessColors.coral, WellnessColors.peach],
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFF59E0B), Color(0xFFFF7F50)],
                 ),
                 borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                CupertinoIcons.flame_fill,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Bài tập tiếp theo',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark ? Colors.white54 : Colors.black45,
-                    ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
                   ),
-                  const SizedBox(height: 2),
+                ],
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.play_fill, size: 18, color: Colors.white),
+                  SizedBox(width: 8),
                   Text(
-                    _nextGymSession?.gymType ?? 'Cardio buổi sáng',
+                    'Bắt đầu',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : Colors.black87,
+                      color: Colors.white,
                     ),
                   ),
                 ],
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: WellnessColors.mint.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                _nextGymSession?.timeStr ?? '7:00',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: WellnessColors.sageGreen,
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildScannerFAB() {
-    return FloatingActionButton(
-      heroTag: 'home_scanner_fab',
-      onPressed: _openCamera,
-      backgroundColor: WellnessColors.sageGreen,
-      child: AnimatedAppIcons.leaf(
-        size: 24,
-        color: Colors.white,
-        trigger: lucide.AnimationTrigger.onTap,
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF10B981), Color(0xFF06D6A0)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF10B981).withValues(alpha: 0.4),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _openCamera,
+          borderRadius: BorderRadius.circular(16),
+          child: const Center(
+            child: Icon(
+              CupertinoIcons.camera_fill,
+              size: 24,
+              color: Colors.white,
+            ),
+          ),
+        ),
       ),
     );
-  }
-}
-
-// Custom painter for Apple Watch-style health rings
-class HealthRingsPainter extends CustomPainter {
-  final double moveProgress;
-  final double exerciseProgress;
-  final double standProgress;
-
-  HealthRingsPainter({
-    required this.moveProgress,
-    required this.exerciseProgress,
-    required this.standProgress,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    const strokeWidth = 10.0;
-
-    // Colors for each ring
-    final rings = [
-      {
-        'radius': size.width / 2 - 5,
-        'progress': moveProgress,
-        'color': AppColors.primaryIndigo,
-      },
-      {
-        'radius': size.width / 2 - 20,
-        'progress': exerciseProgress,
-        'color': AppColors.successGreen,
-      },
-      {
-        'radius': size.width / 2 - 35,
-        'progress': standProgress,
-        'color': AppColors.communityTeal,
-      },
-    ];
-
-    for (final ring in rings) {
-      final radius = ring['radius'] as double;
-      final progress = ring['progress'] as double;
-      final color = ring['color'] as Color;
-
-      // Background ring
-      final bgPaint =
-          Paint()
-            ..color = color.withValues(alpha: 0.2)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = strokeWidth
-            ..strokeCap = StrokeCap.round;
-
-      canvas.drawCircle(center, radius, bgPaint);
-
-      // Progress arc
-      final progressPaint =
-          Paint()
-            ..color = color
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = strokeWidth
-            ..strokeCap = StrokeCap.round;
-
-      final sweepAngle = 2 * math.pi * progress;
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        -math.pi / 2, // Start from top
-        sweepAngle,
-        false,
-        progressPaint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant HealthRingsPainter oldDelegate) {
-    return oldDelegate.moveProgress != moveProgress ||
-        oldDelegate.exerciseProgress != exerciseProgress ||
-        oldDelegate.standProgress != standProgress;
   }
 }

@@ -84,13 +84,12 @@ class DataSyncService {
     // Group by date for user_health_records
     final records = await db.rawQuery('''
       SELECT 
-        date(datetime) as date,
-        SUM(CASE WHEN type = 'food' THEN calories ELSE 0 END) as calo_intake,
-        SUM(CASE WHEN type = 'burned' THEN calories ELSE 0 END) as calo_burned,
-        COUNT(*) as meals_logged
+        date,
+        calo_intake,
+        calo_burned,
+        1 as meals_logged
       FROM calo_records
-      WHERE datetime >= date('now', '-30 days')
-      GROUP BY date(datetime)
+      WHERE date >= date('now', '-30 days')
     ''');
 
     int synced = 0;
@@ -125,11 +124,11 @@ class DataSyncService {
 
     final records = await db.rawQuery('''
       SELECT 
-        date(datetime) as date,
+        date(date_time / 1000, 'unixepoch', 'localtime') as date,
         SUM(amount) as water_intake
       FROM water_records
-      WHERE datetime >= date('now', '-30 days')
-      GROUP BY date(datetime)
+      WHERE date(date_time / 1000, 'unixepoch', 'localtime') >= date('now', '-30 days')
+      GROUP BY date(date_time / 1000, 'unixepoch', 'localtime')
     ''');
 
     int synced = 0;
@@ -159,11 +158,11 @@ class DataSyncService {
 
     final records = await db.rawQuery('''
       SELECT 
-        date(datetime) as date,
+        date(date_time / 1000, 'unixepoch', 'localtime') as date,
         AVG(weight) as weight
       FROM weight_records
-      WHERE datetime >= date('now', '-30 days')
-      GROUP BY date(datetime)
+      WHERE date(date_time / 1000, 'unixepoch', 'localtime') >= date('now', '-30 days')
+      GROUP BY date(date_time / 1000, 'unixepoch', 'localtime')
     ''');
 
     int synced = 0;
@@ -195,12 +194,12 @@ class DataSyncService {
 
     final records = await db.rawQuery('''
       SELECT 
-        date(created_at) as date,
-        AVG(total_hours) as sleep_hours,
+        date as date,
+        AVG((wake_time - bed_time) / 3600000.0) as sleep_hours,
         AVG(quality) as sleep_quality
       FROM sleep_records
-      WHERE created_at >= date('now', '-30 days')
-      GROUP BY date(created_at)
+      WHERE date >= date('now', '-30 days')
+      GROUP BY date
     ''');
 
     int synced = 0;
@@ -232,11 +231,11 @@ class DataSyncService {
 
     final records = await db.rawQuery('''
       SELECT 
-        date(scheduled_date) as date,
+        date(scheduled_time / 1000, 'unixepoch', 'localtime') as date,
         COUNT(*) as workouts_completed
       FROM gym_sessions
-      WHERE is_completed = 1 AND scheduled_date >= date('now', '-30 days')
-      GROUP BY date(scheduled_date)
+      WHERE is_completed = 1 AND date(scheduled_time / 1000, 'unixepoch', 'localtime') >= date('now', '-30 days')
+      GROUP BY date(scheduled_time / 1000, 'unixepoch', 'localtime')
     ''');
 
     int synced = 0;

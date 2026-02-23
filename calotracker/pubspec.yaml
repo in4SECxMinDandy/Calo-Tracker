@@ -17,6 +17,7 @@ dependencies:
   fl_chart: ^0.68.0
   intl: ^0.20.2
   flutter_lucide_animated: ^0.0.4
+  emoji_picker_flutter: ^3.0.0
   
   # Notifications
   flutter_local_notifications: ^17.0.0
