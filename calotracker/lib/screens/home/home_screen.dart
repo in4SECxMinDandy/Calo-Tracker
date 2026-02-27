@@ -4,6 +4,7 @@
 // Hệ thống lưới 8pt, Scale transitions, Animated icons
 // ============================================================
 
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -96,6 +97,9 @@ class _HomeScreenState extends State<HomeScreen>
   double _fat = 0;
   bool _isExportingPdf = false;
 
+  // ── Timer (để cancel Future.delayed khi dispose) ──────────────────────────
+  Timer? _animTimer;
+
   // ── Services ──────────────────────────────────────────────────────────────
   final _friendsService = FriendsService();
   final _communityService = UnifiedCommunityService();
@@ -160,6 +164,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
+    _animTimer?.cancel();
     _headerAnimCtrl.dispose();
     _cardsAnimCtrl.dispose();
     _fabAnimCtrl.dispose();
@@ -214,10 +219,15 @@ class _HomeScreenState extends State<HomeScreen>
       });
 
       // Khởi động animations sau khi dữ liệu đã load
+      // Reset trước để hỗ trợ pull-to-refresh chạy lại animation
+      _headerAnimCtrl.reset();
       _headerAnimCtrl.forward();
-      Future.delayed(const Duration(milliseconds: 150), () {
+      _animTimer?.cancel();
+      _animTimer = Timer(const Duration(milliseconds: 150), () {
         if (mounted) {
+          _cardsAnimCtrl.reset();
           _cardsAnimCtrl.forward();
+          _fabAnimCtrl.reset();
           _fabAnimCtrl.forward();
         }
       });
@@ -273,43 +283,6 @@ class _HomeScreenState extends State<HomeScreen>
     return 'Chào buổi tối 🌙';
   }
 
-  // ── Xuất PDF ──────────────────────────────────────────────────────────────
-  Future<void> _exportPdf() async {
-    if (_isExportingPdf) return;
-
-    // Haptic feedback khi nhấn
-    HapticFeedback.mediumImpact();
-
-    setState(() => _isExportingPdf = true);
-
-    try {
-      final now = DateTime.now();
-      final startDate = DateTime(now.year, now.month, 1); // Đầu tháng
-      final endDate = now;
-
-      await _pdfService.exportAndShare(
-        type: PdfReportType.fullHealth,
-        startDate: startDate,
-        endDate: endDate,
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi xuất PDF: $e'),
-            backgroundColor: AppColors.errorRed,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(_DS.r12),
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isExportingPdf = false);
-    }
-  }
-
   /// Hiển thị dialog chọn loại báo cáo PDF
   void _showPdfExportDialog() {
     HapticFeedback.lightImpact();
@@ -361,7 +334,8 @@ class _HomeScreenState extends State<HomeScreen>
           _buildDashboard(isDark),
           const CommunityHubScreen(),
           const HistoryScreen(),
-          const ChatbotScreen(),
+          // Truyền onMealAdded để refresh HomeScreen khi thêm bữa ăn qua tab AI
+          ChatbotScreen(onMealAdded: _loadData),
           const ProfileScreen(),
         ],
       ),
@@ -1272,7 +1246,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   String _getTimeAgo(DateTime? time) {
     if (time == null) return 'Vừa xong';
-    final diff = DateTime.now().difference(time);
+    // Normalize về UTC để tránh timezone mismatch với Supabase timestamps
+    final now = DateTime.now().toUtc();
+    final t = time.isUtc ? time : time.toUtc();
+    final diff = now.difference(t);
     if (diff.inMinutes < 1) return 'Vừa xong';
     if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
     if (diff.inHours < 24) return '${diff.inHours} giờ trước';

@@ -1051,9 +1051,12 @@ class PdfExportService {
   Future<List<Meal>> _loadMeals(DateTime start, DateTime end) async {
     try {
       final allMeals = await DatabaseService.getAllMeals();
+      // Normalize về đầu ngày start và cuối ngày end để tránh off-by-one
+      final startDay = DateTime(start.year, start.month, start.day);
+      final endDay = DateTime(end.year, end.month, end.day, 23, 59, 59, 999);
       return allMeals.where((meal) {
-        return meal.dateTime.isAfter(start.subtract(const Duration(days: 1))) &&
-            meal.dateTime.isBefore(end.add(const Duration(days: 1)));
+        return !meal.dateTime.isBefore(startDay) &&
+            !meal.dateTime.isAfter(endDay);
       }).toList();
     } catch (_) {
       return [];
