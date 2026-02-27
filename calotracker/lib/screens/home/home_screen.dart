@@ -1,7 +1,14 @@
-// Home Screen - Modern Health & Social Wellness Ecosystem
+// ============================================================
+// HomeScreen - Trang chủ CaloTracker
+// Modern Clean UI với Material 3 + Glassmorphism
+// Hệ thống lưới 8pt, Scale transitions, Animated icons
+// ============================================================
+
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
+
 import '../../models/user_profile.dart';
 import '../../models/calo_record.dart';
 import '../../models/gym_session.dart';
@@ -9,12 +16,20 @@ import '../../models/friendship.dart';
 import '../../services/database_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/friends_service.dart';
+import '../../services/pdf_export_service.dart';
 import '../../theme/colors.dart';
+
 import '../chatbot/chatbot_screen.dart';
 import '../camera/camera_scan_screen.dart';
 import '../gym/gym_scheduler_screen.dart';
 import '../history/history_screen.dart';
 import '../workout/workout_program_screen.dart';
+import '../community/community_hub_screen.dart';
+import '../community/notifications_screen.dart';
+import '../community/conversations_screen.dart';
+import '../profile/profile_screen.dart';
+import '../achievements/achievements_screen.dart';
+import '../insights/insights_screen.dart';
 
 import 'widgets/water_intake_widget.dart';
 import 'widgets/level_badge_widget.dart';
@@ -23,18 +38,38 @@ import 'widgets/sleep_widget.dart';
 import 'widgets/gamification_row.dart';
 import 'widgets/nutrition_progress_ring_widget.dart';
 import 'widgets/nutrition_macros_bar_widget.dart';
-import '../community/community_hub_screen.dart';
-import '../community/notifications_screen.dart';
-import '../community/conversations_screen.dart';
-import '../profile/profile_screen.dart';
-import '../achievements/achievements_screen.dart';
-import '../insights/insights_screen.dart';
+
 import '../../services/unified_community_service.dart';
 import '../../services/messaging_service.dart';
 
-// ── Color palette ─────────────────────────────────────────────────────────────
-class _WC {
-  static const Color background = Color(0xFFF8F9FA);
+// ── Hằng số thiết kế (8pt grid system) ───────────────────────────────────────
+class _DS {
+  // Spacing (bội số của 8)
+  static const double s4 = 4.0;
+  static const double s8 = 8.0;
+  static const double s12 = 12.0;
+  static const double s16 = 16.0;
+  static const double s20 = 20.0;
+  static const double s24 = 24.0;
+  static const double s32 = 32.0;
+  static const double s40 = 40.0;
+  static const double s48 = 48.0;
+  static const double s56 = 56.0;
+  static const double s64 = 64.0;
+
+  // Border radius
+  static const double r8 = 8.0;
+  static const double r12 = 12.0;
+  static const double r16 = 16.0;
+  static const double r20 = 20.0;
+  static const double r24 = 24.0;
+
+  // Màu nền
+  static const Color bgLight = Color(0xFFF5F7FA);
+  static const Color bgDark = Color(0xFF0F0F1A);
+  static const Color cardLight = Colors.white;
+  static const Color cardDark = Color(0xFF1A1B2E);
+  static const Color cardDark2 = Color(0xFF252640);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -45,7 +80,10 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+// ─────────────────────────────────────────────────────────────────────────────
+class _HomeScreenState extends State<HomeScreen>
+    with TickerProviderStateMixin {
+  // ── State ─────────────────────────────────────────────────────────────────
   UserProfile? _userProfile;
   CaloRecord? _todayRecord;
   GymSession? _nextGymSession;
@@ -56,20 +94,83 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   double _protein = 0;
   double _carbs = 0;
   double _fat = 0;
+  bool _isExportingPdf = false;
 
+  // ── Services ──────────────────────────────────────────────────────────────
   final _friendsService = FriendsService();
   final _communityService = UnifiedCommunityService();
   final _messagingService = MessagingService();
+  final _pdfService = PdfExportService();
+
+  // ── Animation Controllers ─────────────────────────────────────────────────
+  late AnimationController _headerAnimCtrl;
+  late AnimationController _cardsAnimCtrl;
+  late AnimationController _fabAnimCtrl;
+
+  late Animation<double> _headerFadeAnim;
+  late Animation<Offset> _headerSlideAnim;
+  late Animation<double> _cardsFadeAnim;
+  late Animation<double> _fabScaleAnim;
 
   @override
   void initState() {
     super.initState();
+    _initAnimations();
     _loadData();
   }
 
+  void _initAnimations() {
+    // Header animation: fade + slide từ trên xuống
+    _headerAnimCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _headerFadeAnim = CurvedAnimation(
+      parent: _headerAnimCtrl,
+      curve: Curves.easeOut,
+    );
+    _headerSlideAnim = Tween<Offset>(
+      begin: const Offset(0, -0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _headerAnimCtrl,
+      curve: Curves.easeOutCubic,
+    ));
+
+    // Cards animation: fade in
+    _cardsAnimCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _cardsFadeAnim = CurvedAnimation(
+      parent: _cardsAnimCtrl,
+      curve: const Interval(0.2, 1.0, curve: Curves.easeOut),
+    );
+
+    // FAB animation: scale bounce
+    _fabAnimCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _fabScaleAnim = CurvedAnimation(
+      parent: _fabAnimCtrl,
+      curve: Curves.elasticOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _headerAnimCtrl.dispose();
+    _cardsAnimCtrl.dispose();
+    _fabAnimCtrl.dispose();
+    super.dispose();
+  }
+
+  // ── Data Loading ──────────────────────────────────────────────────────────
   Future<void> _loadData() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
+
     try {
       final profile = StorageService.getUserProfile();
       final todayRecord = await DatabaseService.getTodayRecord();
@@ -84,19 +185,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               await _communityService.getUnreadNotificationCount();
           final messageUnread = await _messagingService.getUnreadCount();
           final pendingFriends = await _friendsService.getPendingRequests();
-          unreadCount = communityUnread + messageUnread + pendingFriends.length;
-          final loadedFriends = await _friendsService.getFriends();
-          friends = loadedFriends;
+          unreadCount =
+              communityUnread + messageUnread + pendingFriends.length;
+          friends = await _friendsService.getFriends();
         }
       } catch (e) {
-        debugPrint('Error loading social data: $e');
+        debugPrint('Lỗi tải dữ liệu xã hội: $e');
       }
 
       Map<String, double> macros = {'protein': 0, 'carbs': 0, 'fat': 0};
       try {
         macros = await DatabaseService.getDailyMacros();
       } catch (e) {
-        debugPrint('Error loading macros: $e');
+        debugPrint('Lỗi tải macros: $e');
       }
 
       if (!mounted) return;
@@ -111,50 +212,59 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _fat = macros['fat'] ?? 0;
         _isLoading = false;
       });
+
+      // Khởi động animations sau khi dữ liệu đã load
+      _headerAnimCtrl.forward();
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted) {
+          _cardsAnimCtrl.forward();
+          _fabAnimCtrl.forward();
+        }
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
 
-  // ── Navigation helpers ────────────────────────────────────────────────────
+  // ── Navigation Helpers ────────────────────────────────────────────────────
   void _openChatbot() => Navigator.push(
-    context,
-    CupertinoPageRoute(builder: (_) => ChatbotScreen(onMealAdded: _loadData)),
-  );
+        context,
+        _buildPageRoute(ChatbotScreen(onMealAdded: _loadData)),
+      );
 
   void _openCamera() => Navigator.push(
-    context,
-    CupertinoPageRoute(
-      builder: (_) => CameraScanScreen(onMealAdded: _loadData),
-    ),
-  );
+        context,
+        _buildPageRoute(CameraScanScreen(onMealAdded: _loadData)),
+      );
 
   void _openGymScheduler() => Navigator.push(
-    context,
-    CupertinoPageRoute(
-      builder:
-          (_) => GymSchedulerScreen(
-            existingSession: _nextGymSession,
-            onSessionUpdated: _loadData,
-          ),
-    ),
-  );
+        context,
+        _buildPageRoute(GymSchedulerScreen(
+          existingSession: _nextGymSession,
+          onSessionUpdated: _loadData,
+        )),
+      );
 
   void _openNotifications() => Navigator.push(
-    context,
-    CupertinoPageRoute(builder: (_) => const NotificationsScreen()),
-  ).then((_) => _loadData());
+        context,
+        _buildPageRoute(const NotificationsScreen()),
+      ).then((_) => _loadData());
 
   void _openConversations() => Navigator.push(
-    context,
-    CupertinoPageRoute(builder: (_) => const ConversationsScreen()),
-  ).then((_) => _loadData());
+        context,
+        _buildPageRoute(const ConversationsScreen()),
+      ).then((_) => _loadData());
 
   void _openCommunity() => Navigator.push(
-    context,
-    CupertinoPageRoute(builder: (_) => const CommunityHubScreen()),
-  );
+        context,
+        _buildPageRoute(const CommunityHubScreen()),
+      );
+
+  /// Tạo CupertinoPageRoute với hiệu ứng chuyển cảnh mượt mà
+  CupertinoPageRoute<T> _buildPageRoute<T>(Widget page) {
+    return CupertinoPageRoute<T>(builder: (_) => page);
+  }
 
   String _getGreeting() {
     final h = DateTime.now().hour;
@@ -163,20 +273,92 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return 'Chào buổi tối 🌙';
   }
 
+  // ── Xuất PDF ──────────────────────────────────────────────────────────────
+  Future<void> _exportPdf() async {
+    if (_isExportingPdf) return;
+
+    // Haptic feedback khi nhấn
+    HapticFeedback.mediumImpact();
+
+    setState(() => _isExportingPdf = true);
+
+    try {
+      final now = DateTime.now();
+      final startDate = DateTime(now.year, now.month, 1); // Đầu tháng
+      final endDate = now;
+
+      await _pdfService.exportAndShare(
+        type: PdfReportType.fullHealth,
+        startDate: startDate,
+        endDate: endDate,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi xuất PDF: $e'),
+            backgroundColor: AppColors.errorRed,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(_DS.r12),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExportingPdf = false);
+    }
+  }
+
+  /// Hiển thị dialog chọn loại báo cáo PDF
+  void _showPdfExportDialog() {
+    HapticFeedback.lightImpact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => _PdfExportSheet(
+        isDark: isDark,
+        onExport: (type, start, end) async {
+          Navigator.pop(ctx);
+          setState(() => _isExportingPdf = true);
+          try {
+            await _pdfService.exportAndShare(
+              type: type,
+              startDate: start,
+              endDate: end,
+            );
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Lỗi xuất PDF: $e'),
+                  backgroundColor: AppColors.errorRed,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          } finally {
+            if (mounted) setState(() => _isExportingPdf = false);
+          }
+        },
+      ),
+    );
+  }
+
   // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final dailyTarget = _userProfile?.dailyTarget ?? 2000;
-    final intake = _todayRecord?.caloIntake ?? 0;
-    final burned = _todayRecord?.caloBurned ?? 0;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF1A1B2E) : _WC.background,
+      backgroundColor: isDark ? _DS.bgDark : _DS.bgLight,
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          _buildDashboard(isDark, dailyTarget.toDouble(), intake, burned),
+          _buildDashboard(isDark),
           const CommunityHubScreen(),
           const HistoryScreen(),
           const ChatbotScreen(),
@@ -184,75 +366,155 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ],
       ),
       bottomNavigationBar: _buildBottomBar(isDark),
-      floatingActionButton: _currentIndex == 0 ? _buildScannerFAB() : null,
+      floatingActionButton:
+          _currentIndex == 0 ? _buildScannerFAB(isDark) : null,
     );
   }
 
   // ── Dashboard ─────────────────────────────────────────────────────────────
-  Widget _buildDashboard(
-    bool isDark,
-    double dailyTarget,
-    double intake,
-    double burned,
-  ) {
-    if (_isLoading) return const Center(child: CupertinoActivityIndicator());
+  Widget _buildDashboard(bool isDark) {
+    if (_isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CupertinoActivityIndicator(radius: 16),
+            const SizedBox(height: _DS.s16),
+            Text(
+              'Đang tải dữ liệu...',
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final dailyTarget = _userProfile?.dailyTarget ?? 2000;
+    final intake = _todayRecord?.caloIntake ?? 0;
+    final burned = _todayRecord?.caloBurned ?? 0;
 
     return SafeArea(
       child: RefreshIndicator(
         onRefresh: _loadData,
+        color: AppColors.primaryBlue,
         child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
           slivers: [
-            SliverToBoxAdapter(child: _buildCompactHeader(isDark)),
-
-            // ── Gamification Row (new, clean, neon-glow) ──────────────────
+            // ── Header ──────────────────────────────────────────────────────
             SliverToBoxAdapter(
-              child: GamificationRow(
-                onItemTaps: [
-                  _openCommunity,           // Thử thách
-                  _openCommunity,           // Mục tiêu
-                  _openCommunity,           // Streak
-                  () => Navigator.push(     // Thành tích
-                    context,
-                    CupertinoPageRoute(
-                      builder: (_) => const AchievementsScreen(),
-                    ),
-                  ),
-                  () => Navigator.push(     // Thống kê
-                    context,
-                    CupertinoPageRoute(
-                      builder: (_) => const InsightsScreen(),
-                    ),
-                  ),
-                ],
+              child: SlideTransition(
+                position: _headerSlideAnim,
+                child: FadeTransition(
+                  opacity: _headerFadeAnim,
+                  child: _buildCompactHeader(isDark),
+                ),
               ),
             ),
 
+            // ── Gamification Row ─────────────────────────────────────────────
             SliverToBoxAdapter(
-              child: _buildHealthRings(isDark, intake, burned, dailyTarget),
+              child: FadeTransition(
+                opacity: _cardsFadeAnim,
+                child: GamificationRow(
+                  onItemTaps: [
+                    _openCommunity,
+                    _openCommunity,
+                    _openCommunity,
+                    () => Navigator.push(
+                          context,
+                          _buildPageRoute(const AchievementsScreen()),
+                        ),
+                    () => Navigator.push(
+                          context,
+                          _buildPageRoute(const InsightsScreen()),
+                        ),
+                  ],
+                ),
+              ),
             ),
-            SliverToBoxAdapter(child: _buildMacroBars(isDark)),
-            SliverToBoxAdapter(child: _buildQuickActions(isDark)),
-            SliverToBoxAdapter(child: _buildSocialActivityCard(isDark)),
-            SliverToBoxAdapter(child: _buildNextWorkoutCard(isDark)),
 
+            // ── Health Rings ─────────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: FadeTransition(
+                opacity: _cardsFadeAnim,
+                child: _buildHealthRings(
+                    isDark, intake, burned, dailyTarget.toDouble()),
+              ),
+            ),
+
+            // ── Macro Bars ───────────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: FadeTransition(
+                opacity: _cardsFadeAnim,
+                child: _buildMacroBars(isDark),
+              ),
+            ),
+
+            // ── Quick Actions ────────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: FadeTransition(
+                opacity: _cardsFadeAnim,
+                child: _buildQuickActions(isDark),
+              ),
+            ),
+
+            // ── Export PDF Button ────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: FadeTransition(
+                opacity: _cardsFadeAnim,
+                child: _buildExportPdfButton(isDark),
+              ),
+            ),
+
+            // ── Social Activity ──────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: FadeTransition(
+                opacity: _cardsFadeAnim,
+                child: _buildSocialActivityCard(isDark),
+              ),
+            ),
+
+            // ── Next Workout ─────────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: FadeTransition(
+                opacity: _cardsFadeAnim,
+                child: _buildNextWorkoutCard(isDark),
+              ),
+            ),
+
+            // ── Water & Sleep + Level + Meal Suggestion ──────────────────────
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: _DS.s20),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: WaterIntakeWidget(onWaterAdded: _loadData),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(child: SleepWidget()),
-                    ],
+                  const SizedBox(height: _DS.s16),
+                  FadeTransition(
+                    opacity: _cardsFadeAnim,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: WaterIntakeWidget(onWaterAdded: _loadData),
+                        ),
+                        const SizedBox(width: _DS.s12),
+                        const Expanded(child: SleepWidget()),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  const LevelBadgeWidget(),
-                  const SizedBox(height: 16),
-                  MealSuggestionWidget(onMealAdded: _loadData),
+                  const SizedBox(height: _DS.s16),
+                  FadeTransition(
+                    opacity: _cardsFadeAnim,
+                    child: const LevelBadgeWidget(),
+                  ),
+                  const SizedBox(height: _DS.s16),
+                  FadeTransition(
+                    opacity: _cardsFadeAnim,
+                    child: MealSuggestionWidget(onMealAdded: _loadData),
+                  ),
                   const SizedBox(height: 100),
                 ]),
               ),
@@ -265,158 +527,91 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   // ── Bottom Navigation Bar ─────────────────────────────────────────────────
   Widget _buildBottomBar(bool isDark) {
+    // Định nghĩa các tab với icon đồng bộ (CupertinoIcons)
     const tabs = [
-      {
-        'icon': CupertinoIcons.house,
-        'activeIcon': CupertinoIcons.house_fill,
-        'label': 'Trang chủ',
-      },
-      {
-        'icon': CupertinoIcons.person_3,
-        'activeIcon': CupertinoIcons.person_3_fill,
-        'label': 'Cộng đồng',
-      },
-      {
-        'icon': CupertinoIcons.chart_bar,
-        'activeIcon': CupertinoIcons.chart_bar_fill,
-        'label': 'Lịch sử',
-      },
-      {
-        'icon': CupertinoIcons.sparkles,
-        'activeIcon': CupertinoIcons.sparkles,
-        'label': 'AI',
-      },
-      {
-        'icon': CupertinoIcons.person,
-        'activeIcon': CupertinoIcons.person_fill,
-        'label': 'Hồ sơ',
-      },
+      (
+        icon: CupertinoIcons.house,
+        activeIcon: CupertinoIcons.house_fill,
+        label: 'Trang chủ',
+      ),
+      (
+        icon: CupertinoIcons.person_3,
+        activeIcon: CupertinoIcons.person_3_fill,
+        label: 'Cộng đồng',
+      ),
+      (
+        icon: CupertinoIcons.chart_bar,
+        activeIcon: CupertinoIcons.chart_bar_fill,
+        label: 'Lịch sử',
+      ),
+      (
+        icon: CupertinoIcons.sparkles,
+        activeIcon: CupertinoIcons.sparkles,
+        label: 'AI',
+      ),
+      (
+        icon: CupertinoIcons.person_circle,
+        activeIcon: CupertinoIcons.person_circle_fill,
+        label: 'Hồ sơ',
+      ),
     ];
 
     return ClipRRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           decoration: BoxDecoration(
-            color:
-                isDark
-                    ? AppColors.darkSurface.withValues(alpha: 0.8)
-                    : Colors.white.withValues(alpha: 0.85),
+            color: isDark
+                ? AppColors.darkSurface.withValues(alpha: 0.85)
+                : Colors.white.withValues(alpha: 0.9),
             border: Border(
               top: BorderSide(
-                color:
-                    isDark
-                        ? AppColors.darkDivider.withValues(alpha: 0.3)
-                        : AppColors.lightDivider.withValues(alpha: 0.3),
+                color: isDark
+                    ? AppColors.darkDivider.withValues(alpha: 0.4)
+                    : AppColors.lightDivider.withValues(alpha: 0.5),
+                width: 0.5,
               ),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.08),
-                blurRadius: 30,
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+                blurRadius: 24,
                 offset: const Offset(0, -4),
               ),
             ],
           ),
           child: SafeArea(
+            top: false,
             child: SizedBox(
-              height: 72,
-              child: Stack(
-                children: [
-                  // Animated active pill
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeOutCubic,
-                    top: 8,
-                    left:
-                        (_currentIndex *
-                            (MediaQuery.of(context).size.width / tabs.length)) +
-                        (MediaQuery.of(context).size.width / tabs.length * 0.1),
-                    child: Container(
-                      width:
-                          MediaQuery.of(context).size.width / tabs.length * 0.8,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: LinearGradient(
-                          colors: [
-                            AppColors.primaryBlue.withValues(alpha: 0.1),
-                            AppColors.primaryIndigo.withValues(alpha: 0.08),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Tab items
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: List.generate(tabs.length, (i) {
-                      final tab = tabs[i];
-                      final isSelected = _currentIndex == i;
-                      final activeColor =
-                          i == 1
-                              ? AppColors.facebookBlue
-                              : AppColors.primaryBlue;
-                      final color =
-                          isSelected
-                              ? activeColor
-                              : (isDark
-                                  ? AppColors.darkTextTertiary
-                                  : AppColors.lightTextTertiary);
+              height: 64,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: List.generate(tabs.length, (i) {
+                  final tab = tabs[i];
+                  final isSelected = _currentIndex == i;
+                  final activeColor = i == 1
+                      ? AppColors.facebookBlue
+                      : AppColors.primaryBlue;
+                  final inactiveColor = isDark
+                      ? AppColors.darkTextTertiary
+                      : AppColors.lightTextTertiary;
 
-                      return Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _currentIndex = i),
-                          behavior: HitTestBehavior.opaque,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              AnimatedSlide(
-                                offset:
-                                    isSelected
-                                        ? const Offset(0, -0.05)
-                                        : Offset.zero,
-                                duration: const Duration(milliseconds: 250),
-                                child: Icon(
-                                  isSelected
-                                      ? tab['activeIcon'] as IconData
-                                      : tab['icon'] as IconData,
-                                  size: 22,
-                                  color: color,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                tab['label'] as String,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight:
-                                      isSelected
-                                          ? FontWeight.w600
-                                          : FontWeight.normal,
-                                  color: color,
-                                ),
-                              ),
-                              AnimatedContainer(
-                                duration: const Duration(milliseconds: 250),
-                                height: 4,
-                                width: isSelected ? 4 : 0,
-                                margin: const EdgeInsets.only(top: 2),
-                                decoration: BoxDecoration(
-                                  color:
-                                      isSelected
-                                          ? activeColor
-                                          : Colors.transparent,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                ],
+                  return Expanded(
+                    child: _AnimatedTabItem(
+                      icon: tab.icon,
+                      activeIcon: tab.activeIcon,
+                      label: tab.label,
+                      isSelected: isSelected,
+                      activeColor: activeColor,
+                      inactiveColor: inactiveColor,
+                      isDark: isDark,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _currentIndex = i);
+                      },
+                    ),
+                  );
+                }),
               ),
             ),
           ),
@@ -428,53 +623,70 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // ── Compact Header ────────────────────────────────────────────────────────
   Widget _buildCompactHeader(bool isDark) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      padding: const EdgeInsets.fromLTRB(
+          _DS.s20, _DS.s12, _DS.s20, _DS.s12),
       decoration: BoxDecoration(
-        color:
-            isDark
-                ? const Color(0xFF2D2E47).withValues(alpha: 0.9)
-                : Colors.white.withValues(alpha: 0.85),
+        color: isDark
+            ? _DS.cardDark.withValues(alpha: 0.95)
+            : Colors.white.withValues(alpha: 0.9),
         border: Border(
           bottom: BorderSide(
-            color:
-                isDark
-                    ? AppColors.darkDivider.withValues(alpha: 0.3)
-                    : AppColors.lightDivider.withValues(alpha: 0.3),
+            color: isDark
+                ? AppColors.darkDivider.withValues(alpha: 0.3)
+                : AppColors.lightDivider.withValues(alpha: 0.4),
+            width: 0.5,
           ),
         ),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: Row(
         children: [
-          // Avatar & greeting
+          // ── Avatar & Greeting ──────────────────────────────────────────
           Expanded(
             child: Row(
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1FBF8C),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF1FBF8C).withValues(alpha: 0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
+                // Avatar với gradient và shadow
+                _ScaleTapWidget(
+                  onTap: () => setState(() => _currentIndex = 4),
+                  child: Container(
+                    width: _DS.s48,
+                    height: _DS.s48,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF1FBF8C), Color(0xFF06D6A0)],
                       ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      (_userProfile?.name ?? 'U')[0].toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF1FBF8C).withValues(alpha: 0.35),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        (_userProfile?.name ?? 'U')[0].toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: _DS.s12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -482,21 +694,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       _getGreeting(),
                       style: TextStyle(
                         fontSize: 12,
-                        color:
-                            isDark
-                                ? AppColors.darkTextSecondary
-                                : AppColors.lightTextSecondary,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       _userProfile?.name ?? 'Người dùng',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color:
-                            isDark
-                                ? AppColors.darkTextPrimary
-                                : AppColors.lightTextPrimary,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary,
                       ),
                     ),
                   ],
@@ -505,86 +716,63 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Messages
-          GestureDetector(
-            onTap: _openConversations,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkMuted : AppColors.lightMuted,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Center(
-                    child: Icon(
-                      CupertinoIcons.chat_bubble_2,
-                      size: 20,
-                      color:
-                          isDark
+          // ── Action Buttons ─────────────────────────────────────────────
+          Row(
+            children: [
+              // Nút xuất PDF
+              _ScaleTapWidget(
+                onTap: _showPdfExportDialog,
+                child: _HeaderIconButton(
+                  isDark: isDark,
+                  child: _isExportingPdf
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CupertinoActivityIndicator(radius: 9),
+                        )
+                      : Icon(
+                          CupertinoIcons.doc_text,
+                          size: 18,
+                          color: isDark
                               ? AppColors.darkTextPrimary
                               : AppColors.lightTextPrimary,
-                    ),
-                  ),
-                ],
+                        ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
+              const SizedBox(width: _DS.s8),
 
-          // Notification Bell
-          GestureDetector(
-            onTap: _openNotifications,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkMuted : AppColors.lightMuted,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Center(
-                    child: Icon(
-                      CupertinoIcons.bell,
-                      size: 20,
-                      color:
-                          isDark
-                              ? AppColors.darkTextPrimary
-                              : AppColors.lightTextPrimary,
-                    ),
+              // Nút tin nhắn
+              _ScaleTapWidget(
+                onTap: _openConversations,
+                child: _HeaderIconButton(
+                  isDark: isDark,
+                  child: Icon(
+                    CupertinoIcons.chat_bubble_2,
+                    size: 18,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.lightTextPrimary,
                   ),
-                  if (_totalUnreadCount > 0)
-                    Positioned(
-                      top: -4,
-                      right: -4,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppColors.errorRed,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          _totalUnreadCount > 9 ? '9+' : '$_totalUnreadCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(width: _DS.s8),
+
+              // Nút thông báo với badge
+              _ScaleTapWidget(
+                onTap: _openNotifications,
+                child: _HeaderIconButton(
+                  isDark: isDark,
+                  badge: _totalUnreadCount > 0 ? _totalUnreadCount : null,
+                  child: Icon(
+                    CupertinoIcons.bell,
+                    size: 18,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.lightTextPrimary,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -598,23 +786,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     double burned,
     double target,
   ) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2D2E47) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow:
-            isDark
-                ? []
-                : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-      ),
+    return _GlassCard(
+      isDark: isDark,
+      margin: const EdgeInsets.fromLTRB(
+          _DS.s20, _DS.s16, _DS.s20, 0),
+      padding: const EdgeInsets.all(_DS.s20),
       child: NutritionProgressRingWidget(
         intake: intake,
         burned: burned,
@@ -631,45 +807,67 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final fatTarget = (dailyTarget * 0.30) / 9;
     final hasData = _protein > 0 || _carbs > 0 || _fat > 0;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2D2E47) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow:
-            isDark
-                ? []
-                : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-      ),
+    return _GlassCard(
+      isDark: isDark,
+      margin: const EdgeInsets.fromLTRB(
+          _DS.s20, _DS.s16, _DS.s20, 0),
+      padding: const EdgeInsets.all(_DS.s20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Dinh dưỡng hôm nay',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(_DS.r8),
+                ),
+                child: const Icon(
+                  CupertinoIcons.chart_pie_fill,
+                  size: 14,
+                  color: AppColors.primaryBlue,
+                ),
+              ),
+              const SizedBox(width: _DS.s8),
+              Text(
+                'Dinh dưỡng hôm nay',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.lightTextPrimary,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: _DS.s16),
           if (!hasData)
             Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text(
-                  'Chưa có dữ liệu hôm nay',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                  ),
+                padding: const EdgeInsets.symmetric(vertical: _DS.s12),
+                child: Column(
+                  children: [
+                    Icon(
+                      CupertinoIcons.info_circle,
+                      size: 32,
+                      color: isDark
+                          ? AppColors.darkTextTertiary
+                          : AppColors.lightTextTertiary,
+                    ),
+                    const SizedBox(height: _DS.s8),
+                    Text(
+                      'Chưa có dữ liệu hôm nay',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             )
@@ -680,14 +878,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               target: proteinTarget,
               barColor: const Color(0xFFEF4444),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: _DS.s12),
             NutritionMacrosBarWidget(
               label: 'Carbs',
               current: _carbs,
               target: carbsTarget,
-              barColor: const Color(0xFFFFA500),
+              barColor: const Color(0xFFF59E0B),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: _DS.s12),
             NutritionMacrosBarWidget(
               label: 'Fat',
               current: _fat,
@@ -703,38 +901,39 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // ── Quick Actions ─────────────────────────────────────────────────────────
   Widget _buildQuickActions(bool isDark) {
     final actions = [
-      {
-        'icon': CupertinoIcons.camera_fill,
-        'label': 'Scan',
-        'gradient': [const Color(0xFF10B981), const Color(0xFF06D6A0)],
-        'shadow': const Color(0xFF10B981),
-        'onTap': _openCamera,
-      },
-      {
-        'icon': CupertinoIcons.flame_fill,
-        'label': 'Gym',
-        'gradient': [const Color(0xFFF59E0B), const Color(0xFFFF7F50)],
-        'shadow': const Color(0xFFF59E0B),
-        'onTap': _openGymScheduler,
-      },
-      {
-        'icon': CupertinoIcons.sparkles,
-        'label': 'AI Chat',
-        'gradient': [const Color(0xFF6366F1), const Color(0xFF8B5CF6)],
-        'shadow': const Color(0xFF6366F1),
-        'onTap': _openChatbot,
-      },
-      {
-        'icon': CupertinoIcons.drop_fill,
-        'label': 'Nước',
-        'gradient': [const Color(0xFF3B82F6), const Color(0xFF06B6D4)],
-        'shadow': const Color(0xFF3B82F6),
-        'onTap': () {},
-      },
+      _QuickAction(
+        icon: CupertinoIcons.camera_fill,
+        label: 'Scan',
+        gradient: const [Color(0xFF10B981), Color(0xFF06D6A0)],
+        shadowColor: const Color(0xFF10B981),
+        onTap: _openCamera,
+      ),
+      _QuickAction(
+        icon: CupertinoIcons.flame_fill,
+        label: 'Gym',
+        gradient: const [Color(0xFFF59E0B), Color(0xFFFF7F50)],
+        shadowColor: const Color(0xFFF59E0B),
+        onTap: _openGymScheduler,
+      ),
+      _QuickAction(
+        icon: CupertinoIcons.sparkles,
+        label: 'AI Chat',
+        gradient: const [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+        shadowColor: const Color(0xFF6366F1),
+        onTap: _openChatbot,
+      ),
+      _QuickAction(
+        icon: CupertinoIcons.drop_fill,
+        label: 'Nước',
+        gradient: const [Color(0xFF3B82F6), Color(0xFF06B6D4)],
+        shadowColor: const Color(0xFF3B82F6),
+        onTap: () {},
+      ),
     ];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.fromLTRB(
+          _DS.s20, _DS.s16, _DS.s20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -742,40 +941,36 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             'Hành động nhanh',
             style: TextStyle(
               fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color:
-                  isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.lightTextPrimary,
+              fontWeight: FontWeight.w700,
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: _DS.s12),
           Row(
             children: List.generate(actions.length, (i) {
               final action = actions[i];
-              final gradient = action['gradient'] as List<Color>;
-              final shadowColor = action['shadow'] as Color;
               return Expanded(
                 child: Padding(
                   padding: EdgeInsets.only(
-                    left: i > 0 ? 6 : 0,
-                    right: i < actions.length - 1 ? 6 : 0,
+                    left: i > 0 ? _DS.s8 : 0,
                   ),
-                  child: GestureDetector(
-                    onTap: action['onTap'] as VoidCallback,
+                  child: _ScaleTapWidget(
+                    onTap: action.onTap,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: _DS.s16),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: gradient,
+                          colors: action.gradient,
                         ),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(_DS.r16),
                         boxShadow: [
                           BoxShadow(
-                            color: shadowColor.withValues(alpha: 0.3),
-                            blurRadius: 20,
+                            color: action.shadowColor.withValues(alpha: 0.3),
+                            blurRadius: 16,
                             offset: const Offset(0, 6),
                           ),
                         ],
@@ -783,14 +978,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            action['icon'] as IconData,
-                            size: 24,
-                            color: Colors.white,
-                          ),
-                          const SizedBox(height: 6),
+                          Icon(action.icon, size: 22, color: Colors.white),
+                          const SizedBox(height: _DS.s4),
                           Text(
-                            action['label'] as String,
+                            action.label,
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -810,68 +1001,175 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  // ── Export PDF Button ─────────────────────────────────────────────────────
+  Widget _buildExportPdfButton(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          _DS.s20, _DS.s16, _DS.s20, 0),
+      child: _ScaleTapWidget(
+        onTap: _showPdfExportDialog,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+              horizontal: _DS.s20, vertical: _DS.s16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [
+                      const Color(0xFF1E3A5F),
+                      const Color(0xFF1A2E4A),
+                    ]
+                  : [
+                      const Color(0xFFEFF6FF),
+                      const Color(0xFFDBEAFE),
+                    ],
+            ),
+            borderRadius: BorderRadius.circular(_DS.r16),
+            border: Border.all(
+              color: AppColors.primaryBlue.withValues(alpha: 0.2),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2563EB), Color(0xFF6366F1)],
+                  ),
+                  borderRadius: BorderRadius.circular(_DS.r12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryBlue.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: _isExportingPdf
+                    ? const Center(
+                        child: CupertinoActivityIndicator(
+                          color: Colors.white,
+                          radius: 8,
+                        ),
+                      )
+                    : const Icon(
+                        CupertinoIcons.doc_richtext,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+              ),
+              const SizedBox(width: _DS.s12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Xuất báo cáo PDF',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.primaryBlue,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Báo cáo dinh dưỡng & sức khỏe hỗ trợ tiếng Việt',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                CupertinoIcons.chevron_right,
+                size: 16,
+                color: isDark
+                    ? AppColors.darkTextTertiary
+                    : AppColors.lightTextTertiary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ── Social Activity Card ──────────────────────────────────────────────────
   Widget _buildSocialActivityCard(bool isDark) {
     if (_friends.isEmpty) return const SizedBox.shrink();
 
     final onlineFriends = _friends.where((f) => f.isOnline).take(3).toList();
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow:
-            isDark
-                ? []
-                : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-      ),
+    return _GlassCard(
+      isDark: isDark,
+      margin: const EdgeInsets.fromLTRB(
+          _DS.s20, _DS.s16, _DS.s20, 0),
+      padding: const EdgeInsets.all(_DS.s16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                CupertinoIcons.person_2_fill,
-                size: 16,
-                color: AppColors.communityTeal,
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: AppColors.communityTeal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(_DS.r8),
+                ),
+                child: const Icon(
+                  CupertinoIcons.person_2_fill,
+                  size: 14,
+                  color: AppColors.communityTeal,
+                ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: _DS.s8),
               Text(
                 'Bạn bè đang hoạt động',
                 style: TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white : Colors.black87,
+                  fontWeight: FontWeight.w700,
+                  color: isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.lightTextPrimary,
                 ),
               ),
               const Spacer(),
-              TextButton(
-                onPressed: _openCommunity,
-                child: const Text('Xem tất cả'),
+              _ScaleTapWidget(
+                onTap: _openCommunity,
+                child: Text(
+                  'Xem tất cả',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primaryBlue,
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: _DS.s12),
           if (onlineFriends.isEmpty)
             Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: _DS.s16),
                 child: Text(
                   'Chưa có bạn bè nào đang online',
                   style: TextStyle(
                     fontSize: 13,
-                    color:
-                        isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.lightTextSecondary,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
                   ),
                 ),
               ),
@@ -880,7 +1178,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ...onlineFriends.asMap().entries.map((entry) {
               return Column(
                 children: [
-                  if (entry.key > 0) const Divider(height: 20),
+                  if (entry.key > 0)
+                    Divider(
+                      height: _DS.s20,
+                      color: isDark
+                          ? AppColors.darkDivider
+                          : AppColors.lightDivider,
+                    ),
                   _buildFriendItem(entry.value, isDark),
                 ],
               );
@@ -891,50 +1195,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildFriendItem(Friendship friend, bool isDark) {
-    final name = friend.friendDisplayName ?? friend.friendUsername ?? 'Bạn bè';
+    final name =
+        friend.friendDisplayName ?? friend.friendUsername ?? 'Bạn bè';
     final timeAgo = _getTimeAgo(friend.lastSeen);
+
     return Row(
       children: [
         Container(
-          width: 32,
-          height: 32,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [AppColors.communityTeal, AppColors.successGreen],
             ),
             shape: BoxShape.circle,
           ),
-          child:
-              friend.friendAvatarUrl != null
-                  ? ClipOval(
-                    child: Image.network(
-                      friend.friendAvatarUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder:
-                          (_, __, ___) => Center(
-                            child: Text(
-                              name[0].toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                    ),
-                  )
-                  : Center(
-                    child: Text(
-                      name[0].toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+          child: friend.friendAvatarUrl != null
+              ? ClipOval(
+                  child: Image.network(
+                    friend.friendAvatarUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Center(
+                      child: Text(
+                        name[0].toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
+                )
+              : Center(
+                  child: Text(
+                    name[0].toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: _DS.s12),
         Expanded(
           child: RichText(
             text: TextSpan(
@@ -978,35 +1282,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // ── Next Workout Card ─────────────────────────────────────────────────────
   Widget _buildNextWorkoutCard(bool isDark) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.fromLTRB(
+          _DS.s20, _DS.s16, _DS.s20, 0),
+      padding: const EdgeInsets.all(_DS.s20),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: isDark ? _DS.cardDark : Colors.white,
+        borderRadius: BorderRadius.circular(_DS.r20),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors:
-              isDark
-                  ? [AppColors.darkCard, AppColors.darkCard]
-                  : [
-                    const Color(0xFFF59E0B).withValues(alpha: 0.05),
-                    const Color(0xFFFF7F50).withValues(alpha: 0.05),
-                  ],
+          colors: isDark
+              ? [_DS.cardDark, _DS.cardDark]
+              : [
+                  const Color(0xFFFFFBEB),
+                  const Color(0xFFFFF7ED),
+                ],
         ),
         border: Border.all(
-          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+          color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+          width: 1,
         ),
-        boxShadow:
-            isDark
-                ? []
-                : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1014,96 +1318,97 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Row(
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFF59E0B), Color(0xFFFF7F50)],
+                  ),
+                  borderRadius: BorderRadius.circular(_DS.r12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child: const Icon(
-                  CupertinoIcons.arrow_up_right,
-                  color: Color(0xFFF59E0B),
+                  CupertinoIcons.flame_fill,
+                  color: Colors.white,
                   size: 16,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: _DS.s12),
               Expanded(
                 child: Text(
                   'Buổi tập tiếp theo',
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color:
-                        isDark
-                            ? AppColors.darkTextPrimary
-                            : AppColors.lightTextPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.lightTextPrimary,
                   ),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
+                    horizontal: _DS.s12, vertical: _DS.s4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(_DS.r20),
                 ),
                 child: Text(
                   _nextGymSession?.timeStr ?? '18:00',
                   style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                     color: Color(0xFFF59E0B),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: _DS.s12),
           Text(
             _nextGymSession?.gymType ?? 'Tập gym toàn thân',
             style: TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color:
-                  isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.lightTextPrimary,
+              fontWeight: FontWeight.w600,
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: _DS.s4),
           Text(
             'Dự kiến đốt cháy ~400 kcal · 45 phút',
             style: TextStyle(
               fontSize: 12,
-              color:
-                  isDark
-                      ? AppColors.darkTextSecondary
-                      : AppColors.lightTextSecondary,
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
             ),
           ),
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap:
-                () => Navigator.push(
-                  context,
-                  CupertinoPageRoute(
-                    builder: (_) => const WorkoutProgramScreen(),
-                  ),
-                ),
+          const SizedBox(height: _DS.s16),
+          _ScaleTapWidget(
+            onTap: () => Navigator.push(
+              context,
+              _buildPageRoute(const WorkoutProgramScreen()),
+            ),
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: _DS.s12),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFFF59E0B), Color(0xFFFF7F50)],
                 ),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(_DS.r12),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
-                    blurRadius: 20,
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+                    blurRadius: 16,
                     offset: const Offset(0, 6),
                   ),
                 ],
@@ -1111,13 +1416,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(CupertinoIcons.play_fill, size: 18, color: Colors.white),
-                  SizedBox(width: 8),
+                  Icon(CupertinoIcons.play_fill, size: 16, color: Colors.white),
+                  SizedBox(width: _DS.s8),
                   Text(
-                    'Bắt đầu',
+                    'Bắt đầu tập',
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: Colors.white,
                     ),
                   ),
@@ -1131,30 +1436,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   // ── Scanner FAB ───────────────────────────────────────────────────────────
-  Widget _buildScannerFAB() {
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF10B981), Color(0xFF06D6A0)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF10B981).withValues(alpha: 0.4),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+  Widget _buildScannerFAB(bool isDark) {
+    return ScaleTransition(
+      scale: _fabScaleAnim,
+      child: _ScaleTapWidget(
+        onTap: _openCamera,
+        child: Container(
+          width: _DS.s56,
+          height: _DS.s56,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF10B981), Color(0xFF06D6A0)],
+            ),
+            borderRadius: BorderRadius.circular(_DS.r16),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF10B981).withValues(alpha: 0.45),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _openCamera,
-          borderRadius: BorderRadius.circular(16),
           child: const Center(
             child: Icon(
               CupertinoIcons.camera_fill,
@@ -1163,6 +1467,585 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REUSABLE WIDGETS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Widget tab item với animation khi chọn
+class _AnimatedTabItem extends StatefulWidget {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final bool isSelected;
+  final Color activeColor;
+  final Color inactiveColor;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _AnimatedTabItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.isSelected,
+    required this.activeColor,
+    required this.inactiveColor,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  State<_AnimatedTabItem> createState() => _AnimatedTabItemState();
+}
+
+class _AnimatedTabItemState extends State<_AnimatedTabItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _scaleAnim = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack),
+    );
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedTabItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isSelected && !oldWidget.isSelected) {
+      _ctrl.forward().then((_) => _ctrl.reverse());
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ScaleTransition(
+            scale: _scaleAnim,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              transitionBuilder: (child, anim) => ScaleTransition(
+                scale: anim,
+                child: child,
+              ),
+              child: Icon(
+                widget.isSelected ? widget.activeIcon : widget.icon,
+                key: ValueKey(widget.isSelected),
+                size: 22,
+                color: widget.isSelected
+                    ? widget.activeColor
+                    : widget.inactiveColor,
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: widget.isSelected
+                  ? FontWeight.w700
+                  : FontWeight.normal,
+              color: widget.isSelected
+                  ? widget.activeColor
+                  : widget.inactiveColor,
+            ),
+            child: Text(widget.label),
+          ),
+          // Dot indicator
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            height: 3,
+            width: widget.isSelected ? 16 : 0,
+            margin: const EdgeInsets.only(top: 2),
+            decoration: BoxDecoration(
+              color: widget.isSelected
+                  ? widget.activeColor
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Widget với hiệu ứng Scale khi nhấn (thay thế InkWell)
+class _ScaleTapWidget extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  final double scaleFactor;
+
+  const _ScaleTapWidget({
+    required this.child,
+    required this.onTap,
+    this.scaleFactor = 0.95,
+  });
+
+  @override
+  State<_ScaleTapWidget> createState() => _ScaleTapWidgetState();
+}
+
+class _ScaleTapWidgetState extends State<_ScaleTapWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 120),
+    );
+    _scaleAnim = Tween<double>(
+      begin: 1.0,
+      end: widget.scaleFactor,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _ctrl.forward(),
+      onTapUp: (_) {
+        _ctrl.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _ctrl.reverse(),
+      child: ScaleTransition(
+        scale: _scaleAnim,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// Card với hiệu ứng Glassmorphism
+class _GlassCard extends StatelessWidget {
+  final bool isDark;
+  final Widget child;
+  final EdgeInsets? margin;
+  final EdgeInsets? padding;
+  final double borderRadius;
+
+  const _GlassCard({
+    required this.isDark,
+    required this.child,
+    this.margin,
+    this.padding,
+    this.borderRadius = _DS.r20,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: margin,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: isDark ? _DS.cardDark : _DS.cardLight,
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(
+          color: isDark
+              ? AppColors.darkDivider.withValues(alpha: 0.3)
+              : AppColors.lightDivider.withValues(alpha: 0.5),
+          width: 0.5,
+        ),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Icon button trong header
+class _HeaderIconButton extends StatelessWidget {
+  final bool isDark;
+  final Widget child;
+  final int? badge;
+
+  const _HeaderIconButton({
+    required this.isDark,
+    required this.child,
+    this.badge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkMuted : AppColors.lightMuted,
+            borderRadius: BorderRadius.circular(_DS.r12),
+          ),
+          child: Center(child: child),
+        ),
+        if (badge != null && badge! > 0)
+          Positioned(
+            top: -4,
+            right: -4,
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: const BoxDecoration(
+                color: AppColors.errorRed,
+                shape: BoxShape.circle,
+              ),
+              constraints: const BoxConstraints(
+                minWidth: 16,
+                minHeight: 16,
+              ),
+              child: Text(
+                badge! > 9 ? '9+' : '$badge',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATA MODELS (internal)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _QuickAction {
+  final IconData icon;
+  final String label;
+  final List<Color> gradient;
+  final Color shadowColor;
+  final VoidCallback onTap;
+
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.gradient,
+    required this.shadowColor,
+    required this.onTap,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PDF EXPORT BOTTOM SHEET
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Bottom sheet chọn loại báo cáo PDF và khoảng thời gian
+class _PdfExportSheet extends StatefulWidget {
+  final bool isDark;
+  final void Function(PdfReportType type, DateTime start, DateTime end) onExport;
+
+  const _PdfExportSheet({
+    required this.isDark,
+    required this.onExport,
+  });
+
+  @override
+  State<_PdfExportSheet> createState() => _PdfExportSheetState();
+}
+
+class _PdfExportSheetState extends State<_PdfExportSheet> {
+  PdfReportType _selectedType = PdfReportType.fullHealth;
+  int _selectedPeriod = 0; // 0=tuần này, 1=tháng này, 2=3 tháng
+
+  final _periods = [
+    ('7 ngày qua', 7),
+    ('Tháng này', 30),
+    ('3 tháng', 90),
+  ];
+
+  final _reportTypes = [
+    (PdfReportType.fullHealth, 'Sức khỏe toàn diện', CupertinoIcons.heart_fill, Color(0xFF6366F1)),
+    (PdfReportType.nutrition, 'Dinh dưỡng', CupertinoIcons.chart_pie_fill, Color(0xFF10B981)),
+    (PdfReportType.meals, 'Chi tiết bữa ăn', CupertinoIcons.fork_knife, Color(0xFFF59E0B)),
+    (PdfReportType.workouts, 'Lịch tập gym', CupertinoIcons.flame_fill, Color(0xFFEF4444)),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final bgColor = isDark ? const Color(0xFF1A1B2E) : Colors.white;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF111827);
+    final textSecondary = isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
+    final dividerColor = isDark ? const Color(0xFF2D2D4A) : const Color(0xFFE5E7EB);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar
+          Container(
+            margin: const EdgeInsets.only(top: 12, bottom: 8),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: dividerColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // Tiêu đề
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2563EB), Color(0xFF6366F1)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.doc_richtext,
+                    size: 16,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Xuất báo cáo PDF',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'Hỗ trợ đầy đủ tiếng Việt',
+                      style: TextStyle(fontSize: 12, color: textSecondary),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          Divider(height: 1, color: dividerColor),
+
+          // Chọn loại báo cáo
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Loại báo cáo',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: textSecondary,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 3.2,
+              children: _reportTypes.map((item) {
+                final isSelected = _selectedType == item.$1;
+                return _ScaleTapWidget(
+                  onTap: () => setState(() => _selectedType = item.$1),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? item.$4.withValues(alpha: 0.12)
+                          : (isDark ? const Color(0xFF252640) : const Color(0xFFF9FAFB)),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected ? item.$4 : dividerColor,
+                        width: isSelected ? 1.5 : 0.5,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(item.$3, size: 16, color: isSelected ? item.$4 : textSecondary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            item.$2,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                              color: isSelected ? item.$4 : textPrimary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+
+          // Chọn khoảng thời gian
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Khoảng thời gian',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: textSecondary,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: List.generate(_periods.length, (i) {
+                final isSelected = _selectedPeriod == i;
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(left: i > 0 ? 8 : 0),
+                    child: _ScaleTapWidget(
+                      onTap: () => setState(() => _selectedPeriod = i),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppColors.primaryBlue
+                              : (isDark ? const Color(0xFF252640) : const Color(0xFFF9FAFB)),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isSelected ? AppColors.primaryBlue : dividerColor,
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Text(
+                          _periods[i].$1,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                            color: isSelected ? Colors.white : textPrimary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Nút xuất
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _ScaleTapWidget(
+              onTap: () {
+                final now = DateTime.now();
+                final days = _periods[_selectedPeriod].$2;
+                final startDate = now.subtract(Duration(days: days));
+                widget.onExport(_selectedType, startDate, now);
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2563EB), Color(0xFF6366F1)],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryBlue.withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(CupertinoIcons.doc_richtext, size: 18, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text(
+                      'Xuất PDF ngay',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
