@@ -1,5 +1,5 @@
 // Profile Screen
-// User profile management with stats
+// User profile management with stats – redesigned to match hồ sơ UIXU
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -10,7 +10,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/storage_service.dart';
 import '../../services/database_service.dart';
 import '../../services/supabase_auth_service.dart';
-import '../../theme/colors.dart';
+import '../settings/settings_screen.dart';
+
+// ─────────────────────────────── Design tokens ──────────────────────────────
+// We re-use the app's existing AppColors but also define the profile-specific
+// palette from the UIUX reference.
+const _kGreen = Color(0xFF00D68F);
+const _kBlue = Color(0xFF4A90D9);
+const _kOrange = Color(0xFFFFA726);
+const _kPurple = Color(0xFF9C27B0);
+const _kRed = Color(0xFFFF5252);
+const _kCalColor = Color(0xFFFF6B6B);
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -48,21 +58,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadAvatarFromSupabase();
   }
 
-  /// Check current auth state immediately
   void _checkAuthState() {
-    setState(() {
-      _isLoggedIn = _authService.isAuthenticated;
-    });
+    setState(() => _isLoggedIn = _authService.isAuthenticated);
   }
 
-  /// Listen for auth state changes to update UI reactively
   void _setupAuthListener() {
     _authSubscription = _authService.authStateChanges.listen((authState) {
       if (mounted) {
-        setState(() {
-          _isLoggedIn = authState.session != null;
-        });
-        // Reload avatar when user signs in
+        setState(() => _isLoggedIn = authState.session != null);
         if (authState.event == AuthChangeEvent.signedIn) {
           _loadAvatarFromSupabase();
         }
@@ -83,10 +86,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _name = profile.name;
         _height = profile.height;
         _weight = profile.weight;
-        // Note: age and gender are not in UserProfile model
-        // They would need to be added to the model for full functionality
-        _age = 30; // Default age (UserProfile uses simplified BMR calculation)
-        _gender = 'male'; // Default gender
+        _age = 30;
+        _gender = 'male';
         _goal = profile.goal;
         _bmr = profile.bmr;
         _avatarUrl = profile.avatarUrl;
@@ -96,13 +97,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadAvatarFromSupabase() async {
     if (!_authService.isAuthenticated) return;
-
     try {
       final profile = await _authService.getProfile();
       if (profile != null && profile['avatar_url'] != null) {
-        setState(() {
-          _avatarUrl = profile['avatar_url'] as String?;
-        });
+        setState(() => _avatarUrl = profile['avatar_url'] as String?);
       }
     } catch (_) {}
   }
@@ -129,7 +127,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
     );
-
     if (source == null) return;
 
     final image = await _imagePicker.pickImage(
@@ -138,17 +135,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       maxHeight: 512,
       imageQuality: 85,
     );
-
     if (image == null) return;
 
     setState(() => _isUploadingAvatar = true);
-
     try {
       await _authService.updateAvatar(File(image.path));
-
-      // Reload avatar from Supabase
       await _loadAvatarFromSupabase();
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -157,19 +149,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         );
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Lỗi: Yêu cầu đăng nhập tài khoản online'),
             backgroundColor: Colors.orange,
           ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isUploadingAvatar = false);
-      }
+      if (mounted) setState(() => _isUploadingAvatar = false);
     }
   }
 
@@ -177,7 +167,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final meals = await DatabaseService.getAllMeals();
     final sessions = await DatabaseService.getAllGymSessions();
 
-    // Calculate streak
     int streak = 0;
     final today = DateTime.now();
     for (int i = 0; i < 365; i++) {
@@ -202,69 +191,555 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  String _getGoalLabel(String goal) {
+    switch (goal) {
+      case 'lose':
+        return 'Giảm cân';
+      case 'gain':
+        return 'Tăng cân';
+      default:
+        return 'Duy trì';
+    }
+  }
+
+  String _getGoalEmoji() {
+    switch (_goal) {
+      case 'lose':
+        return '📉';
+      case 'gain':
+        return '📈';
+      default:
+        return '⚖️';
+    }
+  }
+
+  // ─────────────────────────────── Build ────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF0F1419) : const Color(0xFFF5F7FA);
+    final card = isDark ? const Color(0xFF1A1F2E) : Colors.white;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1A1A2E);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Hồ sơ',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-            color:
-                isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+      backgroundColor: bg,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header ──────────────────────────────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Hồ sơ',
+                        style: TextStyle(
+                          color: textPrimary,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _name.isNotEmpty ? _name : 'Người dùng',
+                        style: TextStyle(
+                          color:
+                              isDark
+                                  ? const Color(0xFF8B92A8)
+                                  : const Color(0xFF6B7280),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  GestureDetector(
+                    onTap:
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
+                          ),
+                        ),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: card,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.settings_outlined, color: textPrimary),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // ── Profile Card ─────────────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: card,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    // Avatar
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        GestureDetector(
+                          onTap: _changeAvatar,
+                          child: Container(
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [_kGreen, Color(0xFF00B4D8)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              image:
+                                  _avatarUrl != null
+                                      ? DecorationImage(
+                                        image: CachedNetworkImageProvider(
+                                          _avatarUrl!,
+                                        ),
+                                        fit: BoxFit.cover,
+                                      )
+                                      : null,
+                            ),
+                            child:
+                                _avatarUrl == null
+                                    ? Center(
+                                      child: Text(
+                                        _name.isNotEmpty
+                                            ? _name[0].toUpperCase()
+                                            : '👤',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 30,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    )
+                                    : null,
+                          ),
+                        ),
+                        // Camera button
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: GestureDetector(
+                            onTap: _changeAvatar,
+                            child: Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: _kBlue,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: card, width: 2),
+                              ),
+                              child:
+                                  _isUploadingAvatar
+                                      ? const SizedBox(
+                                        width: 12,
+                                        height: 12,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation(
+                                            Colors.white,
+                                          ),
+                                        ),
+                                      )
+                                      : const Icon(
+                                        Icons.camera_alt,
+                                        color: Colors.white,
+                                        size: 12,
+                                      ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 16),
+
+                    // Name + email + goal
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _name.isNotEmpty ? _name : 'Người dùng',
+                            style: TextStyle(
+                              color: textPrimary,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (_authService.isAuthenticated &&
+                              _authService.currentUser?.email != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                _authService.currentUser!.email!,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color:
+                                      isDark
+                                          ? const Color(0xFF8B92A8)
+                                          : const Color(0xFF6B7280),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: _changeGoal,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _kBlue.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.emoji_events,
+                                    color: _kBlue,
+                                    size: 14,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${_getGoalEmoji()} ${_getGoalLabel(_goal)}',
+                                    style: const TextStyle(
+                                      color: _kBlue,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Edit profile button
+                    GestureDetector(
+                      onTap: _editProfile,
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: _kBlue.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          CupertinoIcons.pencil,
+                          color: _kBlue,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // ── Stats Row ────────────────────────────────────────────────
+              Row(
+                children: [
+                  Expanded(
+                    child: _StatCard(
+                      icon: Icons.restaurant,
+                      iconColor: _kPurple,
+                      value: '$_totalMeals',
+                      label: 'Bữa ăn',
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _StatCard(
+                      icon: Icons.fitness_center,
+                      iconColor: _kOrange,
+                      value: '$_totalWorkouts',
+                      label: 'Buổi tập',
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _StatCard(
+                      icon: Icons.local_fire_department,
+                      iconColor: _kCalColor,
+                      value: '$_streakDays',
+                      label: 'Streak 🔥',
+                      isDark: isDark,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Body Info ────────────────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: card,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.person_outline, color: _kBlue, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Thông tin cơ thể',
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _BodyInfoItem(
+                            icon: Icons.straighten,
+                            label: 'Chiều cao',
+                            value: '${_height > 0 ? _height.toInt() : '--'} cm',
+                            isDark: isDark,
+                          ),
+                        ),
+                        Expanded(
+                          child: _BodyInfoItem(
+                            icon: Icons.scale,
+                            label: 'Cân nặng',
+                            value: '${_weight > 0 ? _weight.toInt() : '--'} kg',
+                            isDark: isDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _BodyInfoItem(
+                            icon: Icons.cake,
+                            label: 'Tuổi',
+                            value: '$_age tuổi',
+                            isDark: isDark,
+                          ),
+                        ),
+                        Expanded(
+                          child: _BodyInfoItem(
+                            icon: _gender == 'male' ? Icons.male : Icons.female,
+                            label: 'Giới tính',
+                            value: _gender == 'male' ? 'Nam' : 'Nữ',
+                            isDark: isDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // ── BMR Card ─────────────────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: card,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: _kOrange.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.local_fire_department,
+                            color: _kOrange,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'BMR (Trao đổi chất)',
+                              style: TextStyle(
+                                color:
+                                    isDark
+                                        ? const Color(0xFF8B92A8)
+                                        : const Color(0xFF6B7280),
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Text(
+                                  '${_bmr > 0 ? _bmr.toInt() : '--'}',
+                                  style: TextStyle(
+                                    color: textPrimary,
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'kcal/ngày',
+                                  style: TextStyle(
+                                    color:
+                                        isDark
+                                            ? const Color(0xFF8B92A8)
+                                            : const Color(0xFF6B7280),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Divider(
+                      color:
+                          isDark
+                              ? const Color(0xFF2A3142)
+                              : const Color(0xFFE8ECF0),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Lượng năng lượng cơ bản cơ thể cần mỗi ngày để duy trì các chức năng sống.',
+                      style: TextStyle(
+                        color:
+                            isDark
+                                ? const Color(0xFF8B92A8)
+                                : const Color(0xFF6B7280),
+                        fontSize: 13,
+                        height: 1.5,
+                      ),
+                    ),
+                    if (_bmr > 0) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _kBlue.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              CupertinoIcons.info,
+                              size: 14,
+                              color: _kBlue,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Mục tiêu: ${(_bmr * (1 + (_goal == 'lose'
+                                            ? -0.2
+                                            : _goal == 'gain'
+                                            ? 0.2
+                                            : 0))).toInt()} kcal/ngày',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: _kBlue,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // ── Health Tracking ──────────────────────────────────────────
+              Text(
+                'THEO DÕI SỨC KHỎE',
+                style: TextStyle(
+                  color:
+                      isDark
+                          ? const Color(0xFF8B92A8)
+                          : const Color(0xFF6B7280),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _HealthTrackingItem(
+                icon: Icons.scale,
+                iconColor: _kGreen,
+                title: 'Cân nặng',
+                value: '${_weight > 0 ? _weight.toInt() : '--'} kg',
+                isDark: isDark,
+              ),
+              const SizedBox(height: 12),
+              _HealthTrackingItem(
+                icon: Icons.local_fire_department,
+                iconColor: _kCalColor,
+                title: 'Calo hôm nay',
+                value: '-- kcal',
+                isDark: isDark,
+              ),
+              const SizedBox(height: 24),
+
+              // ── Account Section ──────────────────────────────────────────
+              _buildAccountSection(isDark, _isLoggedIn, card, textPrimary),
+              const SizedBox(height: 40),
+            ],
           ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(
-              CupertinoIcons.gear_alt,
-              size: 22,
-              color: Theme.of(context).iconTheme.color ?? Colors.black87,
-            ),
-            onPressed: _editProfile,
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            _buildProfileHeader(isDark),
-            const SizedBox(height: 20),
-            _buildStatsSection(isDark),
-            const SizedBox(height: 20),
-            _buildBodyInfo(isDark),
-            const SizedBox(height: 20),
-            _buildBMRCard(isDark),
-            const SizedBox(height: 20),
-            _buildAccountSection(isDark, _isLoggedIn),
-            const SizedBox(height: 40),
-          ],
         ),
       ),
     );
   }
 
-  /// Build account management section with logout button
-  Widget _buildAccountSection(bool isDark, bool isLoggedIn) {
+  // ─────────────────────────────── Account Section ──────────────────────────
+  Widget _buildAccountSection(
+    bool isDark,
+    bool isLoggedIn,
+    Color card,
+    Color textPrimary,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color:
-            isDark
-                ? AppColors.darkCardBackground
-                : AppColors.lightCardBackground,
+        color: card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color:
-              isDark
-                  ? AppColors.darkDivider.withValues(alpha: 0.5)
-                  : AppColors.lightDivider.withValues(alpha: 0.5),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -275,13 +750,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryIndigo.withValues(alpha: 0.1),
+                  color: _kBlue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   CupertinoIcons.shield,
                   size: 16,
-                  color: AppColors.primaryIndigo,
+                  color: _kBlue,
                 ),
               ),
               const SizedBox(width: 10),
@@ -290,43 +765,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color:
-                      isDark
-                          ? AppColors.darkTextPrimary
-                          : AppColors.lightTextPrimary,
+                  color: textPrimary,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
 
-          // Account status bar
+          // Status badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color:
                   isLoggedIn
-                      ? AppColors.successGreen.withValues(alpha: 0.08)
-                      : AppColors.warningOrange.withValues(alpha: 0.08),
+                      ? _kGreen.withValues(alpha: 0.08)
+                      : _kOrange.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color:
                     isLoggedIn
-                        ? AppColors.successGreen.withValues(alpha: 0.15)
-                        : AppColors.warningOrange.withValues(alpha: 0.15),
+                        ? _kGreen.withValues(alpha: 0.2)
+                        : _kOrange.withValues(alpha: 0.2),
               ),
             ),
             child: Row(
               children: [
-                // Pulsing dot
                 Container(
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color:
-                        isLoggedIn
-                            ? AppColors.successGreen
-                            : AppColors.warningOrange,
+                    color: isLoggedIn ? _kGreen : _kOrange,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -340,24 +808,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
-                          color:
-                              isDark
-                                  ? AppColors.darkTextPrimary
-                                  : AppColors.lightTextPrimary,
+                          color: textPrimary,
                         ),
                       ),
                       if (isLoggedIn && _authService.currentUser?.email != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            _authService.currentUser!.email!,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color:
-                                  isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.lightTextSecondary,
-                            ),
+                        Text(
+                          _authService.currentUser!.email!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color:
+                                isDark
+                                    ? const Color(0xFF8B92A8)
+                                    : const Color(0xFF6B7280),
                           ),
                         ),
                     ],
@@ -378,10 +840,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 13),
                         decoration: BoxDecoration(
-                          color: AppColors.errorRed.withValues(alpha: 0.08),
+                          color: _kRed.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: AppColors.errorRed.withValues(alpha: 0.15),
+                            color: _kRed.withValues(alpha: 0.2),
                           ),
                         ),
                         child: Row(
@@ -389,7 +851,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           children: [
                             Icon(
                               CupertinoIcons.square_arrow_right,
-                              color: AppColors.errorRed,
+                              color: _kRed,
                               size: 18,
                             ),
                             const SizedBox(width: 8),
@@ -398,7 +860,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.errorRed,
+                                color: _kRed,
                               ),
                             ),
                           ],
@@ -406,21 +868,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     )
                     : GestureDetector(
-                      onTap: () {
-                        Navigator.pushNamed(context, '/login');
-                      },
+                      onTap: () => Navigator.pushNamed(context, '/login'),
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 13),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF10B981), Color(0xFF06D6A0)],
+                            colors: [_kGreen, Color(0xFF06D6A0)],
                           ),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(
-                                0xFF10B981,
-                              ).withValues(alpha: 0.3),
+                              color: _kGreen.withValues(alpha: 0.3),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -453,7 +911,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// Show logout confirmation dialog
+  // ─────────────────────────────── Dialogs / Actions ────────────────────────
   Future<void> _showLogoutConfirmation() async {
     final confirmed = await showCupertinoDialog<bool>(
       context: context,
@@ -477,26 +935,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
     );
-
-    if (confirmed == true && mounted) {
-      await _performLogout();
-    }
+    if (confirmed == true && mounted) await _performLogout();
   }
 
-  /// Perform the actual logout
   Future<void> _performLogout() async {
     try {
       await _authService.signOut();
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Đã đăng xuất thành công'),
-            backgroundColor: AppColors.successGreen,
+            backgroundColor: Colors.green,
           ),
         );
-
-        // Refresh the UI
         setState(() {});
       }
     } catch (e) {
@@ -508,529 +959,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         );
       }
-    }
-  }
-
-  Widget _buildProfileHeader(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.primaryBlue.withValues(alpha: 0.08),
-            AppColors.primaryIndigo.withValues(alpha: 0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        children: [
-          // Avatar — rounded-3xl with green-mint gradient
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              GestureDetector(
-                onTap: _changeAvatar,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF10B981), Color(0xFF06D6A0)],
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.3),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                    image:
-                        _avatarUrl != null
-                            ? DecorationImage(
-                              image: CachedNetworkImageProvider(_avatarUrl!),
-                              fit: BoxFit.cover,
-                            )
-                            : null,
-                  ),
-                  child:
-                      _avatarUrl == null
-                          ? Center(
-                            child: Text(
-                              _name.isNotEmpty ? _name[0].toUpperCase() : '👤',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 32,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          )
-                          : null,
-                ),
-              ),
-              // Camera button overlay
-              Positioned(
-                right: -4,
-                bottom: -4,
-                child: GestureDetector(
-                  onTap: _changeAvatar,
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryBlue,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primaryBlue.withValues(alpha: 0.4),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                    child:
-                        _isUploadingAvatar
-                            ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation(
-                                  Colors.white,
-                                ),
-                              ),
-                            )
-                            : const Icon(
-                              CupertinoIcons.camera,
-                              color: Colors.white,
-                              size: 14,
-                            ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 16),
-          // Name + email + goal
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _name.isNotEmpty ? _name : 'Người dùng',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color:
-                        isDark
-                            ? AppColors.darkTextPrimary
-                            : AppColors.lightTextPrimary,
-                  ),
-                ),
-                if (_authService.isAuthenticated &&
-                    _authService.currentUser?.email != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      _authService.currentUser!.email!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color:
-                            isDark
-                                ? AppColors.darkTextSecondary
-                                : AppColors.lightTextSecondary,
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: _changeGoal,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryBlue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _getGoalEmoji(),
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _getGoalLabel(_goal),
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primaryBlue,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getGoalEmoji() {
-    switch (_goal) {
-      case 'lose':
-        return '📉';
-      case 'gain':
-        return '📈';
-      default:
-        return '⚖️';
-    }
-  }
-
-  Widget _buildStatsSection(bool isDark) {
-    final stats = [
-      {'value': '$_totalMeals', 'label': 'Bữa ăn', 'emoji': '🍽️'},
-      {'value': '$_totalWorkouts', 'label': 'Buổi tập', 'emoji': '💪'},
-      {'value': '$_streakDays', 'label': 'Liên tiếp', 'emoji': '🔥'},
-    ];
-
-    return Row(
-      children:
-          stats.map((stat) {
-            return Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color:
-                      isDark
-                          ? AppColors.darkCardBackground
-                          : AppColors.lightCardBackground,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color:
-                        isDark
-                            ? AppColors.darkDivider.withValues(alpha: 0.5)
-                            : AppColors.lightDivider.withValues(alpha: 0.5),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Text(stat['emoji']!, style: const TextStyle(fontSize: 20)),
-                    const SizedBox(height: 6),
-                    Text(
-                      stat['value']!,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color:
-                            isDark
-                                ? AppColors.darkTextPrimary
-                                : AppColors.lightTextPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      stat['label']!,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color:
-                            isDark
-                                ? AppColors.darkTextTertiary
-                                : AppColors.lightTextTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-    );
-  }
-
-  Widget _buildBodyInfo(bool isDark) {
-    final items = [
-      {'emoji': '📏', 'label': 'Chiều cao', 'value': '${_height.toInt()} cm'},
-      {'emoji': '⚖️', 'label': 'Cân nặng', 'value': '${_weight.toInt()} kg'},
-      {'emoji': '🎂', 'label': 'Tuổi', 'value': '$_age tuổi'},
-      {
-        'emoji': _gender == 'male' ? '♂️' : '♀️',
-        'label': 'Giới tính',
-        'value': _gender == 'male' ? 'Nam' : 'Nữ',
-      },
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color:
-            isDark
-                ? AppColors.darkCardBackground
-                : AppColors.lightCardBackground,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color:
-              isDark
-                  ? AppColors.darkDivider.withValues(alpha: 0.5)
-                  : AppColors.lightDivider.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryBlue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  CupertinoIcons.person,
-                  size: 16,
-                  color: AppColors.primaryBlue,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'Thông tin cơ thể',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color:
-                      isDark
-                          ? AppColors.darkTextPrimary
-                          : AppColors.lightTextPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 2.2,
-            children:
-                items.map((item) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color:
-                          isDark ? AppColors.darkMuted : AppColors.lightMuted,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Text(
-                          item['emoji']!,
-                          style: const TextStyle(fontSize: 18),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                item['label']!,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color:
-                                      isDark
-                                          ? AppColors.darkTextSecondary
-                                          : AppColors.lightTextSecondary,
-                                ),
-                              ),
-                              Text(
-                                item['value']!,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color:
-                                      isDark
-                                          ? AppColors.darkTextPrimary
-                                          : AppColors.lightTextPrimary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBMRCard(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors:
-              isDark
-                  ? [AppColors.darkCardBackground, AppColors.darkCardBackground]
-                  : [
-                    const Color(0xFFF59E0B).withValues(alpha: 0.05),
-                    const Color(0xFFFF7F50).withValues(alpha: 0.05),
-                  ],
-        ),
-        border: Border.all(
-          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFF59E0B), Color(0xFFFF7F50)],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  CupertinoIcons.flame_fill,
-                  color: Colors.white,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'Chỉ số BMR',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color:
-                      isDark
-                          ? AppColors.darkTextPrimary
-                          : AppColors.lightTextPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${_bmr.toInt()}',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color:
-                      isDark
-                          ? AppColors.darkTextPrimary
-                          : AppColors.lightTextPrimary,
-                  height: 1,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  'kcal/ngày',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color:
-                        isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.lightTextSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Năng lượng cơ bản cần thiết',
-            style: TextStyle(
-              fontSize: 12,
-              color:
-                  isDark
-                      ? AppColors.darkTextTertiary
-                      : AppColors.lightTextTertiary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  CupertinoIcons.info,
-                  size: 14,
-                  color: Color(0xFF3B82F6),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Mục tiêu: ${(_bmr * (1 + (_goal == 'lose'
-                                ? -0.2
-                                : _goal == 'gain'
-                                ? 0.2
-                                : 0))).toInt()} kcal/ngày',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF3B82F6),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getGoalLabel(String goal) {
-    switch (goal) {
-      case 'lose':
-        return 'Giảm cân';
-      case 'gain':
-        return 'Tăng cân';
-      default:
-        return 'Duy trì cân nặng';
     }
   }
 
@@ -1083,7 +1011,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           padding: const EdgeInsets.all(12),
                         ),
                         const SizedBox(height: 12),
-                        // Gender selector
                         CupertinoSlidingSegmentedControl<String>(
                           groupValue: selectedGender,
                           children: const {
@@ -1108,11 +1035,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   actions: [
                     CupertinoDialogAction(
                       isDefaultAction: true,
-                      child: const Text('Hủy'),
                       onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Hủy'),
                     ),
                     CupertinoDialogAction(
-                      child: const Text('Lưu'),
                       onPressed: () {
                         final newName = nameController.text.trim();
                         final newHeight =
@@ -1120,7 +1046,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         final newWeight =
                             double.tryParse(weightController.text) ?? _weight;
                         final newAge = int.tryParse(ageController.text) ?? _age;
-
                         Navigator.pop(dialogContext);
                         _saveProfileChanges(
                           newName,
@@ -1130,6 +1055,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           selectedGender,
                         );
                       },
+                      child: const Text('Lưu'),
                     ),
                   ],
                 ),
@@ -1144,7 +1070,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     int newAge,
     String newGender,
   ) async {
-    // Update storage
     final profile = StorageService.getUserProfile();
     if (profile != null) {
       final updatedProfile = profile.copyWith(
@@ -1154,8 +1079,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
       await StorageService.saveUserProfile(updatedProfile);
     }
-
-    // Update UI
     if (!mounted) return;
     setState(() {
       _name = newName;
@@ -1164,7 +1087,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _age = newAge;
       _gender = newGender;
     });
-
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('✅ Đã cập nhật hồ sơ'),
@@ -1237,24 +1159,181 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _selectGoal(String newGoal) async {
     Navigator.pop(context);
-
-    // Update storage
     final profile = StorageService.getUserProfile();
     if (profile != null) {
       final updatedProfile = profile.copyWith(goal: newGoal);
       await StorageService.saveUserProfile(updatedProfile);
     }
-
-    // Update UI
-    setState(() {
-      _goal = newGoal;
-    });
-
+    setState(() => _goal = newGoal);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('✅ Đã đổi mục tiêu thành: ${_getGoalLabel(newGoal)}'),
         backgroundColor: Colors.green,
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────── Sub-widgets ──────────────────────────────
+
+class _StatCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String value;
+  final String label;
+  final bool isDark;
+
+  const _StatCard({
+    required this.icon,
+    required this.iconColor,
+    required this.value,
+    required this.label,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cardColor = isDark ? const Color(0xFF1A1F2E) : Colors.white;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1A1A2E);
+    final textSecondary =
+        isDark ? const Color(0xFF8B92A8) : const Color(0xFF6B7280);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: TextStyle(
+              color: textPrimary,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(color: textSecondary, fontSize: 11),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BodyInfoItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool isDark;
+
+  const _BodyInfoItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1A1A2E);
+    final textSecondary =
+        isDark ? const Color(0xFF8B92A8) : const Color(0xFF6B7280);
+
+    return Row(
+      children: [
+        Icon(icon, color: textSecondary, size: 20),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(color: textSecondary, fontSize: 12)),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: TextStyle(
+                color: textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _HealthTrackingItem extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String value;
+  final bool isDark;
+
+  const _HealthTrackingItem({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.value,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cardColor = isDark ? const Color(0xFF1A1F2E) : Colors.white;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1A1A2E);
+    final textSecondary =
+        isDark ? const Color(0xFF8B92A8) : const Color(0xFF6B7280);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Text(value, style: TextStyle(color: textSecondary, fontSize: 14)),
+          const SizedBox(width: 8),
+          Icon(Icons.chevron_right, color: textSecondary, size: 20),
+        ],
       ),
     );
   }

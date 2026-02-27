@@ -570,28 +570,36 @@ class _AnimatedWaterButtonState extends State<_AnimatedWaterButton>
   }
 
   void _onTapDown(TapDownDetails details) {
+    if (!mounted) return;
     setState(() => _isPressed = true);
     _controller.forward();
   }
 
-  void _onTapUp(TapUpDetails details) {
-    _controller.reverse();
-    setState(() => _isPressed = false);
+  void _triggerAction() {
+    if (!mounted) return;
     HapticFeedback.lightImpact();
     widget.onTap();
   }
 
+  void _onTapUp(TapUpDetails details) {
+    _controller.reverse();
+    if (mounted) setState(() => _isPressed = false);
+    _triggerAction();
+  }
+
   void _onTapCancel() {
     _controller.reverse();
-    setState(() => _isPressed = false);
+    if (mounted) setState(() => _isPressed = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque, // claim hit area before ScrollView
       onTapDown: _onTapDown,
       onTapUp: _onTapUp,
       onTapCancel: _onTapCancel,
+      onTap: _triggerAction, // reliable fallback
       child: AnimatedBuilder(
         animation: _scaleAnimation,
         builder: (context, child) {

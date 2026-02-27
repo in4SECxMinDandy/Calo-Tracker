@@ -8,6 +8,8 @@ import '../../models/app_notification.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/glass_card.dart';
+import 'post_detail_screen.dart';
+import 'user_profile_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -66,31 +68,29 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _handleNotificationTap(AppNotification notification) {
-    // Navigate to appropriate screen based on notification type
     switch (notification.type) {
       case NotificationType.like:
       case NotificationType.comment:
+      case NotificationType.mention:
         if (notification.relatedPostId != null) {
-          // Navigate to post detail
+          Navigator.push(
+            context,
+            CupertinoPageRoute(
+              builder: (_) => PostDetailScreen(
+                postId: notification.relatedPostId!,
+              ),
+            ),
+          );
         }
         break;
       case NotificationType.follow:
         if (notification.actorId != null) {
-          // Navigate to user profile
-        }
-        break;
-      case NotificationType.challengeInvite:
-      case NotificationType.challengeStart:
-      case NotificationType.challengeEnd:
-      case NotificationType.challengeRank:
-        if (notification.relatedChallengeId != null) {
-          // Navigate to challenge detail
-        }
-        break;
-      case NotificationType.groupInvite:
-      case NotificationType.groupJoin:
-        if (notification.relatedGroupId != null) {
-          // Navigate to group detail
+          Navigator.push(
+            context,
+            CupertinoPageRoute(
+              builder: (_) => UserProfileScreen(userId: notification.actorId!),
+            ),
+          );
         }
         break;
       default:

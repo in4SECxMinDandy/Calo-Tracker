@@ -789,36 +789,41 @@ class _HistoryScreenState extends State<HistoryScreen>
         children: [
           // Header
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Biểu đồ dinh dưỡng',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: textPrimary,
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Biểu đồ dinh dưỡng',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: textPrimary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Calo tiêu thụ vs đốt cháy',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: textMuted,
-                      height: 1.4,
+                    const SizedBox(height: 4),
+                    Text(
+                      'Calo tiêu thụ vs đốt cháy',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: textMuted,
+                        height: 1.4,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               // Period selector
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildPeriodButton('7D', 7, textMuted),
-                  _buildPeriodButton('14D', 14, textMuted),
-                  _buildPeriodButton('30D', 30, textMuted),
+                  _buildPeriodButton('7N', 7, textMuted),
+                  _buildPeriodButton('14N', 14, textMuted),
+                  _buildPeriodButton('30N', 30, textMuted),
                 ],
               ),
             ],

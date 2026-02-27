@@ -865,6 +865,30 @@ class CommunityService {
         .toList();
   }
 
+  /// Get a single post by id with isLikedByMe populated
+  Future<Post?> getPost(String postId) async {
+    final response = await _client
+        .from('posts')
+        .select('*, profiles(username, display_name, avatar_url)')
+        .eq('id', postId)
+        .maybeSingle();
+
+    if (response == null) return null;
+
+    bool isLikedByMe = false;
+    if (_userId != null) {
+      final like = await _client
+          .from('likes')
+          .select('id')
+          .eq('post_id', postId)
+          .eq('user_id', _userId!)
+          .maybeSingle();
+      isLikedByMe = like != null;
+    }
+
+    return Post.fromJson(response, isLikedByMe: isLikedByMe);
+  }
+
   /// Create a post
   Future<Post> createPost({
     String? groupId,
@@ -999,6 +1023,34 @@ class CommunityService {
         .delete()
         .eq('id', postId)
         .eq('user_id', _userId!);
+  }
+
+  /// Update a post's content (only by owner, enforced via user_id filter)
+  Future<Post> updatePost({
+    required String postId,
+    required String content,
+    List<String>? imageUrls,
+    Map<String, dynamic>? linkedData,
+  }) async {
+    if (_userId == null) throw Exception('User not authenticated');
+
+    final updates = <String, dynamic>{
+      'content': content,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    if (imageUrls != null) updates['image_urls'] = imageUrls;
+    if (linkedData != null) updates['linked_data'] = linkedData;
+
+    final response =
+        await _client
+            .from('posts')
+            .update(updates)
+            .eq('id', postId)
+            .eq('user_id', _userId!)
+            .select('*, profiles(username, display_name, avatar_url)')
+            .single();
+
+    return Post.fromJson(response);
   }
 
   // ============================================

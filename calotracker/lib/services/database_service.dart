@@ -774,6 +774,27 @@ class DatabaseService {
     }
   }
 
+  /// Get daily macros (protein, carbs, fat, calories) from today's meals
+  static Future<Map<String, double>> getDailyMacros() async {
+    final meals = await getTodayMeals();
+    double protein = 0;
+    double carbs = 0;
+    double fat = 0;
+    double calories = 0;
+    for (final meal in meals) {
+      protein += meal.protein ?? 0;
+      carbs += meal.carbs ?? 0;
+      fat += meal.fat ?? 0;
+      calories += meal.calories;
+    }
+    return {
+      'protein': protein,
+      'carbs': carbs,
+      'fat': fat,
+      'calories': calories,
+    };
+  }
+
   /// Get all meals
   static Future<List<Meal>> getAllMeals() async {
     final db = await database;

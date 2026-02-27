@@ -11,6 +11,7 @@ import 'services/storage_service.dart';
 import 'services/notification_service.dart';
 import 'services/analytics_service.dart';
 import 'services/auth_service.dart';
+import 'services/fcm_service.dart';
 import 'core/config/supabase_config.dart';
 import 'screens/splash/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
@@ -42,6 +43,8 @@ void main() async {
     // Initialize Supabase (optional - won't fail if not configured)
     try {
       await SupabaseConfig.initialize();
+      // Initialize FCM after Supabase so token registration can find the user
+      await FCMService().initialize();
     } catch (e) {
       debugPrint('Supabase not configured: $e');
     }

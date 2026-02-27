@@ -339,6 +339,43 @@ class UnifiedCommunityService {
     return _realService.commentOnPost(postId, content);
   }
 
+  Future<void> deletePost(String postId) async {
+    if (isDemoMode) {
+      // In demo mode just silently succeed
+      return;
+    }
+    return _realService.deletePost(postId);
+  }
+
+  Future<Post> updatePost({
+    required String postId,
+    required String content,
+    List<String>? imageUrls,
+    Map<String, dynamic>? linkedData,
+  }) async {
+    if (isDemoMode) {
+      // Demo: return a fake updated post
+      final existing = (await getFeedPosts()).firstWhere(
+        (p) => p.id == postId,
+        orElse:
+            () => Post(
+              id: postId,
+              userId: MockCommunityService.demoUserId,
+              content: content,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ),
+      );
+      return existing.copyWith(content: content, updatedAt: DateTime.now());
+    }
+    return _realService.updatePost(
+      postId: postId,
+      content: content,
+      imageUrls: imageUrls,
+      linkedData: linkedData,
+    );
+  }
+
   // ============================================
   // PROFILE
   // ============================================
@@ -366,6 +403,18 @@ class UnifiedCommunityService {
       return _mockService.getUserPosts(userId, limit: limit);
     }
     return _realService.getUserPosts(userId, limit: limit);
+  }
+
+  Future<Post?> getPost(String postId) async {
+    if (isDemoMode) {
+      final allPosts = await getFeedPosts(limit: 100);
+      try {
+        return allPosts.firstWhere((p) => p.id == postId);
+      } catch (_) {
+        return null;
+      }
+    }
+    return _realService.getPost(postId);
   }
 
   // ============================================

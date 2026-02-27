@@ -28,6 +28,7 @@ import 'widgets/post_card.dart';
 import 'widgets/create_post_sheet.dart';
 import 'widgets/comment_sheet.dart';
 import '../search/global_search_screen.dart';
+import 'post_detail_screen.dart';
 
 class CommunityHubScreen extends StatefulWidget {
   const CommunityHubScreen({super.key});
@@ -285,8 +286,32 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
                           ),
                           child: PostCard(
                             post: _feedPosts[index],
+                            onTap: () => Navigator.push(
+                              context,
+                              CupertinoPageRoute(
+                                builder: (_) => PostDetailScreen(
+                                  postId: _feedPosts[index].id,
+                                  initialPost: _feedPosts[index],
+                                ),
+                              ),
+                            ),
                             onLike: () => _handleLike(_feedPosts[index]),
                             onComment: () => _handleComment(_feedPosts[index]),
+                            onDelete: (postId) {
+                              setState(() {
+                                _feedPosts.removeWhere((p) => p.id == postId);
+                              });
+                            },
+                            onEdit: (updatedPost) {
+                              setState(() {
+                                final idx = _feedPosts.indexWhere(
+                                  (p) => p.id == updatedPost.id,
+                                );
+                                if (idx != -1) {
+                                  _feedPosts[idx] = updatedPost;
+                                }
+                              });
+                            },
                           ),
                         ),
                         childCount: _feedPosts.length,

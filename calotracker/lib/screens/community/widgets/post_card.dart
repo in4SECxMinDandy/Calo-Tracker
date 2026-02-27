@@ -11,8 +11,11 @@ import '../../../widgets/glass_card.dart';
 import '../../../widgets/full_screen_image_viewer.dart';
 import '../user_profile_screen.dart';
 import '../../../services/community_service.dart';
+import '../../../services/unified_community_service.dart';
+import '../../../services/supabase_auth_service.dart';
 import '../../../services/report_service.dart';
 import '../report_dialog.dart';
+import 'edit_post_sheet.dart';
 
 class PostCard extends StatefulWidget {
   final Post post;
@@ -23,6 +26,12 @@ class PostCard extends StatefulWidget {
   final VoidCallback? onUnsave;
   final bool isSaved;
 
+  /// Called when the post is deleted by the owner (passes postId)
+  final Function(String postId)? onDelete;
+
+  /// Called when the post is edited by the owner (passes updated Post)
+  final Function(Post updatedPost)? onEdit;
+
   const PostCard({
     super.key,
     required this.post,
@@ -32,6 +41,8 @@ class PostCard extends StatefulWidget {
     this.onTap,
     this.onUnsave,
     this.isSaved = false,
+    this.onDelete,
+    this.onEdit,
   });
 
   @override
@@ -41,11 +52,17 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard>
     with SingleTickerProviderStateMixin {
   final _communityService = CommunityService();
+  final _unifiedService = UnifiedCommunityService();
+  final _authService = SupabaseAuthService();
   late AnimationController _likeController;
   late Animation<double> _scaleAnimation;
   bool _isLiked = false;
   bool _isSaved = false;
   bool _isSaving = false;
+  bool _isDeleting = false;
+
+  /// True when the logged-in user is the author of this post
+  bool get _isOwner => _authService.currentUser?.id == widget.post.userId;
 
   @override
   void initState() {
@@ -689,6 +706,74 @@ class _PostCardState extends State<PostCard>
     );
   }
 
+  void _handleEdit(BuildContext ctx) {
+    showModalBottomSheet(
+      context: ctx,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (_) => EditPostSheet(
+            post: widget.post,
+            onPostUpdated: (updated) {
+              widget.onEdit?.call(updated);
+            },
+          ),
+    );
+  }
+
+  Future<void> _handleDelete(BuildContext ctx) async {
+    final confirmed = await showDialog<bool>(
+      context: ctx,
+      builder:
+          (dialogCtx) => AlertDialog(
+            title: const Text('Xóa bài viết?'),
+            content: const Text(
+              'Bài viết sẽ bị xóa vĩnh viễn. Bạn có chắc không?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx, false),
+                child: const Text('Hủy'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Xóa'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isDeleting = true);
+    try {
+      await _unifiedService.deletePost(widget.post.id);
+      widget.onDelete?.call(widget.post.id);
+      if (mounted) {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🗑 Đã xóa bài viết'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi xóa bài: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
+    }
+  }
+
   void _showMoreOptions(BuildContext context, bool isDark) {
     showModalBottomSheet(
       context: context,
@@ -705,32 +790,105 @@ class _PostCardState extends State<PostCard>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Save/Unsave
-                  ListTile(
-                    leading: Icon(
-                      _isSaved ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark,
-                      color: _isSaved ? AppColors.primaryBlue : null,
+                  // Handle bar
+                  Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 4),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color:
+                          isDark
+                              ? AppColors.darkDivider
+                              : AppColors.lightDivider,
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                    title: Text(_isSaved ? 'Bỏ lưu bài viết' : 'Lưu bài viết'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _handleSave();
-                    },
                   ),
 
-                  // Report
-                  ListTile(
-                    leading: const Icon(CupertinoIcons.flag, color: Colors.red),
-                    title: const Text('Báo cáo bài viết'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      showReportDialog(
-                        context,
-                        contentType: ReportContentType.post,
-                        contentId: widget.post.id,
-                      );
-                    },
-                  ),
+                  if (_isOwner) ...[
+                    // ── Owner options ──
+                    ListTile(
+                      leading: Icon(
+                        CupertinoIcons.pencil,
+                        color: AppColors.primaryBlue,
+                      ),
+                      title: const Text(
+                        'Chỉnh sửa bài viết',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _handleEdit(context);
+                      },
+                    ),
+                    ListTile(
+                      leading:
+                          _isDeleting
+                              ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : const Icon(
+                                CupertinoIcons.trash,
+                                color: Colors.red,
+                              ),
+                      title: const Text(
+                        'Xóa bài viết',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      onTap:
+                          _isDeleting
+                              ? null
+                              : () {
+                                Navigator.pop(context);
+                                _handleDelete(context);
+                              },
+                    ),
+                    Divider(
+                      color:
+                          isDark
+                              ? AppColors.darkDivider
+                              : AppColors.lightDivider,
+                      height: 1,
+                    ),
+                  ] else ...[
+                    // ── Non-owner options ──
+                    ListTile(
+                      leading: Icon(
+                        _isSaved
+                            ? CupertinoIcons.bookmark_fill
+                            : CupertinoIcons.bookmark,
+                        color: _isSaved ? AppColors.primaryBlue : null,
+                      ),
+                      title: Text(
+                        _isSaved ? 'Bỏ lưu bài viết' : 'Lưu bài viết',
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _handleSave();
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(
+                        CupertinoIcons.flag,
+                        color: Colors.red,
+                      ),
+                      title: const Text('Báo cáo bài viết'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        showReportDialog(
+                          context,
+                          contentType: ReportContentType.post,
+                          contentId: widget.post.id,
+                        );
+                      },
+                    ),
+                  ],
 
                   const SizedBox(height: 8),
                 ],

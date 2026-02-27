@@ -33,11 +33,28 @@ class FCMService {
   // Callback for when notification is tapped
   Function(Map<String, dynamic> data)? onNotificationTapped;
 
+  bool _isAvailable = false;
+  bool get isAvailable => _isAvailable;
+
   // Initialize FCM
   Future<void> initialize() async {
     try {
-      // Initialize Firebase
+      // Initialize Firebase — may fail if google-services.json is missing
       await Firebase.initializeApp();
+      _isAvailable = true;
+    } catch (e) {
+      // Common in dev if google-services.json is not yet configured.
+      // App continues to work normally without push notifications.
+      debugPrint(
+        '⚠️ FCM not available: Firebase failed to initialize.\n'
+        '   Make sure google-services.json is placed at android/app/google-services.json\n'
+        '   and that apply plugin: \'com.google.gms.google-services\' is in android/app/build.gradle\n'
+        '   Error: $e',
+      );
+      return; // gracefully skip the rest — no crash
+    }
+
+    try {
       _messaging = FirebaseMessaging.instance;
 
       // Request permission
@@ -63,7 +80,9 @@ class FCMService {
       _setupMessageHandlers();
 
       // Handle background messages
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage(
+        _firebaseMessagingBackgroundHandler,
+      );
 
       debugPrint('✅ FCM initialized successfully');
     } catch (e) {
@@ -89,7 +108,9 @@ class FCMService {
 
   // Initialize local notifications (for foreground display)
   Future<void> _initializeLocalNotifications() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -118,7 +139,8 @@ class FCMService {
 
     await _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
   }
 
@@ -140,9 +162,10 @@ class FCMService {
       _currentToken = token;
 
       // Get device info
-      final deviceType = defaultTargetPlatform == TargetPlatform.android
-          ? 'android'
-          : defaultTargetPlatform == TargetPlatform.iOS
+      final deviceType =
+          defaultTargetPlatform == TargetPlatform.android
+              ? 'android'
+              : defaultTargetPlatform == TargetPlatform.iOS
               ? 'ios'
               : 'web';
 
@@ -194,7 +217,8 @@ class FCMService {
     const androidDetails = AndroidNotificationDetails(
       'calotracker_notifications',
       'CaloTracker Notifications',
-      channelDescription: 'Notifications for friend requests, messages, likes, etc.',
+      channelDescription:
+          'Notifications for friend requests, messages, likes, etc.',
       importance: Importance.high,
       priority: Priority.high,
       playSound: true,
@@ -294,9 +318,10 @@ class FCMService {
       }
       if (quietHoursEnd != null) updates['quiet_hours_end'] = quietHoursEnd;
 
-      await _supabase
-          .from('notification_preferences')
-          .upsert({...updates, 'user_id': currentUserId});
+      await _supabase.from('notification_preferences').upsert({
+        ...updates,
+        'user_id': currentUserId,
+      });
 
       debugPrint('✅ Notification preferences updated');
     } catch (e) {
@@ -310,11 +335,12 @@ class FCMService {
       final currentUserId = _supabase.auth.currentUser?.id;
       if (currentUserId == null) return null;
 
-      final response = await _supabase
-          .from('notification_preferences')
-          .select()
-          .eq('user_id', currentUserId)
-          .maybeSingle();
+      final response =
+          await _supabase
+              .from('notification_preferences')
+              .select()
+              .eq('user_id', currentUserId)
+              .maybeSingle();
 
       if (response == null) return null;
 
@@ -332,7 +358,8 @@ class FCMService {
 
       await _supabase
           .from('user_device_tokens')
-          .update({'is_active': false}).eq('fcm_token', _currentToken!);
+          .update({'is_active': false})
+          .eq('fcm_token', _currentToken!);
 
       debugPrint('✅ FCM token unregistered');
     } catch (e) {

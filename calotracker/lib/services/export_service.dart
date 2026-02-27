@@ -1,6 +1,7 @@
 // Export Service
 // Generate PDF and CSV reports for sharing with doctors/trainers
 import 'dart:io';
+import 'package:path/path.dart' as path_lib;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:csv/csv.dart';
@@ -28,7 +29,10 @@ class ExportService {
   }) async {
     final pdf = pw.Document();
     final userProfile = StorageService.getUserProfile();
+    // Use hyphens for display inside PDF content
     final dateFormat = DateFormat('dd/MM/yyyy');
+    // Use underscores-safe format for filenames (NO slashes!)
+    final filenameDateFormat = DateFormat('dd-MM-yyyy');
 
     // Get all required data
     final records = await DatabaseService.getCaloRecordsRange(
@@ -75,11 +79,11 @@ class ExportService {
       ),
     );
 
-    // Save PDF
+    // Save PDF — use filenameDateFormat (dd-MM-yyyy) so no '/' in path
     final output = await getTemporaryDirectory();
     final filename =
-        'CaloTracker_Report_${dateFormat.format(startDate)}_${dateFormat.format(endDate)}.pdf';
-    final file = File('${output.path}/$filename');
+        'CaloTracker_Report_${filenameDateFormat.format(startDate)}_${filenameDateFormat.format(endDate)}.pdf';
+    final file = File(path_lib.join(output.path, filename));
     await file.writeAsBytes(await pdf.save());
 
     return file;
@@ -91,7 +95,8 @@ class ExportService {
     required DateTime endDate,
     ExportType type = ExportType.meals,
   }) async {
-    final dateFormat = DateFormat('dd/MM/yyyy');
+    // IMPORTANT: Use '-' NOT '/' — slashes in filenames break the file path!
+    final filenameDateFormat = DateFormat('dd-MM-yyyy');
     List<List<dynamic>> rows = [];
 
     switch (type) {
@@ -108,13 +113,13 @@ class ExportService {
 
     final csv = const ListToCsvConverter().convert(rows);
 
-    // Save CSV
+    // Save CSV — safe path building with path.join()
     final output = await getTemporaryDirectory();
     final typeStr = type.name;
     final filename =
-        'CaloTracker_${typeStr}_${dateFormat.format(startDate)}_${dateFormat.format(endDate)}.csv';
-    final file = File('${output.path}/$filename');
-    await file.writeAsString(csv);
+        'CaloTracker_${typeStr}_${filenameDateFormat.format(startDate)}_${filenameDateFormat.format(endDate)}.csv';
+    final file = File(path_lib.join(output.path, filename));
+    await file.writeAsString(csv, flush: true);
 
     return file;
   }
