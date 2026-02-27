@@ -1,10 +1,12 @@
 // Nutrition API Service
 // Integration with USDA FoodData Central API for food nutrition data
+// Ưu tiên offline FoodDatabase trước khi gọi API bên ngoài
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../models/chat_message.dart';
 import '../models/meal.dart';
+import '../data/food_database.dart';
 
 class NutritionService {
   // USDA FoodData Central API Configuration
@@ -17,10 +19,19 @@ class NutritionService {
       _apiKey.isNotEmpty && _apiKey != 'YOUR_API_KEY';
 
   /// Query nutrition data from food search
+  ///
+  /// Ưu tiên: 1) Offline FoodDatabase → 2) USDA API → 3) Demo data
   static Future<NutritionResult> queryNutrition(
     String query, {
     String locale = 'vi_VN',
   }) async {
+    // ── Bước 1: Tìm trong offline FoodDatabase trước ──────────────────────
+    final offlineResult = _getOfflineData(query);
+    if (offlineResult != null) {
+      return offlineResult;
+    }
+
+    // ── Bước 2: Gọi USDA API nếu có kết nối ──────────────────────────────
     try {
       if (!isConfigured) {
         return _getDemoData(query);
@@ -52,12 +63,44 @@ class NutritionService {
         return NutritionResult.error('Lỗi server: ${response.statusCode}');
       }
     } on SocketException {
-      return NutritionResult.error('Không có kết nối mạng');
+      // Không có mạng — fallback về demo data
+      return _getDemoData(query);
     } on HttpException {
-      return NutritionResult.error('Lỗi HTTP');
+      return _getDemoData(query);
     } catch (e) {
       return NutritionResult.error('Lỗi: $e');
     }
+  }
+
+  /// Tìm kiếm trong offline FoodDatabase
+  ///
+  /// Trả về null nếu không tìm thấy (để fallback sang API)
+  static NutritionResult? _getOfflineData(String query) {
+    final analysis = FoodDatabaseService.analyze(query);
+    if (analysis == null) return null;
+
+    final food = analysis.food;
+
+    // Tạo rawData theo format USDA để tương thích với toMeals()
+    final rawData = {
+      'source': 'offline_database',
+      'foods': [
+        {
+          'description': food.name,
+          'servingSize': analysis.weightGrams,
+          'calories': analysis.calories,
+          'protein': analysis.protein,
+          'carbs': analysis.carbs,
+          'fat': analysis.fat,
+          'fiber': analysis.fiber,
+          'health_score': food.healthScore,
+          'alternatives': food.healthierAlternatives,
+        }
+      ],
+    };
+
+    final nutritionData = NutritionData.fromUSDA(rawData);
+    return NutritionResult.success(nutritionData, rawData);
   }
 
   /// Get detailed nutrition for a specific food by FDC ID
