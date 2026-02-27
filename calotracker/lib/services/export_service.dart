@@ -1,5 +1,6 @@
 // Export Service
 // Generate PDF and CSV reports for sharing with doctors/trainers
+import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as path_lib;
 import 'package:pdf/pdf.dart';
@@ -90,6 +91,9 @@ class ExportService {
   }
 
   /// Export data to CSV
+  ///
+  /// File CSV được lưu với UTF-8 BOM (\uFEFF) để Excel tự động nhận diện
+  /// encoding và hiển thị tiếng Việt đúng mà không cần import thủ công.
   static Future<File> exportToCsv({
     required DateTime startDate,
     required DateTime endDate,
@@ -113,13 +117,18 @@ class ExportService {
 
     final csv = const ListToCsvConverter().convert(rows);
 
-    // Save CSV — safe path building with path.join()
+    // Save CSV với UTF-8 BOM để Excel đọc được tiếng Việt
+    // BOM = \uFEFF (Byte Order Mark) — Excel dùng để detect UTF-8
     final output = await getTemporaryDirectory();
     final typeStr = type.name;
     final filename =
         'CaloTracker_${typeStr}_${filenameDateFormat.format(startDate)}_${filenameDateFormat.format(endDate)}.csv';
     final file = File(path_lib.join(output.path, filename));
-    await file.writeAsString(csv, flush: true);
+
+    // Ghi BOM + nội dung CSV dưới dạng bytes để đảm bảo UTF-8 BOM
+    final bom = utf8.encode('\uFEFF'); // UTF-8 BOM
+    final csvBytes = utf8.encode(csv);
+    await file.writeAsBytes([...bom, ...csvBytes], flush: true);
 
     return file;
   }
@@ -219,8 +228,10 @@ class ExportService {
       return pw.SizedBox.shrink();
     }
 
-    final bmi =
-        profile.weight / ((profile.height / 100) * (profile.height / 100));
+    // Guard against division by zero khi height chưa được nhập
+    final bmi = profile.height > 0
+        ? profile.weight / ((profile.height / 100) * (profile.height / 100))
+        : 0.0;
 
     return pw.Container(
       padding: const pw.EdgeInsets.all(15),
@@ -585,13 +596,13 @@ class ExportService {
     DateTime end,
   ) async {
     final sessions = await DatabaseService.getAllGymSessions();
-    final filtered =
-        sessions.where((s) {
-          return s.scheduledTime.isAfter(
-                start.subtract(const Duration(days: 1)),
-              ) &&
-              s.scheduledTime.isBefore(end.add(const Duration(days: 1)));
-        }).toList();
+    // Normalize về đầu ngày start và cuối ngày end để tránh off-by-one
+    final startDay = DateTime(start.year, start.month, start.day);
+    final endDay = DateTime(end.year, end.month, end.day, 23, 59, 59, 999);
+    final filtered = sessions.where((s) {
+      return !s.scheduledTime.isBefore(startDay) &&
+          !s.scheduledTime.isAfter(endDay);
+    }).toList();
 
     return [
       // Header
@@ -624,9 +635,12 @@ class ExportService {
     DateTime end,
   ) async {
     final allMeals = await DatabaseService.getAllMeals();
+    // Normalize về đầu ngày start và cuối ngày end để tránh off-by-one
+    final startDay = DateTime(start.year, start.month, start.day);
+    final endDay = DateTime(end.year, end.month, end.day, 23, 59, 59, 999);
     return allMeals.where((meal) {
-      return meal.dateTime.isAfter(start.subtract(const Duration(days: 1))) &&
-          meal.dateTime.isBefore(end.add(const Duration(days: 1)));
+      return !meal.dateTime.isBefore(startDay) &&
+          !meal.dateTime.isAfter(endDay);
     }).toList();
   }
 }
