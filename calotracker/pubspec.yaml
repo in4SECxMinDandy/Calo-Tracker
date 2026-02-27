@@ -93,3 +93,11 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/data/  # Workout program data
+    - assets/fonts/ # Custom fonts for PDF export (Be Vietnam Pro - hỗ trợ tiếng Việt)
+
+  fonts:
+    - family: BeVietnamPro
+      fonts:
+        - asset: assets/fonts/BeVietnamPro-Regular.ttf
+        - asset: assets/fonts/BeVietnamPro-Bold.ttf
+          weight: 700
