@@ -51,26 +51,20 @@ class _DS {
   static const double s12 = 12.0;
   static const double s16 = 16.0;
   static const double s20 = 20.0;
-  static const double s24 = 24.0;
-  static const double s32 = 32.0;
-  static const double s40 = 40.0;
   static const double s48 = 48.0;
   static const double s56 = 56.0;
-  static const double s64 = 64.0;
 
   // Border radius
   static const double r8 = 8.0;
   static const double r12 = 12.0;
   static const double r16 = 16.0;
   static const double r20 = 20.0;
-  static const double r24 = 24.0;
 
   // Màu nền
   static const Color bgLight = Color(0xFFF5F7FA);
   static const Color bgDark = Color(0xFF0F0F1A);
   static const Color cardLight = Colors.white;
   static const Color cardDark = Color(0xFF1A1B2E);
-  static const Color cardDark2 = Color(0xFF252640);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1779,7 +1773,7 @@ class _PdfExportSheetState extends State<_PdfExportSheet> {
   final _reportTypes = [
     (PdfReportType.fullHealth, 'Sức khỏe toàn diện', CupertinoIcons.heart_fill, Color(0xFF6366F1)),
     (PdfReportType.nutrition, 'Dinh dưỡng', CupertinoIcons.chart_pie_fill, Color(0xFF10B981)),
-    (PdfReportType.meals, 'Chi tiết bữa ăn', CupertinoIcons.fork_knife, Color(0xFFF59E0B)),
+    (PdfReportType.meals, 'Chi tiết bữa ăn', CupertinoIcons.cart_fill, Color(0xFFF59E0B)),
     (PdfReportType.workouts, 'Lịch tập gym', CupertinoIcons.flame_fill, Color(0xFFEF4444)),
   ];
 

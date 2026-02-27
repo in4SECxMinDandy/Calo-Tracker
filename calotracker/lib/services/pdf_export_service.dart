@@ -34,7 +34,6 @@ class _PdfColors {
   static const PdfColor error = PdfColor.fromInt(0xFFEF4444);
   static const PdfColor errorLight = PdfColor.fromInt(0xFFFEF2F2);
   static const PdfColor purple = PdfColor.fromInt(0xFF6366F1);
-  static const PdfColor purpleLight = PdfColor.fromInt(0xFFEEF2FF);
   static const PdfColor textPrimary = PdfColor.fromInt(0xFF111827);
   static const PdfColor textSecondary = PdfColor.fromInt(0xFF6B7280);
   static const PdfColor border = PdfColor.fromInt(0xFFE5E7EB);
@@ -779,7 +778,7 @@ class PdfExportService {
                       ),
                       children: [
                         _tableDataCell(meal.foodName, align: pw.TextAlign.left),
-                        _tableDataCell('${meal.calories.toStringAsFixed(0)}'),
+                        _tableDataCell(meal.calories.toStringAsFixed(0)),
                         _tableDataCell(meal.protein != null ? '${meal.protein!.toStringAsFixed(1)}g' : '-'),
                         _tableDataCell(meal.carbs != null ? '${meal.carbs!.toStringAsFixed(1)}g' : '-'),
                         _tableDataCell(meal.fat != null ? '${meal.fat!.toStringAsFixed(1)}g' : '-'),
