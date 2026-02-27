@@ -164,29 +164,34 @@ class GamificationRow extends StatelessWidget {
   // ── 5 gamification items — single source of truth ──────
   static const List<GamificationItem> _items = [
     GamificationItem(
+      // Thử thách: cờ đích đến — biểu tượng hoàn thành thử thách
       title: 'Thử thách',
-      iconData: Icons.emoji_events_rounded,
+      iconData: Icons.flag_rounded,
       glowColor: Color(0xFFFF6B35),
     ),
     GamificationItem(
+      // Mục tiêu: target/crosshair — biểu tượng nhắm mục tiêu
       title: 'Mục tiêu',
-      iconData: Icons.fitness_center_rounded,
+      iconData: Icons.track_changes_rounded,
       glowColor: Color(0xFF00E676),
     ),
     GamificationItem(
+      // Streak: lửa — chuỗi ngày liên tiếp
       title: 'Streak',
       iconData: Icons.local_fire_department_rounded,
       glowColor: Color(0xFFFF1744),
       badge: 7,
     ),
     GamificationItem(
+      // Thành tích: huy chương quân sự — biểu tượng thành tích cao
       title: 'Thành tích',
-      iconData: Icons.star_rounded,
+      iconData: Icons.military_tech_rounded,
       glowColor: Color(0xFFFFD700),
     ),
     GamificationItem(
+      // Thống kê: insights — biểu tượng phân tích dữ liệu
       title: 'Thống kê',
-      iconData: Icons.bar_chart_rounded,
+      iconData: Icons.insights_rounded,
       glowColor: Color(0xFF448AFF),
     ),
   ];

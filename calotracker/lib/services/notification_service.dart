@@ -14,24 +14,34 @@ class NotificationService {
   static bool _permissionGranted = false;
 
   /// Initialize notification service
+  ///
+  /// Fix: Đánh dấu _initialized = true ngay cả khi initialize() trả về false
+  /// để tránh vòng lặp retry vô hạn. Permission được request riêng biệt.
   static Future<void> init() async {
     if (_initialized) return;
 
     try {
       // Initialize timezone
       tzdata.initializeTimeZones();
-      tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
+
+      // Thử set timezone Việt Nam, fallback về UTC nếu không tìm thấy
+      try {
+        tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
+      } catch (_) {
+        tz.setLocalLocation(tz.UTC);
+        debugPrint('⚠️ Timezone Asia/Ho_Chi_Minh not found, using UTC');
+      }
 
       // Android settings
       const androidSettings = AndroidInitializationSettings(
         '@mipmap/ic_launcher',
       );
 
-      // iOS settings
+      // iOS settings — không request permission ngay, để requestPermissions() xử lý
       const iosSettings = DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
       );
 
       // Initialize
@@ -40,29 +50,37 @@ class NotificationService {
         iOS: iosSettings,
       );
 
-      final initialized = await _notifications.initialize(
+      await _notifications.initialize(
         initSettings,
         onDidReceiveNotificationResponse: _onNotificationTapped,
+        onDidReceiveBackgroundNotificationResponse: _onBackgroundNotificationTapped,
       );
 
-      if (initialized == true) {
-        // Create notification channel for Android
-        await _createNotificationChannel();
+      // Đánh dấu initialized trước khi tạo channel và request permission
+      // để tránh vòng lặp nếu các bước sau thất bại
+      _initialized = true;
 
-        // Request permissions
-        _permissionGranted = await requestPermissions();
+      // Create notification channels for Android
+      await _createNotificationChannel();
 
-        _initialized = true;
-        debugPrint('✅ NotificationService initialized successfully');
-        debugPrint(
-          '📱 Notification permission: ${_permissionGranted ? "GRANTED" : "DENIED"}',
-        );
-      } else {
-        debugPrint('⚠️ NotificationService initialization returned false');
-      }
+      // Request permissions (async, không block)
+      _permissionGranted = await requestPermissions();
+
+      debugPrint('✅ NotificationService initialized successfully');
+      debugPrint(
+        '📱 Notification permission: ${_permissionGranted ? "GRANTED" : "DENIED"}',
+      );
     } catch (e) {
+      // Vẫn đánh dấu initialized để tránh retry loop
+      _initialized = true;
       debugPrint('❌ NotificationService initialization error: $e');
     }
+  }
+
+  /// Background notification handler (static top-level function)
+  @pragma('vm:entry-point')
+  static void _onBackgroundNotificationTapped(NotificationResponse response) {
+    debugPrint('📱 Background notification tapped: ${response.payload}');
   }
 
   /// Create Android notification channel
@@ -90,23 +108,39 @@ class NotificationService {
   }
 
   /// Request notification permissions
+  ///
+  /// Fix: Trả về false nếu cả iOS và Android đều từ chối,
+  /// thay vì trả về true mặc định.
   static Future<bool> requestPermissions() async {
-    // iOS
-    final iosResult = await _notifications
-        .resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin
-        >()
-        ?.requestPermissions(alert: true, badge: true, sound: true);
+    try {
+      // iOS — request alert, badge, sound
+      final iosResult = await _notifications
+          .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
 
-    // Android 13+
-    final androidResult =
-        await _notifications
-            .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin
-            >()
-            ?.requestNotificationsPermission();
+      if (iosResult != null) {
+        return iosResult;
+      }
 
-    return iosResult ?? androidResult ?? true;
+      // Android 13+ (API 33+) — request POST_NOTIFICATIONS permission
+      final androidPlugin = _notifications
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+
+      if (androidPlugin != null) {
+        final androidResult = await androidPlugin.requestNotificationsPermission();
+        return androidResult ?? false;
+      }
+
+      // Các platform khác (web, desktop) — không cần permission
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error requesting notification permissions: $e');
+      return false;
+    }
   }
 
   /// Schedule notification for gym session
@@ -149,7 +183,10 @@ class NotificationService {
             presentSound: true,
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        // Dùng inexactAllowWhileIdle thay vì exactAllowWhileIdle
+        // để tránh lỗi SecurityException trên Android 12+ khi thiếu
+        // permission SCHEDULE_EXACT_ALARM
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
@@ -277,12 +314,12 @@ class NotificationService {
           presentSound: true,
         ),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-    );
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
 
-    debugPrint('✅ Scheduled 15-min advance reminder at $scheduledDate');
+      debugPrint('✅ Scheduled 15-min advance reminder at $scheduledDate');
   }
 
   /// Check if notifications are enabled
@@ -369,7 +406,7 @@ class NotificationService {
             presentSound: true,
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time, // Repeat daily
