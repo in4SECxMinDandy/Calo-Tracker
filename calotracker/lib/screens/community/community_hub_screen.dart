@@ -174,18 +174,20 @@ class _CommunityHubScreenState extends State<CommunityHubScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => CommentSheet(post: post),
-    ).then((_) {
-      // Refresh comment count after sheet closes
-      final idx = _feedPosts.indexWhere((p) => p.id == post.id);
-      if (idx != -1 && mounted) {
-        setState(() {
-          _feedPosts[idx] = _feedPosts[idx].copyWith(
-            commentCount: _feedPosts[idx].commentCount + 1,
-          );
-        });
-      }
-    });
+      builder: (_) => CommentSheet(
+        postId: post.id,
+        onCommentAdded: () {
+          final idx = _feedPosts.indexWhere((p) => p.id == post.id);
+          if (idx != -1 && mounted) {
+            setState(() {
+              _feedPosts[idx] = _feedPosts[idx].copyWith(
+                commentCount: _feedPosts[idx].commentCount + 1,
+              );
+            });
+          }
+        },
+      ),
+    );
   }
 
   void _switchTab(int index) {
@@ -1988,4 +1990,4 @@ class _CommunityHubScreenState extends State<CommunityHubScreen>
       ),
     );
   }
-}
+}v
