@@ -380,9 +380,6 @@ class _GroupsScreenState extends State<GroupsScreen>
   Widget _buildExploreTab(bool isDark) {
     return CustomScrollView(
       slivers: [
-        // Category filter chips
-        SliverToBoxAdapter(child: _buildCategoryFilter(isDark)),
-
         // Groups list
         if (_isLoading)
           const SliverFillRemaining(
