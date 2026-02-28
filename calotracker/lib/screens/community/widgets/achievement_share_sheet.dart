@@ -5,7 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../models/achievement.dart';
-import '../../../models/post.dart' show PostType;
+import '../../../models/post.dart';
 import '../../../services/unified_community_service.dart';
 import '../../../theme/colors.dart';
 
@@ -199,7 +199,7 @@ class _AchievementShareSheetState extends State<AchievementShareSheet>
                         ),
                         child: Center(
                           child: Text(
-                            widget.achievement.icon ?? '🏆',
+                            widget.achievement.icon,
                             style: const TextStyle(fontSize: 32),
                           ),
                         ),

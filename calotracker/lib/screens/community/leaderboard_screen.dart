@@ -1,6 +1,5 @@
 // Leaderboard Screen - Complete Redesign
 // Modern podium display with animated rankings
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';

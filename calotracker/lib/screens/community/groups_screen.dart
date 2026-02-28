@@ -1296,7 +1296,8 @@ class _CreateGroupSheetState extends State<_CreateGroupSheet> {
                       value: _requireApproval,
                       onChanged: (val) =>
                           setState(() => _requireApproval = val),
-                      activeColor: AppColors.primaryBlue,
+                      activeThumbColor: AppColors.primaryBlue,
+                      activeTrackColor: AppColors.primaryBlue.withValues(alpha: 0.4),
                     ),
                   ],
                 ),
