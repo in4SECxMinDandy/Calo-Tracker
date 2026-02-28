@@ -177,6 +177,12 @@
       <excludeFolder url="file://$MODULE_DIR$/calotracker/windows/flutter/ephemeral/.plugin_symlinks/package_info_plus/example/.dart_tool" />
       <excludeFolder url="file://$MODULE_DIR$/calotracker/windows/flutter/ephemeral/.plugin_symlinks/package_info_plus/example/.pub" />
       <excludeFolder url="file://$MODULE_DIR$/calotracker/windows/flutter/ephemeral/.plugin_symlinks/package_info_plus/example/build" />
+      <excludeFolder url="file://$MODULE_DIR$/calotracker/linux/flutter/ephemeral/.plugin_symlinks/emoji_picker_flutter/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/calotracker/linux/flutter/ephemeral/.plugin_symlinks/emoji_picker_flutter/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/calotracker/linux/flutter/ephemeral/.plugin_symlinks/emoji_picker_flutter/build" />
+      <excludeFolder url="file://$MODULE_DIR$/calotracker/linux/flutter/ephemeral/.plugin_symlinks/emoji_picker_flutter/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/calotracker/linux/flutter/ephemeral/.plugin_symlinks/emoji_picker_flutter/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/calotracker/linux/flutter/ephemeral/.plugin_symlinks/emoji_picker_flutter/example/build" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
