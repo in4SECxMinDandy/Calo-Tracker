@@ -17,6 +17,7 @@ import '../../models/friendship.dart';
 import '../../services/database_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/friends_service.dart';
+import '../../services/pdf_export_service.dart';
 import '../../theme/colors.dart';
 
 import '../chatbot/chatbot_screen.dart';
