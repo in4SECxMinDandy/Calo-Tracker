@@ -687,28 +687,6 @@ class _HomeScreenState extends State<HomeScreen>
           // ── Action Buttons ─────────────────────────────────────────────
           Row(
             children: [
-              // Nút xuất PDF
-              _ScaleTapWidget(
-                onTap: _showPdfExportDialog,
-                child: _HeaderIconButton(
-                  isDark: isDark,
-                  child: _isExportingPdf
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CupertinoActivityIndicator(radius: 9),
-                        )
-                      : Icon(
-                          CupertinoIcons.doc_text,
-                          size: 18,
-                          color: isDark
-                              ? AppColors.darkTextPrimary
-                              : AppColors.lightTextPrimary,
-                        ),
-                ),
-              ),
-              const SizedBox(width: _DS.s8),
-
               // Nút tin nhắn
               _ScaleTapWidget(
                 onTap: _openConversations,

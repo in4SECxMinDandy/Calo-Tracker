@@ -231,15 +231,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 12),
             _buildCard(card, divider, [
               _TapItem(
-                icon: CupertinoIcons.cloud_download,
-                iconColor: _kGreen,
-                title: 'Xuất dữ liệu',
-                subtitle: 'Lưu 30 ngày gần nhất ra file CSV',
-                isDark: isDark,
-                onTap: _exportData,
-              ),
-              _Divider(divider),
-              _TapItem(
                 icon: CupertinoIcons.trash,
                 iconColor: _kRed,
                 title: 'Xóa tất cả dữ liệu',
