@@ -31,8 +31,7 @@ class CommunityHubScreen extends StatefulWidget {
   State<CommunityHubScreen> createState() => _CommunityHubScreenState();
 }
 
-class _CommunityHubScreenState extends State<CommunityHubScreen>
-    with TickerProviderStateMixin {
+class _CommunityHubScreenState extends State<CommunityHubScreen> {
   final _communityService = UnifiedCommunityService();
   final _authService = SupabaseAuthService();
   final _presenceService = PresenceService();
@@ -47,9 +46,6 @@ class _CommunityHubScreenState extends State<CommunityHubScreen>
   // Tab state: 0=Feed, 1=Challenges, 2=Groups, 3=Leaderboard
   int _selectedTab = 0;
 
-  late AnimationController _fabAnimController;
-  late Animation<double> _fabScaleAnim;
-
   StreamSubscription<AuthState>? _authSubscription;
 
   static const _tabs = [
@@ -62,16 +58,6 @@ class _CommunityHubScreenState extends State<CommunityHubScreen>
   @override
   void initState() {
     super.initState();
-    _fabAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _fabScaleAnim = CurvedAnimation(
-      parent: _fabAnimController,
-      curve: Curves.elasticOut,
-    );
-    _fabAnimController.forward();
-
     _checkAuthAndLoadData();
     _presenceService.goOnline();
 
@@ -92,7 +78,6 @@ class _CommunityHubScreenState extends State<CommunityHubScreen>
   void dispose() {
     _authSubscription?.cancel();
     _scrollController.dispose();
-    _fabAnimController.dispose();
     _presenceService.goOffline();
     super.dispose();
   }
@@ -226,22 +211,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen>
           ],
         ),
       ),
-      floatingActionButton: _selectedTab == 0
-          ? ScaleTransition(
-              scale: _fabScaleAnim,
-              child: FloatingActionButton.extended(
-                onPressed: _createPost,
-                backgroundColor: AppColors.primaryBlue,
-                foregroundColor: Colors.white,
-                elevation: 4,
-                icon: const Icon(CupertinoIcons.pencil_ellipsis_rectangle),
-                label: const Text(
-                  'Đăng bài',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-            )
-          : null,
+      // FAB removed - create post prompt in feed is sufficient
     );
   }
 
@@ -525,9 +495,6 @@ class _CommunityHubScreenState extends State<CommunityHubScreen>
       slivers: [
         // Stories / Quick Groups
         SliverToBoxAdapter(child: _buildStoriesRow(isDark)),
-
-        // Quick Stats Bar
-        SliverToBoxAdapter(child: _buildQuickStatsBar(isDark)),
 
         // Create Post Prompt
         SliverToBoxAdapter(child: _buildCreatePostPrompt(isDark)),

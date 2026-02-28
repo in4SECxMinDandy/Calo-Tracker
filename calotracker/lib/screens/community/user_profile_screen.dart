@@ -789,24 +789,27 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             icon,
-            size: 48,
+            size: 36,
             color:
                 isDark
                     ? AppColors.darkTextSecondary
                     : AppColors.lightTextSecondary,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           Text(
             message,
             style: TextStyle(
+              fontSize: 13,
               color:
                   isDark
                       ? AppColors.darkTextSecondary
                       : AppColors.lightTextSecondary,
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
