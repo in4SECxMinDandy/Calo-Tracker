@@ -496,9 +496,6 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
         // Stories / Quick Groups
         SliverToBoxAdapter(child: _buildStoriesRow(isDark)),
 
-        // Quick Stats Bar
-        SliverToBoxAdapter(child: _buildQuickStatsBar(isDark)),
-
         // Create Post Prompt
         SliverToBoxAdapter(child: _buildCreatePostPrompt(isDark)),
 
