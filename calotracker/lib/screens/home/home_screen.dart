@@ -390,9 +390,6 @@ class _HomeScreenState extends State<HomeScreen>
                 opacity: _cardsFadeAnim,
                 child: GamificationRow(
                   onItemTaps: [
-                    _openCommunity,
-                    _openCommunity,
-                    _openCommunity,
                     () => Navigator.push(
                           context,
                           _buildPageRoute(const AchievementsScreen()),
@@ -428,14 +425,6 @@ class _HomeScreenState extends State<HomeScreen>
               child: FadeTransition(
                 opacity: _cardsFadeAnim,
                 child: _buildQuickActions(isDark),
-              ),
-            ),
-
-            // ── Export PDF Button ────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: FadeTransition(
-                opacity: _cardsFadeAnim,
-                child: _buildExportPdfButton(isDark),
               ),
             ),
 

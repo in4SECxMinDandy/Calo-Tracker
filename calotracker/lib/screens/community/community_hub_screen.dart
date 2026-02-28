@@ -588,15 +588,10 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
   Widget _buildStoriesRow(bool isDark) {
     final items = [
       {'type': 'add', 'name': 'Đăng bài'},
-      ..._myGroups.take(5).map((g) => {
+      ..._myGroups.take(6).map((g) => {
             'type': 'group',
             'group': g,
             'name': g.name,
-          }),
-      ...GroupCategory.values.take(4).map((c) => {
-            'type': 'category',
-            'category': c,
-            'name': c.label,
           }),
     ];
 
@@ -1237,9 +1232,6 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
           ),
         ),
 
-        // Group Categories
-        SliverToBoxAdapter(child: _buildGroupCategories(isDark)),
-
         // My Groups List
         _myGroups.isEmpty
             ? SliverToBoxAdapter(child: _buildEmptyGroups(isDark))
@@ -1258,52 +1250,6 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
 
         const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
-    );
-  }
-
-  Widget _buildGroupCategories(bool isDark) {
-    return SizedBox(
-      height: 80,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        itemCount: GroupCategory.values.length,
-        itemBuilder: (context, index) {
-          final category = GroupCategory.values[index];
-          return GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              CupertinoPageRoute(builder: (_) => const GroupsScreen()),
-            ),
-            child: Container(
-              margin: const EdgeInsets.only(right: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: category.color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: category.color.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(category.icon, size: 16, color: category.color),
-                  const SizedBox(width: 6),
-                  Text(
-                    category.label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: category.color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
     );
   }
 
