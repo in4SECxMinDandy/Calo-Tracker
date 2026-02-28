@@ -1,7 +1,10 @@
 // Create Post Modal - Bottom Sheet for Creating Community Posts
 // Synced with React CreatePostModal component
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import '../../../theme/colors.dart';
 import '../../../theme/text_styles.dart';
 
@@ -81,6 +84,9 @@ class _CreatePostModalState extends State<CreatePostModal>
 
   bool _showMealForm = false;
   bool _showLocation = false;
+  bool _showEmojiPicker = false;
+  List<File> _selectedImages = [];
+  final _imagePicker = ImagePicker();
 
   late AnimationController _animController;
   late Animation<double> _scaleAnimation;
@@ -139,6 +145,53 @@ class _CreatePostModalState extends State<CreatePostModal>
     Navigator.of(context).pop();
   }
 
+  // ── Camera & Image Picker ──────────────────────────────────────────────────
+
+  Future<void> _pickImageFromCamera() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+      if (image != null && mounted) {
+        setState(() {
+          _selectedImages.add(File(image.path));
+        });
+      }
+    } catch (e) {
+      debugPrint('Camera error: $e');
+    }
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    try {
+      final List<XFile> images = await _imagePicker.pickMultiImage(
+        imageQuality: 80,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+      if (images.isNotEmpty && mounted) {
+        setState(() {
+          // Limit to 4 images total
+          final remaining = 4 - _selectedImages.length;
+          _selectedImages.addAll(
+            images.take(remaining).map((x) => File(x.path)),
+          );
+        });
+      }
+    } catch (e) {
+      debugPrint('Gallery error: $e');
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -168,13 +221,134 @@ class _CreatePostModalState extends State<CreatePostModal>
                     _buildTextInput(context, isDark),
                     if (_showMealForm) _buildMealForm(context, isDark),
                     if (_showLocation) _buildLocationInput(context, isDark),
+                    // Image preview
+                    if (_selectedImages.isNotEmpty)
+                      _buildImagePreview(isDark),
                   ],
                 ),
               ),
             ),
             _buildActionBar(context, isDark),
+            // Emoji picker
+            if (_showEmojiPicker)
+              SizedBox(
+                height: 250,
+                child: EmojiPicker(
+                  onEmojiSelected: (category, emoji) {
+                    final text = _contentController.text;
+                    final selection = _contentController.selection;
+                    final newText = text.replaceRange(
+                      selection.start,
+                      selection.end,
+                      emoji.emoji,
+                    );
+                    _contentController.value = TextEditingValue(
+                      text: newText,
+                      selection: TextSelection.collapsed(
+                        offset: selection.start + emoji.emoji.length,
+                      ),
+                    );
+                  },
+                  config: Config(
+                    height: 250,
+                    emojiViewConfig: EmojiViewConfig(
+                      backgroundColor: isDark
+                          ? AppColors.darkCard
+                          : Colors.white,
+                    ),
+                    categoryViewConfig: CategoryViewConfig(
+                      backgroundColor: isDark
+                          ? AppColors.darkCard
+                          : Colors.white,
+                      indicatorColor: AppColors.primaryBlue,
+                    ),
+                    bottomActionBarConfig: const BottomActionBarConfig(
+                      enabled: false,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildImagePreview(bool isDark) {
+    return Container(
+      height: 100,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _selectedImages.length + (_selectedImages.length < 4 ? 1 : 0),
+        itemBuilder: (context, index) {
+          // Add more button
+          if (index == _selectedImages.length) {
+            return GestureDetector(
+              onTap: _pickImageFromGallery,
+              child: Container(
+                width: 90,
+                height: 90,
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : Colors.grey.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.2)
+                        : Colors.grey.withValues(alpha: 0.3),
+                    style: BorderStyle.solid,
+                  ),
+                ),
+                child: Icon(
+                  CupertinoIcons.add,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
+                ),
+              ),
+            );
+          }
+          // Image thumbnail
+          return Stack(
+            children: [
+              Container(
+                width: 90,
+                height: 90,
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  image: DecorationImage(
+                    image: FileImage(_selectedImages[index]),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 4,
+                right: 12,
+                child: GestureDetector(
+                  onTap: () => _removeImage(index),
+                  child: Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      CupertinoIcons.xmark,
+                      size: 12,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -588,18 +762,16 @@ class _CreatePostModalState extends State<CreatePostModal>
             label: 'Camera',
             color: AppColors.successGreen,
             isDark: isDark,
-            onTap: () {
-              // TODO: Implement camera
-            },
+            isActive: _selectedImages.isNotEmpty,
+            onTap: _pickImageFromCamera,
           ),
           _buildActionButton(
             icon: CupertinoIcons.photo,
             label: 'Ảnh',
             color: AppColors.primaryBlue,
             isDark: isDark,
-            onTap: () {
-              // TODO: Implement image picker
-            },
+            isActive: _selectedImages.isNotEmpty,
+            onTap: _pickImageFromGallery,
           ),
           _buildActionButton(
             icon: CupertinoIcons.square_favorites_alt,
@@ -630,8 +802,12 @@ class _CreatePostModalState extends State<CreatePostModal>
             label: 'Emoji',
             color: AppColors.primaryIndigo,
             isDark: isDark,
+            isActive: _showEmojiPicker,
             onTap: () {
-              // TODO: Implement emoji picker
+              setState(() => _showEmojiPicker = !_showEmojiPicker);
+              if (_showEmojiPicker) {
+                FocusScope.of(context).unfocus();
+              }
             },
           ),
         ],
