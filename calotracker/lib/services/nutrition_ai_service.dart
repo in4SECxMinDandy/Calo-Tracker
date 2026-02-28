@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../core/config/supabase_config.dart';
+import 'local_nutrition_chatbot_service.dart';
 
 /// Loại intent của câu hỏi người dùng
 enum NutritionIntent {
@@ -178,7 +179,7 @@ Nếu action là INFO hoặc CHAT, log_data phải là null.
       final apiKey = _apiKey;
       if (apiKey == null || apiKey.isEmpty) {
         // Fallback to offline mode if no API key
-        return _processOffline(userMessage);
+        return await _processOffline(userMessage);
       }
 
       final response = await _callGeminiAPI(apiKey);
@@ -186,7 +187,7 @@ Nếu action là INFO hoặc CHAT, log_data phải là null.
     } catch (e) {
       debugPrint('NutritionAI Error: $e');
       // Fallback to offline mode on error
-      return _processOffline(userMessage);
+      return await _processOffline(userMessage);
     }
   }
 
@@ -317,79 +318,35 @@ Nếu action là INFO hoặc CHAT, log_data phải là null.
   }
 
   /// Xử lý offline khi không có API key
-  NutritionAIResponse _processOffline(String message) {
-    final lower = message.toLowerCase();
+  /// Sử dụng LocalNutritionChatbotService với từ điển 40+ món ăn Việt Nam
+  Future<NutritionAIResponse> _processOffline(String message) async {
+    final localBot = LocalNutritionChatbotService();
+    final localResponse = await localBot.processMessage(message);
 
-    // Detect LOG intent
-    final logKeywords = [
-      'vừa ăn', 'đã ăn', 'ghi lại', 'thêm vào', 'log', 'ghi nhật ký',
-      'sáng nay ăn', 'trưa ăn', 'tối ăn', 'ăn rồi', 'uống rồi',
-    ];
-    final isLog = logKeywords.any((k) => lower.contains(k));
-
-    // Detect INFO intent
-    final infoKeywords = [
-      'bao nhiêu calo', 'calo', 'kcal', 'dinh dưỡng', 'protein',
-      'carb', 'chất béo', 'có béo không', 'có tốt không',
-    ];
-    final isInfo = infoKeywords.any((k) => lower.contains(k));
-
-    if (isLog) {
-      // Try to extract food name
-      final foodName = _extractFoodName(message);
-      return NutritionAIResponse(
-        reply:
-            'Đã ghi nhận "$foodName" vào nhật ký của bạn! (Chế độ offline - calo ước tính)',
-        action: NutritionIntent.log,
-        logData: LogData(
-          foodName: foodName,
-          quantity: 1,
-          unit: 'phần',
-          calories: _estimateCalories(foodName),
-        ),
-      );
-    } else if (isInfo) {
-      return NutritionAIResponse(
-        reply:
-            'Để tra cứu thông tin dinh dưỡng chính xác, vui lòng kết nối internet và cấu hình Gemini API key.',
-        action: NutritionIntent.info,
-      );
-    } else {
-      return NutritionAIResponse(
-        reply:
-            'Xin chào! Tôi là trợ lý dinh dưỡng. Hãy hỏi tôi về calo hoặc ghi nhật ký ăn uống của bạn!\n\nVí dụ: "1 bát phở bao nhiêu calo?" hoặc "Tôi vừa ăn 2 quả trứng"',
-        action: NutritionIntent.chat,
-      );
+    switch (localResponse.intent) {
+      case ChatbotIntent.log:
+        return NutritionAIResponse(
+          reply: localResponse.reply,
+          action: NutritionIntent.log,
+          logData: localResponse.foodName != null
+              ? LogData(
+                  foodName: localResponse.foodName!,
+                  quantity: (localResponse.quantity ?? 1).toDouble(),
+                  unit: 'phần',
+                  calories: localResponse.totalKcal ?? 0,
+                )
+              : null,
+        );
+      case ChatbotIntent.info:
+        return NutritionAIResponse(
+          reply: localResponse.reply,
+          action: NutritionIntent.info,
+        );
+      case ChatbotIntent.unknown:
+        return NutritionAIResponse(
+          reply: localResponse.reply,
+          action: NutritionIntent.chat,
+        );
     }
-  }
-
-  String _extractFoodName(String message) {
-    // Simple extraction - remove common log keywords
-    String result = message;
-    final removeWords = [
-      'tôi vừa ăn', 'tôi đã ăn', 'ghi lại', 'thêm vào nhật ký',
-      'sáng nay ăn', 'trưa ăn', 'tối ăn', 'ăn rồi', 'vừa ăn',
-      'cho tôi', 'ghi nhật ký',
-    ];
-    for (final word in removeWords) {
-      result = result.toLowerCase().replaceAll(word, '').trim();
-    }
-    return result.isEmpty ? 'Món ăn' : result;
-  }
-
-  int _estimateCalories(String foodName) {
-    // Basic calorie estimation for common Vietnamese foods
-    final lower = foodName.toLowerCase();
-    if (lower.contains('phở')) return 450;
-    if (lower.contains('cơm')) return 200;
-    if (lower.contains('bánh mì')) return 300;
-    if (lower.contains('trứng')) return 78;
-    if (lower.contains('gà')) return 250;
-    if (lower.contains('bún')) return 350;
-    if (lower.contains('cafe') || lower.contains('cà phê')) return 5;
-    if (lower.contains('sữa')) return 150;
-    if (lower.contains('chuối')) return 90;
-    if (lower.contains('táo')) return 80;
-    return 200; // Default estimate
   }
 }
