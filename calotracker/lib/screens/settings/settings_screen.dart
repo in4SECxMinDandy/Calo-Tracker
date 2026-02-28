@@ -6,7 +6,6 @@ import '../../services/storage_service.dart';
 import '../../services/database_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/supabase_auth_service.dart';
-import '../../services/export_service.dart';
 import '../../services/fcm_service.dart';
 import '../../theme/animated_app_icons.dart';
 import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
@@ -460,37 +459,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: Colors.blue,
       ),
     );
-  }
-
-  Future<void> _exportData() async {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Đang xuất dữ liệu...'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-    try {
-      final now = DateTime.now();
-      final start = now.subtract(const Duration(days: 30));
-      final file = await ExportService.exportToCsv(
-        startDate: start,
-        endDate: now,
-        type: ExportType.dailySummary,
-      );
-      await ExportService.shareFile(
-        file,
-        subject: 'CaloTracker – Dữ liệu 30 ngày',
-      );
-    } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Lỗi xuất dữ liệu: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 
   void _showCalorieGoalPicker() {
