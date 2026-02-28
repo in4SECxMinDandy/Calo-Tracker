@@ -1568,12 +1568,10 @@ class _AnimatedTabItemState extends State<_AnimatedTabItem>
 class _ScaleTapWidget extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;
-  final double scaleFactor;
 
   const _ScaleTapWidget({
     required this.child,
     required this.onTap,
-    this.scaleFactor = 0.95,
   });
 
   @override
@@ -1594,7 +1592,7 @@ class _ScaleTapWidgetState extends State<_ScaleTapWidget>
     );
     _scaleAnim = Tween<double>(
       begin: 1.0,
-      end: widget.scaleFactor,
+      end: 0.95, // Scale factor for tap animation
     ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
@@ -1627,14 +1625,12 @@ class _GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsets? margin;
   final EdgeInsets? padding;
-  final double borderRadius;
 
   const _GlassCard({
     required this.isDark,
     required this.child,
     this.margin,
     this.padding,
-    this.borderRadius = _DS.r20,
   });
 
   @override
@@ -1644,7 +1640,7 @@ class _GlassCard extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: isDark ? _DS.cardDark : _DS.cardLight,
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: BorderRadius.circular(_DS.r20),
         border: Border.all(
           color: isDark
               ? AppColors.darkDivider.withValues(alpha: 0.3)
