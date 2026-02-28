@@ -34,6 +34,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   CommunityGroup? _group;
   List<Post> _posts = [];
   List<GroupMember> _members = [];
+  List<GroupMember> _pendingMembers = [];
   bool _isLoading = true;
   bool _isMember = false;
   bool _isJoining = false;
@@ -73,6 +74,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       final myGroups = await _communityService.getMyGroups();
       _isOwner = await _communityService.isGroupOwner(widget.groupId);
       _isMember = myGroups.any((g) => g.id == widget.groupId);
+
+      // Load pending members (for owner/admin only)
+      if (_isOwner) {
+        _pendingMembers = await _communityService.getPendingMembers(widget.groupId);
+      }
 
       if (mounted) {
         setState(() => _isLoading = false);
@@ -896,19 +902,62 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             ),
 
         // Members tab
-        _members.isEmpty
-            ? _buildEmptyTab(
-              'Chưa có thành viên',
-              CupertinoIcons.person_2,
-              isDark,
-            )
-            : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _members.length,
-              itemBuilder: (context, index) {
-                return _buildMemberItem(_members[index], isDark);
-              },
-            ),
+        RefreshIndicator(
+          onRefresh: _loadGroup,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Pending requests section (owner only)
+              if (_isOwner && _pendingMembers.isNotEmpty) ...[
+                _buildSectionHeader(
+                  '⏳ Yêu cầu chờ duyệt (${_pendingMembers.length})',
+                  isDark,
+                  color: AppColors.warningOrange,
+                ),
+                const SizedBox(height: 8),
+                ..._pendingMembers.map(
+                  (m) => _buildPendingMemberItem(m, isDark),
+                ),
+                const SizedBox(height: 16),
+                _buildSectionHeader(
+                  '👥 Thành viên (${_members.length})',
+                  isDark,
+                ),
+                const SizedBox(height: 8),
+              ],
+              // Active members
+              if (_members.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          CupertinoIcons.person_2,
+                          size: 48,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Chưa có thành viên',
+                          style: TextStyle(
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ..._members.map((m) => _buildMemberItem(m, isDark)),
+            ],
+          ),
+        ),
 
         // About tab
         SingleChildScrollView(
@@ -972,38 +1021,164 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
-  Widget _buildMemberItem(GroupMember member, bool isDark) {
+  Widget _buildSectionHeader(String title, bool isDark, {Color? color}) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: color ??
+            (isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.lightTextSecondary),
+      ),
+    );
+  }
+
+  Widget _buildPendingMemberItem(GroupMember member, bool isDark) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.lightCard,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.warningOrange.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.warningOrange.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              CupertinoIcons.person,
+              color: AppColors.warningOrange,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  member.displayName ?? member.username ?? 'Người dùng',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  'Đang chờ phê duyệt',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.warningOrange,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Approve/Reject buttons
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () => _approveMember(member),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.successGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.checkmark,
+                    size: 16,
+                    color: AppColors.successGreen,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () => _rejectMember(member),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.errorRed.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.xmark,
+                    size: 16,
+                    color: AppColors.errorRed,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _approveMember(GroupMember member) async {
+    try {
+      await _communityService.approveMember(widget.groupId, member.userId);
+      _showSnackBar('✅ Đã chấp nhận ${member.displayName ?? 'thành viên'}');
+      _loadGroup();
+    } catch (e) {
+      _showSnackBar('Lỗi: $e', isError: true);
+    }
+  }
+
+  Future<void> _rejectMember(GroupMember member) async {
+    try {
+      await _communityService.rejectMember(widget.groupId, member.userId);
+      _showSnackBar('Đã từ chối ${member.displayName ?? 'thành viên'}');
+      _loadGroup();
+    } catch (e) {
+      _showSnackBar('Lỗi: $e', isError: true);
+    }
+  }
+
+  Widget _buildMemberItem(GroupMember member, bool isDark) {
+    final canManage = _isOwner && member.role != GroupMemberRole.owner;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(12),
+        border: member.role == GroupMemberRole.owner
+            ? Border.all(
+                color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+              )
+            : null,
       ),
       child: Row(
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(22),
-            child:
-                member.avatarUrl != null
-                    ? CachedNetworkImage(
-                      imageUrl: member.avatarUrl!,
-                      width: 44,
-                      height: 44,
-                      fit: BoxFit.cover,
-                    )
-                    : Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryBlue.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        CupertinoIcons.person,
-                        color: AppColors.primaryBlue,
-                      ),
+            child: member.avatarUrl != null
+                ? CachedNetworkImage(
+                    imageUrl: member.avatarUrl!,
+                    width: 44,
+                    height: 44,
+                    fit: BoxFit.cover,
+                  )
+                : Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBlue.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
                     ),
+                    child: const Icon(
+                      CupertinoIcons.person,
+                      color: AppColors.primaryBlue,
+                    ),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1014,30 +1189,147 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   member.displayName ?? member.username ?? 'Thành viên',
                   style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
-                if (member.role != GroupMemberRole.member)
-                  Container(
-                    margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: member.role.color.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      member.role.label,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: member.role.color,
-                        fontWeight: FontWeight.w500,
-                      ),
+                const SizedBox(height: 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: member.role.color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    member.role.label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: member.role.color,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
+                ),
               ],
             ),
           ),
+
+          // Owner management actions
+          if (canManage)
+            PopupMenuButton<String>(
+              icon: Icon(
+                CupertinoIcons.ellipsis,
+                size: 18,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
+              ),
+              onSelected: (value) => _handleMemberAction(value, member),
+              itemBuilder: (_) => [
+                if (member.role == GroupMemberRole.member)
+                  const PopupMenuItem(
+                    value: 'promote',
+                    child: Row(
+                      children: [
+                        Icon(CupertinoIcons.arrow_up_circle,
+                            color: Colors.blue, size: 18),
+                        SizedBox(width: 8),
+                        Text('Thăng cấp Admin'),
+                      ],
+                    ),
+                  )
+                else if (member.role == GroupMemberRole.admin)
+                  const PopupMenuItem(
+                    value: 'demote',
+                    child: Row(
+                      children: [
+                        Icon(CupertinoIcons.arrow_down_circle,
+                            color: Colors.orange, size: 18),
+                        SizedBox(width: 8),
+                        Text('Hạ cấp thành viên'),
+                      ],
+                    ),
+                  ),
+                const PopupMenuItem(
+                  value: 'kick',
+                  child: Row(
+                    children: [
+                      Icon(CupertinoIcons.person_badge_minus,
+                          color: Colors.red, size: 18),
+                      SizedBox(width: 8),
+                      Text('Xóa khỏi nhóm',
+                          style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _handleMemberAction(String action, GroupMember member) async {
+    try {
+      switch (action) {
+        case 'promote':
+          await _communityService.updateMemberRole(
+            widget.groupId,
+            member.userId,
+            'admin',
+          );
+          _showSnackBar('✅ Đã thăng cấp ${member.displayName ?? 'thành viên'} lên Admin');
+          break;
+        case 'demote':
+          await _communityService.updateMemberRole(
+            widget.groupId,
+            member.userId,
+            'member',
+          );
+          _showSnackBar('Đã hạ cấp ${member.displayName ?? 'thành viên'} xuống thành viên');
+          break;
+        case 'kick':
+          final confirm = await showCupertinoDialog<bool>(
+            context: context,
+            builder: (_) => CupertinoAlertDialog(
+              title: const Text('Xóa thành viên'),
+              content: Text(
+                'Bạn có chắc muốn xóa ${member.displayName ?? 'thành viên'} khỏi nhóm?',
+              ),
+              actions: [
+                CupertinoDialogAction(
+                  isDestructiveAction: true,
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Xóa'),
+                ),
+                CupertinoDialogAction(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Hủy'),
+                ),
+              ],
+            ),
+          );
+          if (confirm == true) {
+            await _communityService.removeMember(
+              widget.groupId,
+              member.userId,
+            );
+            _showSnackBar('Đã xóa ${member.displayName ?? 'thành viên'} khỏi nhóm');
+          }
+          break;
+      }
+      _loadGroup();
+    } catch (e) {
+      _showSnackBar('Lỗi: $e', isError: true);
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppColors.errorRed : AppColors.successGreen,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
