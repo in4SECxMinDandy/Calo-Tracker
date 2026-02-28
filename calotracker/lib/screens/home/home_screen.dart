@@ -390,9 +390,6 @@ class _HomeScreenState extends State<HomeScreen>
                 opacity: _cardsFadeAnim,
                 child: GamificationRow(
                   onItemTaps: [
-                    _openCommunity,
-                    _openCommunity,
-                    _openCommunity,
                     () => Navigator.push(
                           context,
                           _buildPageRoute(const AchievementsScreen()),

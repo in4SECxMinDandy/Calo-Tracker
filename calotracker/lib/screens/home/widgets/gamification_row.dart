@@ -150,27 +150,8 @@ class GamificationRow extends StatelessWidget {
 
   const GamificationRow({super.key, this.onItemTap, this.onItemTaps});
 
-  // ── 5 gamification items — single source of truth ──────
+  // ── 2 gamification items — Thành tích & Thống kê ──────
   static const List<GamificationItem> _items = [
-    GamificationItem(
-      // Thử thách: cờ đích đến
-      title: 'Thử thách',
-      iconData: CupertinoIcons.flag_fill,
-      color: Color(0xFFFF6B35),
-    ),
-    GamificationItem(
-      // Mục tiêu: target
-      title: 'Mục tiêu',
-      iconData: CupertinoIcons.scope,
-      color: Color(0xFF10B981),
-    ),
-    GamificationItem(
-      // Streak: lửa
-      title: 'Streak',
-      iconData: CupertinoIcons.flame_fill,
-      color: Color(0xFFEF4444),
-      badge: 7,
-    ),
     GamificationItem(
       // Thành tích: huy chương
       title: 'Thành tích',
