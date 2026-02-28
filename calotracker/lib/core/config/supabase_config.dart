@@ -11,6 +11,10 @@ class SupabaseConfig {
   static const String supabaseAnonKey =
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b2FsaGVicGR4cXB0b3hvbnh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5Mjg0MjUsImV4cCI6MjA4NTUwNDQyNX0.6hevJ2C9G4IbylloJgpa6hk4mpOvhoUcReELUbV-rmg';
 
+  // 🤖 Gemini API Key (Google AI Studio - https://aistudio.google.com/app/apikey)
+  // Thay thế bằng API key thực của bạn để kích hoạt AI dinh dưỡng
+  static const String geminiApiKey = 'YOUR_GEMINI_API_KEY';
+
   // Track if Supabase has been successfully initialized
   static bool _isInitialized = false;
 
