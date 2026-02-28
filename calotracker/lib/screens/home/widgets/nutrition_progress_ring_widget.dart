@@ -1,7 +1,8 @@
 // NutritionProgressRingWidget
-// Multi-color arc progress ring theo thiết kế iconhome/FLUTTER_FITNESS_APP.md
+// Multi-color arc progress ring - theme-aware (dark/light mode)
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../../../theme/colors.dart';
 
 class NutritionProgressRingWidget extends StatelessWidget {
   final double intake;
@@ -21,15 +22,24 @@ class NutritionProgressRingWidget extends StatelessWidget {
   static const Color _neonGreen = Color(0xFF1FBF8C);
   static const Color _neonOrange = Color(0xFFFFA500);
   static const Color _neonPurple = Color(0xFF7C3AED);
-  static const Color _ringBg = Color(0xFF404659);
-  static const Color _textPrimary = Color(0xFFFFFFFF);
-  static const Color _textSecondary = Color(0xFF9CA3AF);
-  static const Color _textTertiary = Color(0xFF6B7280);
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final remaining = (target - intake + burned).clamp(0.0, target);
     final progress = target > 0 ? (remaining / target).clamp(0.0, 1.0) : 0.0;
+
+    // Theme-aware colors
+    final textPrimary = isDark ? Colors.white : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    final textTertiary = isDark
+        ? AppColors.darkTextTertiary
+        : AppColors.lightTextTertiary;
+    final ringBg = isDark
+        ? const Color(0xFF404659)
+        : const Color(0xFFE5E7EB);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -49,7 +59,7 @@ class NutritionProgressRingWidget extends StatelessWidget {
                   value: 1.0,
                   strokeWidth: _strokeWidth,
                   backgroundColor: Colors.transparent,
-                  valueColor: const AlwaysStoppedAnimation<Color>(_ringBg),
+                  valueColor: AlwaysStoppedAnimation<Color>(ringBg),
                 ),
               ),
               // Multi-color arc
@@ -67,16 +77,16 @@ class NutritionProgressRingWidget extends StatelessWidget {
                 children: [
                   Text(
                     '${remaining.toInt()}',
-                    style: const TextStyle(
-                      color: _textPrimary,
+                    style: TextStyle(
+                      color: textPrimary,
                       fontSize: 44,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const Text(
+                  Text(
                     'kcal còn lại',
                     style: TextStyle(
-                      color: _textSecondary,
+                      color: textSecondary,
                       fontSize: 13,
                     ),
                   ),
@@ -94,22 +104,25 @@ class NutritionProgressRingWidget extends StatelessWidget {
               label: 'Tiêu thụ',
               value: intake.toInt(),
               unit: 'kcal',
-              textSecondary: _textSecondary,
-              textTertiary: _textTertiary,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+              textTertiary: textTertiary,
             ),
             _MacroSummaryItem(
               label: 'Đốt cháy',
               value: burned.toInt(),
               unit: 'kcal',
-              textSecondary: _textSecondary,
-              textTertiary: _textTertiary,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+              textTertiary: textTertiary,
             ),
             _MacroSummaryItem(
               label: 'Còn lại',
               value: remaining.toInt(),
               unit: 'kcal',
-              textSecondary: _textSecondary,
-              textTertiary: _textTertiary,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+              textTertiary: textTertiary,
             ),
           ],
         ),
@@ -122,6 +135,7 @@ class _MacroSummaryItem extends StatelessWidget {
   final String label;
   final int value;
   final String unit;
+  final Color textPrimary;
   final Color textSecondary;
   final Color textTertiary;
 
@@ -129,6 +143,7 @@ class _MacroSummaryItem extends StatelessWidget {
     required this.label,
     required this.value,
     required this.unit,
+    required this.textPrimary,
     required this.textSecondary,
     required this.textTertiary,
   });
@@ -144,8 +159,8 @@ class _MacroSummaryItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           '$value',
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: textPrimary,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
