@@ -428,14 +428,6 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
 
-            // ── Export PDF Button ────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: FadeTransition(
-                opacity: _cardsFadeAnim,
-                child: _buildExportPdfButton(isDark),
-              ),
-            ),
-
             // ── Social Activity ──────────────────────────────────────────────
             SliverToBoxAdapter(
               child: FadeTransition(

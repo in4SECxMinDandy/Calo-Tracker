@@ -7,6 +7,7 @@ import '../../services/database_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/supabase_auth_service.dart';
 import '../../services/fcm_service.dart';
+import '../../services/pdf_export_service.dart';
 import '../../theme/animated_app_icons.dart';
 import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -230,6 +231,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 12),
             _buildCard(card, divider, [
               _TapItem(
+                icon: CupertinoIcons.doc_richtext,
+                iconColor: _kBlue,
+                title: 'Xuất báo cáo PDF',
+                subtitle: 'Xuất báo cáo sức khỏe chi tiết',
+                isDark: isDark,
+                onTap: _showPdfExportDialog,
+              ),
+              _Divider(divider),
+              _TapItem(
                 icon: CupertinoIcons.trash,
                 iconColor: _kRed,
                 title: 'Xóa tất cả dữ liệu',
@@ -452,6 +462,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // ─────────────────────── Actions ──────────────────────────────────────────
+
+  /// Xuất báo cáo PDF sức khỏe
+  Future<void> _showPdfExportDialog() async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Đang tạo báo cáo PDF...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    try {
+      final pdfService = PdfExportService();
+      final now = DateTime.now();
+      final start = now.subtract(const Duration(days: 30));
+      await pdfService.exportAndShare(
+        type: PdfReportType.fullHealth,
+        startDate: start,
+        endDate: now,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Lỗi xuất PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _showLanguageDialog() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
