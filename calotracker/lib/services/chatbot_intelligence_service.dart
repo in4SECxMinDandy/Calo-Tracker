@@ -359,8 +359,8 @@ class ChatbotIntelligenceService {
       final totalFat = recentMeals.fold<double>(0, (sum, m) => sum + (m.fat ?? 0));
 
       // Hôm nay
-      final todayCalories = todayRecord?.caloIntake ?? 0;
-      final todayBurned = todayRecord?.caloBurned ?? 0;
+      final todayCalories = todayRecord.caloIntake;
+      final todayBurned = todayRecord.caloBurned;
 
       // Nhận xét
       final comments = <String>[];
@@ -404,12 +404,12 @@ class ChatbotIntelligenceService {
   static Future<ChatbotResponse> _handleCalorieGoal(String? userId) async {
     try {
       final todayRecord = await DatabaseService.getTodayRecord();
-      final intake = todayRecord?.caloIntake ?? 0;
-      final burned = todayRecord?.caloBurned ?? 0;
+      final intake = todayRecord.caloIntake;
+      final burned = todayRecord.caloBurned;
       final net = intake - burned;
 
       // Lấy mục tiêu từ profile
-      final profile = await DatabaseService.getUserProfile();
+      final profile = await DatabaseService.getUser();
       final target = profile?.dailyTarget ?? 2000;
       final remaining = target - intake;
 

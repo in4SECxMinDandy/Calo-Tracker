@@ -4,7 +4,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import '../../models/chat_message.dart';
 import '../../models/meal.dart';
 import '../../services/database_service.dart';
 import '../../services/nutrition_ai_service.dart';

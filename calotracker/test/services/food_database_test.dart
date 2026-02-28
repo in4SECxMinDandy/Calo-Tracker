@@ -146,8 +146,8 @@ void main() {
       final food = FoodDatabaseService.findBest('burger');
       expect(food, isNotNull);
 
-      final alternatives = FoodDatabaseService.getHealthierAlternatives(food!);
       // Burger có alternatives trong database
+      FoodDatabaseService.getHealthierAlternatives(food!);
       expect(food.healthierAlternatives, isNotEmpty);
     });
 
