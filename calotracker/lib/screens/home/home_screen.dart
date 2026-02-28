@@ -17,7 +17,6 @@ import '../../models/friendship.dart';
 import '../../services/database_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/friends_service.dart';
-import '../../services/pdf_export_service.dart';
 import '../../theme/colors.dart';
 
 import '../chatbot/chatbot_screen.dart';
@@ -89,7 +88,6 @@ class _HomeScreenState extends State<HomeScreen>
   double _protein = 0;
   double _carbs = 0;
   double _fat = 0;
-  bool _isExportingPdf = false;
 
   // ── Timer (để cancel Future.delayed khi dispose) ──────────────────────────
   Timer? _animTimer;
@@ -98,7 +96,6 @@ class _HomeScreenState extends State<HomeScreen>
   final _friendsService = FriendsService();
   final _communityService = UnifiedCommunityService();
   final _messagingService = MessagingService();
-  final _pdfService = PdfExportService();
 
   // ── Animation Controllers ─────────────────────────────────────────────────
   late AnimationController _headerAnimCtrl;
@@ -275,44 +272,6 @@ class _HomeScreenState extends State<HomeScreen>
     if (h < 12) return 'Chào buổi sáng ☀️';
     if (h < 18) return 'Chào buổi chiều 🌤️';
     return 'Chào buổi tối 🌙';
-  }
-
-  /// Hiển thị dialog chọn loại báo cáo PDF
-  void _showPdfExportDialog() {
-    HapticFeedback.lightImpact();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) => _PdfExportSheet(
-        isDark: isDark,
-        onExport: (type, start, end) async {
-          Navigator.pop(ctx);
-          setState(() => _isExportingPdf = true);
-          try {
-            await _pdfService.exportAndShare(
-              type: type,
-              startDate: start,
-              endDate: end,
-            );
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Lỗi xuất PDF: $e'),
-                  backgroundColor: AppColors.errorRed,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            }
-          } finally {
-            if (mounted) setState(() => _isExportingPdf = false);
-          }
-        },
-      ),
-    );
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
