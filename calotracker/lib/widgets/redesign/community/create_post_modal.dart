@@ -60,11 +60,12 @@ class CreatePostModal extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => CreatePostModal(
-        onPost: onPost,
-        userName: userName,
-        userAvatar: userAvatar,
-      ),
+      builder:
+          (context) => CreatePostModal(
+            onPost: onPost,
+            userName: userName,
+            userAvatar: userAvatar,
+          ),
     );
   }
 
@@ -85,7 +86,7 @@ class _CreatePostModalState extends State<CreatePostModal>
   bool _showMealForm = false;
   bool _showLocation = false;
   bool _showEmojiPicker = false;
-  List<File> _selectedImages = [];
+  final List<File> _selectedImages = [];
   final _imagePicker = ImagePicker();
 
   late AnimationController _animController;
@@ -121,24 +122,23 @@ class _CreatePostModalState extends State<CreatePostModal>
   void _handlePost() {
     if (_contentController.text.trim().isEmpty) return;
 
-    final macros = _caloriesController.text.isNotEmpty
-        ? MacroInput(
-            calories: int.tryParse(_caloriesController.text) ?? 0,
-            protein: int.tryParse(_proteinController.text) ?? 0,
-            carbs: int.tryParse(_carbsController.text) ?? 0,
-            fat: int.tryParse(_fatController.text) ?? 0,
-          )
-        : null;
+    final macros =
+        _caloriesController.text.isNotEmpty
+            ? MacroInput(
+              calories: int.tryParse(_caloriesController.text) ?? 0,
+              protein: int.tryParse(_proteinController.text) ?? 0,
+              carbs: int.tryParse(_carbsController.text) ?? 0,
+              fat: int.tryParse(_fatController.text) ?? 0,
+            )
+            : null;
 
     final postData = CreatePostData(
       content: _contentController.text,
-      mealName: _mealNameController.text.isNotEmpty
-          ? _mealNameController.text
-          : null,
+      mealName:
+          _mealNameController.text.isNotEmpty ? _mealNameController.text : null,
       macros: macros,
-      location: _locationController.text.isNotEmpty
-          ? _locationController.text
-          : null,
+      location:
+          _locationController.text.isNotEmpty ? _locationController.text : null,
     );
 
     widget.onPost(postData);
@@ -222,8 +222,7 @@ class _CreatePostModalState extends State<CreatePostModal>
                     if (_showMealForm) _buildMealForm(context, isDark),
                     if (_showLocation) _buildLocationInput(context, isDark),
                     // Image preview
-                    if (_selectedImages.isNotEmpty)
-                      _buildImagePreview(isDark),
+                    if (_selectedImages.isNotEmpty) _buildImagePreview(isDark),
                   ],
                 ),
               ),
@@ -252,14 +251,12 @@ class _CreatePostModalState extends State<CreatePostModal>
                   config: Config(
                     height: 250,
                     emojiViewConfig: EmojiViewConfig(
-                      backgroundColor: isDark
-                          ? AppColors.darkCard
-                          : Colors.white,
+                      backgroundColor:
+                          isDark ? AppColors.darkCard : Colors.white,
                     ),
                     categoryViewConfig: CategoryViewConfig(
-                      backgroundColor: isDark
-                          ? AppColors.darkCard
-                          : Colors.white,
+                      backgroundColor:
+                          isDark ? AppColors.darkCard : Colors.white,
                       indicatorColor: AppColors.primaryBlue,
                     ),
                     bottomActionBarConfig: const BottomActionBarConfig(
@@ -280,7 +277,8 @@ class _CreatePostModalState extends State<CreatePostModal>
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: _selectedImages.length + (_selectedImages.length < 4 ? 1 : 0),
+        itemCount:
+            _selectedImages.length + (_selectedImages.length < 4 ? 1 : 0),
         itemBuilder: (context, index) {
           // Add more button
           if (index == _selectedImages.length) {
@@ -291,22 +289,25 @@ class _CreatePostModalState extends State<CreatePostModal>
                 height: 90,
                 margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.08)
-                      : Colors.grey.withValues(alpha: 0.1),
+                  color:
+                      isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.grey.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.2)
-                        : Colors.grey.withValues(alpha: 0.3),
+                    color:
+                        isDark
+                            ? Colors.white.withValues(alpha: 0.2)
+                            : Colors.grey.withValues(alpha: 0.3),
                     style: BorderStyle.solid,
                   ),
                 ),
                 child: Icon(
                   CupertinoIcons.add,
-                  color: isDark
-                      ? AppColors.darkTextSecondary
-                      : AppColors.lightTextSecondary,
+                  color:
+                      isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
                 ),
               ),
             );
@@ -384,9 +385,10 @@ class _CreatePostModalState extends State<CreatePostModal>
                 child: Icon(
                   CupertinoIcons.xmark,
                   size: 20,
-                  color: isDark
-                      ? AppColors.darkTextSecondary
-                      : AppColors.lightTextSecondary,
+                  color:
+                      isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
                 ),
               ),
             ),
@@ -398,9 +400,10 @@ class _CreatePostModalState extends State<CreatePostModal>
             style: AppTextStyles.heading3.copyWith(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: isDark
-                  ? AppColors.darkTextPrimary
-                  : AppColors.lightTextPrimary,
+              color:
+                  isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.lightTextPrimary,
             ),
           ),
 
@@ -417,31 +420,37 @@ class _CreatePostModalState extends State<CreatePostModal>
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: canPost
-                      ? AppColors.successGreen
-                      : (isDark ? AppColors.darkMuted : AppColors.lightMuted),
+                  color:
+                      canPost
+                          ? AppColors.successGreen
+                          : (isDark
+                              ? AppColors.darkMuted
+                              : AppColors.lightMuted),
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: canPost
-                      ? [
-                          BoxShadow(
-                            color:
-                                AppColors.successGreen.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
+                  boxShadow:
+                      canPost
+                          ? [
+                            BoxShadow(
+                              color: AppColors.successGreen.withValues(
+                                alpha: 0.3,
+                              ),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                          : null,
                 ),
                 child: Text(
                   'Đăng',
                   style: AppTextStyles.labelLarge.copyWith(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: canPost
-                        ? Colors.white
-                        : (isDark
-                            ? AppColors.darkTextTertiary
-                            : AppColors.lightTextSecondary),
+                    color:
+                        canPost
+                            ? Colors.white
+                            : (isDark
+                                ? AppColors.darkTextTertiary
+                                : AppColors.lightTextSecondary),
                   ),
                 ),
               ),
@@ -481,9 +490,10 @@ class _CreatePostModalState extends State<CreatePostModal>
                   style: AppTextStyles.labelLarge.copyWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: isDark
-                        ? AppColors.darkTextPrimary
-                        : AppColors.lightTextPrimary,
+                    color:
+                        isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary,
                   ),
                 ),
                 if (_locationController.text.isNotEmpty) ...[
@@ -493,9 +503,10 @@ class _CreatePostModalState extends State<CreatePostModal>
                       Icon(
                         CupertinoIcons.location_solid,
                         size: 12,
-                        color: isDark
-                            ? AppColors.accentMint
-                            : AppColors.successGreen,
+                        color:
+                            isDark
+                                ? AppColors.accentMint
+                                : AppColors.successGreen,
                       ),
                       const SizedBox(width: 4),
                       Flexible(
@@ -503,9 +514,10 @@ class _CreatePostModalState extends State<CreatePostModal>
                           _locationController.text,
                           style: AppTextStyles.labelSmall.copyWith(
                             fontSize: 12,
-                            color: isDark
-                                ? AppColors.accentMint
-                                : AppColors.successGreen,
+                            color:
+                                isDark
+                                    ? AppColors.accentMint
+                                    : AppColors.successGreen,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -532,18 +544,18 @@ class _CreatePostModalState extends State<CreatePostModal>
           hintText: 'Chia sẻ hành trình sức khỏe của bạn...',
           hintStyle: AppTextStyles.bodyMedium.copyWith(
             fontSize: 15,
-            color: isDark
-                ? AppColors.darkTextTertiary
-                : AppColors.lightTextSecondary,
+            color:
+                isDark
+                    ? AppColors.darkTextTertiary
+                    : AppColors.lightTextSecondary,
           ),
           border: InputBorder.none,
         ),
         style: AppTextStyles.bodyMedium.copyWith(
           fontSize: 15,
           height: 1.6,
-          color: isDark
-              ? AppColors.darkTextPrimary
-              : AppColors.lightTextPrimary,
+          color:
+              isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
         ),
         onChanged: (_) => setState(() {}),
       ),
@@ -570,9 +582,7 @@ class _CreatePostModalState extends State<CreatePostModal>
                 Icon(
                   CupertinoIcons.square_favorites_alt,
                   size: 16,
-                  color: isDark
-                      ? AppColors.accentMint
-                      : AppColors.successGreen,
+                  color: isDark ? AppColors.accentMint : AppColors.successGreen,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -580,9 +590,8 @@ class _CreatePostModalState extends State<CreatePostModal>
                   style: AppTextStyles.labelLarge.copyWith(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: isDark
-                        ? AppColors.accentMint
-                        : AppColors.successGreen,
+                    color:
+                        isDark ? AppColors.accentMint : AppColors.successGreen,
                   ),
                 ),
               ],
@@ -656,9 +665,10 @@ class _CreatePostModalState extends State<CreatePostModal>
         hintText: hint,
         hintStyle: AppTextStyles.labelMedium.copyWith(
           fontSize: 13,
-          color: isDark
-              ? AppColors.darkTextTertiary
-              : AppColors.lightTextSecondary,
+          color:
+              isDark
+                  ? AppColors.darkTextTertiary
+                  : AppColors.lightTextSecondary,
         ),
         filled: true,
         fillColor: isDark ? AppColors.darkCard : Colors.white,
@@ -688,9 +698,7 @@ class _CreatePostModalState extends State<CreatePostModal>
       ),
       style: AppTextStyles.bodyMedium.copyWith(
         fontSize: 13,
-        color: isDark
-            ? AppColors.darkTextPrimary
-            : AppColors.lightTextPrimary,
+        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
       ),
     );
   }
@@ -704,9 +712,10 @@ class _CreatePostModalState extends State<CreatePostModal>
           hintText: 'Nhập vị trí...',
           hintStyle: AppTextStyles.labelMedium.copyWith(
             fontSize: 13,
-            color: isDark
-                ? AppColors.darkTextTertiary
-                : AppColors.lightTextSecondary,
+            color:
+                isDark
+                    ? AppColors.darkTextTertiary
+                    : AppColors.lightTextSecondary,
           ),
           filled: true,
           fillColor: isDark ? AppColors.darkMuted : AppColors.lightMuted,
@@ -736,9 +745,8 @@ class _CreatePostModalState extends State<CreatePostModal>
         ),
         style: AppTextStyles.bodyMedium.copyWith(
           fontSize: 13,
-          color: isDark
-              ? AppColors.darkTextPrimary
-              : AppColors.lightTextPrimary,
+          color:
+              isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
         ),
         onChanged: (_) => setState(() {}),
       ),
@@ -832,9 +840,10 @@ class _CreatePostModalState extends State<CreatePostModal>
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 8),
             decoration: BoxDecoration(
-              color: isActive
-                  ? (isDark ? AppColors.darkMuted : AppColors.lightMuted)
-                  : Colors.transparent,
+              color:
+                  isActive
+                      ? (isDark ? AppColors.darkMuted : AppColors.lightMuted)
+                      : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
@@ -847,9 +856,10 @@ class _CreatePostModalState extends State<CreatePostModal>
                   style: AppTextStyles.labelSmall.copyWith(
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary,
+                    color:
+                        isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
                   ),
                 ),
               ],
