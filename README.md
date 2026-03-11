@@ -2,7 +2,7 @@
 
 # 🥗 CaloTracker
 
-### Ứng dụng theo dõi dinh dưỡng & sức khỏe thông minh phong cách iOS
+### Ứng dụng theo dõi dinh dưỡng & sức khỏe thông minh
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.7-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
@@ -546,3 +546,4 @@ Dự án này sử dụng [MIT License](LICENSE).
 [![Supabase](https://img.shields.io/badge/Powered%20by-Supabase-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com)
 
 </div>
+
