@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'dart:async';
 import '../../theme/colors.dart';
 import '../../services/storage_service.dart';
+import '../../services/biometric_service.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../home/home_screen.dart';
 import '../welcome/welcome_screen.dart';
@@ -90,6 +91,26 @@ class _SplashScreenState extends State<SplashScreen>
     } else {
       // Existing user with profile
       destinationScreen = const HomeScreen();
+    }
+
+    if (!mounted) return;
+
+    final biometricEnabled = StorageService.isBiometricEnabled();
+    if (biometricEnabled) {
+      final result = await BiometricService.authenticate(
+        reason: 'Xác thực sinh trắc học để mở CaloTracker',
+      );
+      if (!result.isSuccess && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.errorMessage ?? 'Xác thực không thành công',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
     }
 
     if (!mounted) return;

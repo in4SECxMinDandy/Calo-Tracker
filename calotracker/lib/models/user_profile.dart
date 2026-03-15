@@ -6,6 +6,8 @@ class UserProfile {
   final double height; // cm
   final double weight; // kg
   final String goal; // 'lose', 'maintain', 'gain'
+  final int age; // years
+  final Gender gender;
   final double bmr; // Base Metabolic Rate
   final double dailyTarget; // Adjusted based on goal
   final DateTime createdAt;
@@ -19,6 +21,8 @@ class UserProfile {
     required this.height,
     required this.weight,
     required this.goal,
+    required this.age,
+    required this.gender,
     required this.bmr,
     required this.dailyTarget,
     required this.createdAt,
@@ -27,12 +31,17 @@ class UserProfile {
     this.avatarUrl,
   });
 
-  /// Calculate BMR using Mifflin-St Jeor Equation (simplified, assuming age 30)
+  /// Calculate BMR using Mifflin-St Jeor Equation
   /// For males: BMR = 10 × weight(kg) + 6.25 × height(cm) - 5 × age + 5
   /// For females: BMR = 10 × weight(kg) + 6.25 × height(cm) - 5 × age - 161
-  /// Using average (no gender specified): BMR = 10 × weight + 6.25 × height - 78
-  static double calculateBMR(double weight, double height) {
-    return (10 * weight) + (6.25 * height) - 78;
+  static double calculateBMR({
+    required double weight,
+    required double height,
+    required int age,
+    required Gender gender,
+  }) {
+    final base = (10 * weight) + (6.25 * height) - (5 * age);
+    return gender == Gender.male ? base + 5 : base - 161;
   }
 
   /// Calculate daily calorie target based on goal
@@ -53,17 +62,26 @@ class UserProfile {
     required String name,
     required double height,
     required double weight,
+    required int age,
+    required Gender gender,
     required String goal,
     String country = 'VN',
     String language = 'vi',
   }) {
-    final bmr = calculateBMR(weight, height);
+    final bmr = calculateBMR(
+      weight: weight,
+      height: height,
+      age: age,
+      gender: gender,
+    );
     final dailyTarget = calculateDailyTarget(bmr, goal);
 
     return UserProfile(
       name: name,
       height: height,
       weight: weight,
+      age: age,
+      gender: gender,
       goal: goal,
       bmr: bmr,
       dailyTarget: dailyTarget,
@@ -81,6 +99,8 @@ class UserProfile {
       'name': name,
       'height': height,
       'weight': weight,
+      'age': age,
+      'gender': gender.value,
       'goal': goal,
       'bmr': bmr,
       'daily_target': dailyTarget,
@@ -98,6 +118,8 @@ class UserProfile {
       name: map['name'] as String,
       height: (map['height'] as num).toDouble(),
       weight: (map['weight'] as num).toDouble(),
+      age: map['age'] as int? ?? 30,
+      gender: Gender.fromString(map['gender'] as String? ?? 'female'),
       goal: map['goal'] as String,
       bmr: (map['bmr'] as num).toDouble(),
       dailyTarget: (map['daily_target'] as num).toDouble(),
@@ -114,6 +136,8 @@ class UserProfile {
     String? name,
     double? height,
     double? weight,
+    int? age,
+    Gender? gender,
     String? goal,
     double? bmr,
     double? dailyTarget,
@@ -127,6 +151,8 @@ class UserProfile {
       name: name ?? this.name,
       height: height ?? this.height,
       weight: weight ?? this.weight,
+      age: age ?? this.age,
+      gender: gender ?? this.gender,
       goal: goal ?? this.goal,
       bmr: bmr ?? this.bmr,
       dailyTarget: dailyTarget ?? this.dailyTarget,
@@ -152,6 +178,17 @@ class UserProfile {
 
   @override
   String toString() {
-    return 'UserProfile(name: $name, height: $height, weight: $weight, goal: $goal, bmr: $bmr, dailyTarget: $dailyTarget)';
+    return 'UserProfile(name: $name, height: $height, weight: $weight, age: $age, gender: ${gender.value}, goal: $goal, bmr: $bmr, dailyTarget: $dailyTarget)';
+  }
+}
+
+enum Gender {
+  male,
+  female;
+
+  String get value => this == Gender.male ? 'male' : 'female';
+
+  static Gender fromString(String value) {
+    return value == 'male' ? Gender.male : Gender.female;
   }
 }

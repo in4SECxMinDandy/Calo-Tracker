@@ -99,12 +99,14 @@ class _SleepWidgetState extends State<SleepWidget> {
       children: [
         // Icon with glow effect
         Container(
-          padding: const EdgeInsets.all(10),
+          width: 28,
+          height: 28,
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(AppIcons.sleep, color: Colors.white, size: 22),
+          alignment: Alignment.center,
+          child: const Icon(AppIcons.sleep, color: Colors.white, size: 16),
         ),
         const SizedBox(height: 12),
         // Title
@@ -158,8 +160,21 @@ class _SleepWidgetState extends State<SleepWidget> {
           children: [
             Row(
               children: [
-                const Icon(AppIcons.sleep, color: Colors.white70, size: 16),
-                const SizedBox(width: 6),
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    AppIcons.sleep,
+                    color: Colors.white70,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Text(
                   'Đêm qua',
                   style: TextStyle(

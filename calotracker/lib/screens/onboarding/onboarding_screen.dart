@@ -26,10 +26,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   final _nameController = TextEditingController();
   final _heightController = TextEditingController();
   final _weightController = TextEditingController();
+  final _ageController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   // Step 2 selection
   String _selectedGoal = 'maintain';
+
+  // Demographics
+  Gender _selectedGender = Gender.male;
 
   // Calculated values
   double _bmr = 0;
@@ -42,6 +46,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   final _nameFocus = FocusNode();
   final _heightFocus = FocusNode();
   final _weightFocus = FocusNode();
+  final _ageFocus = FocusNode();
 
   // Animation controllers
   late AnimationController _cardScaleController;
@@ -62,6 +67,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _nameFocus.addListener(() => setState(() {}));
     _heightFocus.addListener(() => setState(() {}));
     _weightFocus.addListener(() => setState(() {}));
+    _ageFocus.addListener(() => setState(() {}));
   }
 
   @override
@@ -70,9 +76,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _nameController.dispose();
     _heightController.dispose();
     _weightController.dispose();
+    _ageController.dispose();
     _nameFocus.dispose();
     _heightFocus.dispose();
     _weightFocus.dispose();
+    _ageFocus.dispose();
     _cardScaleController.dispose();
     super.dispose();
   }
@@ -84,7 +92,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       // Calculate BMR
       final weight = double.tryParse(_weightController.text) ?? 0;
       final height = double.tryParse(_heightController.text) ?? 0;
-      _bmr = UserProfile.calculateBMR(weight, height);
+      final age = int.tryParse(_ageController.text) ?? 30;
+      _bmr = UserProfile.calculateBMR(
+        weight: weight,
+        height: height,
+        age: age,
+        gender: _selectedGender,
+      );
       _dailyTarget = UserProfile.calculateDailyTarget(_bmr, _selectedGoal);
     }
 
@@ -120,6 +134,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         name: _nameController.text.trim(),
         height: double.tryParse(_heightController.text) ?? 0,
         weight: double.tryParse(_weightController.text) ?? 0,
+        age: int.tryParse(_ageController.text) ?? 30,
+        gender: _selectedGender,
         goal: _selectedGoal,
         country: _selectedCountry,
         language: 'vi',
@@ -417,6 +433,34 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 return null;
               },
             ),
+            const SizedBox(height: 28),
+
+            // Age field
+            _buildSectionLabel('Tuổi', CupertinoIcons.calendar),
+            const SizedBox(height: 12),
+            _buildTextField(
+              controller: _ageController,
+              focusNode: _ageFocus,
+              hintText: 'Nhập tuổi',
+              prefixIcon: CupertinoIcons.calendar,
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Vui lòng nhập tuổi';
+                }
+                final age = int.tryParse(value);
+                if (age == null || age < 10 || age > 120) {
+                  return 'Tuổi không hợp lệ';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 28),
+
+            // Gender selector
+            _buildSectionLabel('Giới tính', CupertinoIcons.person_2),
+            const SizedBox(height: 12),
+            _buildGenderSelector(),
             const SizedBox(height: 48),
 
             // Next button
@@ -622,6 +666,44 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             setState(() => _selectedCountry = value!);
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildGenderSelector() {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _GenderOption(
+              label: 'Nam',
+              icon: CupertinoIcons.person_fill,
+              isSelected: _selectedGender == Gender.male,
+              onTap: () => setState(() => _selectedGender = Gender.male),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _GenderOption(
+              label: 'Nữ',
+              icon: CupertinoIcons.person_fill,
+              isSelected: _selectedGender == Gender.female,
+              onTap: () => setState(() => _selectedGender = Gender.female),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1075,6 +1157,65 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
         ),
         child: child,
+      ),
+    );
+  }
+}
+
+class _GenderOption extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _GenderOption({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color:
+              isSelected
+                  ? AppColors.primaryBlue.withValues(alpha: 0.12)
+                  : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color:
+                isSelected
+                    ? AppColors.primaryBlue
+                    : Colors.grey.withValues(alpha: 0.2),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color:
+                  isSelected ? AppColors.primaryBlue : Colors.grey.shade600,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color:
+                    isSelected ? AppColors.primaryBlue : Colors.grey.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

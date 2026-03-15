@@ -1,0 +1,29 @@
+{
+    "project_info": {
+        "project_number": "96227308533",
+        "project_id": "flutter-ai-playground-b37ed",
+        "storage_bucket": "flutter-ai-playground-b37ed.firebasestorage.app"
+    },
+    "client": [
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:96227308533:android:3240cf257d3903d821a6bc",
+                "android_client_info": {
+                    "package_name": "com.calotracker.calotracker"
+                }
+            },
+            "oauth_client": [],
+            "api_key": [
+                {
+                    "current_key": "AIzaSyBZzT50XIRT9TJRDsobQ6YWiXE9UOJG4Y4"
+                }
+            ],
+            "services": {
+                "appinvite_service": {
+                    "other_platform_oauth_client": []
+                }
+            }
+        }
+    ],
+    "configuration_version": "1"
+}

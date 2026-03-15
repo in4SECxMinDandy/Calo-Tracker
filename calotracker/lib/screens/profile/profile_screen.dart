@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/storage_service.dart';
 import '../../services/database_service.dart';
 import '../../services/supabase_auth_service.dart';
+import '../../models/user_profile.dart';
 import '../settings/settings_screen.dart';
 
 // ─────────────────────────────── Design tokens ──────────────────────────────
@@ -86,8 +87,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _name = profile.name;
         _height = profile.height;
         _weight = profile.weight;
-        _age = 30;
-        _gender = 'male';
+        _age = profile.age;
+        _gender = profile.gender.value;
         _goal = profile.goal;
         _bmr = profile.bmr;
         _avatarUrl = profile.avatarUrl;
@@ -545,7 +546,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: _BodyInfoItem(
                             icon: Icons.cake,
                             label: 'Tuổi',
-                            value: '$_age tuổi',
+                            value: '${_age > 0 ? _age : '--'} tuổi',
                             isDark: isDark,
                           ),
                         ),
@@ -1029,6 +1030,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             }
                           },
                         ),
+                        const SizedBox(height: 12),
+                        CupertinoSlidingSegmentedControl<String>(
+                          groupValue: selectedGender,
+                          children: const {
+                            'male': Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                              child: Text('Nam'),
+                            ),
+                            'female': Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                              child: Text('Nữ'),
+                            ),
+                          },
+                          onValueChanged: (value) {
+                            if (value != null) {
+                              setDialogState(() => selectedGender = value);
+                            }
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -1076,8 +1096,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         name: newName,
         height: newHeight,
         weight: newWeight,
+        age: newAge,
+        gender: Gender.fromString(newGender),
+        bmr: UserProfile.calculateBMR(
+          weight: newWeight,
+          height: newHeight,
+          age: newAge,
+          gender: Gender.fromString(newGender),
+        ),
       );
-      await StorageService.saveUserProfile(updatedProfile);
+      final recalculated = updatedProfile.copyWith(
+        dailyTarget: UserProfile.calculateDailyTarget(
+          updatedProfile.bmr,
+          updatedProfile.goal,
+        ),
+      );
+      await StorageService.saveUserProfile(recalculated);
+      await DatabaseService.saveUser(recalculated);
     }
     if (!mounted) return;
     setState(() {
@@ -1086,6 +1121,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _weight = newWeight;
       _age = newAge;
       _gender = newGender;
+      _bmr = UserProfile.calculateBMR(
+        weight: newWeight,
+        height: newHeight,
+        age: newAge,
+        gender: Gender.fromString(newGender),
+      );
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

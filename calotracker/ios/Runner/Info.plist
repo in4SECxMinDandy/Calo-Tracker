@@ -51,5 +51,7 @@
 	<string>CaloTracker cần quyền truy cập thư viện ảnh để chọn ảnh món ăn.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>CaloTracker cần quyền lưu ảnh vào thư viện.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>CaloTracker sử dụng Face ID/Touch ID để bảo vệ tài khoản.</string>
 </dict>
 </plist>

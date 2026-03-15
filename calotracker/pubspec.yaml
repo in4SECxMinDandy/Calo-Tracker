@@ -79,6 +79,7 @@ dependencies:
   # Device Info
   device_info_plus: ^11.2.0
   package_info_plus: ^8.1.3
+  line_icons: ^2.0.3
 
 dev_dependencies:
   flutter_test:

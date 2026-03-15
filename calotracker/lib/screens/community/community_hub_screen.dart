@@ -8,9 +8,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/supabase_auth_service.dart';
 import '../../services/unified_community_service.dart';
 import '../../services/presence_service.dart';
+import '../../services/gamification_service.dart';
 import '../../models/post.dart';
 import '../../models/community_group.dart';
 import '../../models/challenge.dart';
+import '../../models/achievement.dart';
 import '../../theme/colors.dart';
 import '../auth/login_screen.dart';
 import 'groups_screen.dart';
@@ -40,6 +42,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
   List<Post> _feedPosts = [];
   List<CommunityGroup> _myGroups = [];
   List<Challenge> _activeChallenges = [];
+  List<UserAchievement> _recentAchievements = [];
   bool _isLoading = true;
   int _unreadNotifications = 0;
 
@@ -85,12 +88,14 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
+      await GamificationService.checkAndUnlockAchievements();
       final results = await Future.wait([
         _communityService.getFeedPosts(limit: 20),
         _communityService.getMyGroups(),
         _communityService.getActiveChallenges(limit: 5),
         _communityService.getUnreadNotificationCount(),
       ]);
+      final recentAchievements = GamificationService.getRecentAchievements();
 
       if (mounted) {
         setState(() {
@@ -98,6 +103,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
           _myGroups = results[1] as List<CommunityGroup>;
           _activeChallenges = results[2] as List<Challenge>;
           _unreadNotifications = results[3] as int;
+          _recentAchievements = recentAchievements;
           _isLoading = false;
         });
       }
@@ -499,6 +505,10 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
         // Create Post Prompt
         SliverToBoxAdapter(child: _buildCreatePostPrompt(isDark)),
 
+        // Achievement Highlights
+        if (_recentAchievements.isNotEmpty)
+          SliverToBoxAdapter(child: _buildAchievementHighlights(isDark)),
+
         // Feed Header
         SliverToBoxAdapter(
           child: Padding(
@@ -509,12 +519,12 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFFFF8A65), Color(0xFFFF5722)],
+                      colors: [Color(0xFF22C55E), Color(0xFF0EA5E9)],
                     ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
-                    CupertinoIcons.flame_fill,
+                    CupertinoIcons.square_stack_3d_up_fill,
                     size: 14,
                     color: Colors.white,
                   ),
@@ -531,8 +541,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
                   ),
                 ),
                 const Spacer(),
-                if (_communityService.isDemoMode)
-                  _buildDemoBadge(),
+                if (_communityService.isDemoMode) _buildDemoBadge(),
               ],
             ),
           ),
@@ -546,7 +555,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
                   (context, index) => Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
-                      vertical: 4,
+                      vertical: 6,
                     ),
                     child: PostCard(
                       post: _feedPosts[index],
@@ -596,10 +605,10 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
     ];
 
     return SizedBox(
-      height: 96,
+      height: 104,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         itemCount: items.length,
         itemBuilder: (context, index) {
           final item = items[index];
@@ -616,25 +625,25 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
     return GestureDetector(
       onTap: _createPost,
       child: Container(
-        width: 64,
-        margin: const EdgeInsets.only(right: 10),
+        width: 70,
+        margin: const EdgeInsets.only(right: 12),
         child: Column(
           children: [
             Container(
-              width: 52,
-              height: 52,
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                  colors: [Color(0xFF2563EB), Color(0xFF38BDF8)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
@@ -644,12 +653,12 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
                 size: 22,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               'Đăng bài',
               style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
                 color: isDark
                     ? AppColors.darkTextSecondary
                     : AppColors.lightTextSecondary,
@@ -684,33 +693,40 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
         CupertinoPageRoute(builder: (_) => const GroupsScreen()),
       ),
       child: Container(
-        width: 64,
-        margin: const EdgeInsets.only(right: 10),
+        width: 70,
+        margin: const EdgeInsets.only(right: 12),
         child: Column(
           children: [
             Container(
-              width: 52,
-              height: 52,
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [bgColor, bgColor.withValues(alpha: 0.6)],
+                  colors: [bgColor, bgColor.withValues(alpha: 0.7)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: bgColor.withValues(alpha: 0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
                 border: Border.all(
-                  color: bgColor.withValues(alpha: 0.4),
-                  width: 2,
+                  color: bgColor.withValues(alpha: 0.2),
+                  width: 1,
                 ),
               ),
               child: Icon(icon, color: Colors.white, size: 22),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               item['name'] as String,
               style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
                 color: isDark
                     ? AppColors.darkTextSecondary
                     : AppColors.lightTextSecondary,
@@ -730,68 +746,99 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
     return GestureDetector(
       onTap: _createPost,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkCard : Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.06)
+                : const Color(0xFFE9EEF5),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.15),
-              child: Text(
-                user?.email?.substring(0, 1).toUpperCase() ?? 'U',
-                style: const TextStyle(
-                  color: AppColors.primaryBlue,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF2563EB), Color(0xFF38BDF8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                borderRadius: BorderRadius.circular(16),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.06)
-                      : const Color(0xFFF0F2F5),
-                  borderRadius: BorderRadius.circular(24),
-                ),
+              child: Center(
                 child: Text(
-                  'Chia sẻ thành tích, bữa ăn, buổi tập...',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary,
+                  user?.email?.substring(0, 1).toUpperCase() ?? 'U',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.primaryBlue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Chia sẻ điều mới hôm nay',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Thành tích · Bữa ăn · Buổi tập · Ảnh',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
+                    ),
+                  ),
+                ],
               ),
-              child: const Icon(
-                CupertinoIcons.photo,
-                size: 16,
-                color: AppColors.primaryBlue,
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primaryBlue.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    CupertinoIcons.add_circled_solid,
+                    size: 16,
+                    color: AppColors.primaryBlue,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'Đăng',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryBlue,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -1491,6 +1538,92 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
     );
   }
 
+  Widget _buildAchievementHighlights(bool isDark) {
+    final displayAchievements = _recentAchievements.take(6).toList();
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.06)
+              : const Color(0xFFE9EEF5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFF59E0B), Color(0xFFF97316)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  CupertinoIcons.rosette,
+                  color: Colors.white,
+                  size: 14,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Huy hiệu mới mở',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.lightTextPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                '${_recentAchievements.length} huy hiệu',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 86,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: displayAchievements.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final achievement = displayAchievements[index].achievement;
+                if (achievement == null) return const SizedBox.shrink();
+                return _AchievementChip(
+                  achievement: achievement,
+                  isDark: isDark,
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ══════════════════════════════════════════════════════════════
   // EMPTY STATES
   // ══════════════════════════════════════════════════════════════
@@ -1814,3 +1947,85 @@ class _CommunityHubScreenState extends State<CommunityHubScreen> {
     );
   }
 }
+
+class _AchievementChip extends StatelessWidget {
+  final Achievement achievement;
+  final bool isDark;
+
+  const _AchievementChip({required this.achievement, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 120,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: achievement.color.withValues(alpha: 0.25),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: achievement.color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Text(
+                achievement.icon,
+                style: const TextStyle(fontSize: 18),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _titleForAchievement(achievement.titleKey),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _titleForAchievement(String key) {
+    const map = {
+      'achievementStreak3': '3 ngày liên tiếp',
+      'achievementStreak7': '7 ngày liên tiếp',
+      'achievementStreak14': '14 ngày liên tiếp',
+      'achievementStreak30': '30 ngày liên tiếp',
+      'achievementStreak100': '100 ngày liên tiếp',
+      'achievementCalorieFirst': 'Khởi đầu tốt lành',
+      'achievementCalorie10': '10 bữa ăn',
+      'achievementCalorie50': '50 bữa ăn',
+      'achievementCalorie100': 'Master Chef 100',
+      'achievementWaterFirst': 'Uống nước đầu tiên',
+      'achievementWater7': '7 ngày đủ nước',
+      'achievementWater30': '30 ngày đủ nước',
+      'achievementWorkoutFirst': 'Buổi tập đầu tiên',
+      'achievementWorkout10': '10 buổi tập',
+      'achievementWorkout50': 'Gym Rat',
+      'achievementWeightFirst': 'Theo dõi cân nặng',
+      'achievementWeightGoal': 'Đạt mục tiêu',
+      'achievementEarlyBird': 'Chim sớm',
+      'achievementNightOwl': 'Cú đêm',
+    };
+    return map[key] ?? key;
+  }
+}
+

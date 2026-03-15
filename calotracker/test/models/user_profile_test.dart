@@ -9,6 +9,8 @@ void main() {
         name: 'John Doe',
         height: 175.0,
         weight: 70.0,
+        age: 30,
+        gender: Gender.male,
         goal: 'maintain',
       );
 
@@ -27,10 +29,15 @@ void main() {
       const height = 175.0;
 
       // Act
-      final bmr = UserProfile.calculateBMR(weight, height);
+      final bmr = UserProfile.calculateBMR(
+        weight: weight,
+        height: height,
+        age: 30,
+        gender: Gender.male,
+      );
 
-      // Assert - Using simplified equation: BMR = 10 * weight + 6.25 * height - 78
-      final expectedBMR = 10 * weight + 6.25 * height - 78;
+      // Assert - Mifflin-St Jeor for male
+      final expectedBMR = 10 * weight + 6.25 * height - (5 * 30) + 5;
       expect(bmr, closeTo(expectedBMR, 0.1));
     });
 
@@ -73,11 +80,18 @@ void main() {
         name: 'Test User',
         height: 175.0,
         weight: 70.0,
+        age: 30,
+        gender: Gender.female,
         goal: 'lose',
       );
 
       // Assert
-      final expectedBMR = UserProfile.calculateBMR(70.0, 175.0);
+      final expectedBMR = UserProfile.calculateBMR(
+        weight: 70.0,
+        height: 175.0,
+        age: 30,
+        gender: Gender.female,
+      );
       final expectedTarget = UserProfile.calculateDailyTarget(
         expectedBMR,
         'lose',
@@ -93,6 +107,8 @@ void main() {
         name: 'Test User',
         height: 175.0,
         weight: 70.0,
+        age: 30,
+        gender: Gender.female,
         goal: 'lose',
       );
 
@@ -115,6 +131,8 @@ void main() {
         'name': 'Test User',
         'height': 175.0,
         'weight': 70.0,
+        'age': 30,
+        'gender': 'female',
         'goal': 'gain',
         'bmr': 1500.0,
         'daily_target': 1800.0,
@@ -141,6 +159,8 @@ void main() {
         name: 'Round Trip Test',
         height: 180.0,
         weight: 75.0,
+        age: 30,
+        gender: Gender.male,
         goal: 'maintain',
       );
 
@@ -163,6 +183,8 @@ void main() {
         name: 'Test',
         height: 170.0,
         weight: 70.0,
+        age: 30,
+        gender: Gender.female,
         goal: 'maintain',
       );
 
@@ -177,6 +199,8 @@ void main() {
         name: 'Original',
         height: 170.0,
         weight: 70.0,
+        age: 30,
+        gender: Gender.male,
         goal: 'maintain',
       );
 
@@ -196,6 +220,8 @@ void main() {
         name: 'Test',
         height: 170.0,
         weight: 80.0,
+        age: 30,
+        gender: Gender.male,
         goal: 'lose',
       );
 
@@ -203,6 +229,8 @@ void main() {
         name: 'Test',
         height: 170.0,
         weight: 60.0,
+        age: 30,
+        gender: Gender.female,
         goal: 'gain',
       );
 
@@ -210,6 +238,8 @@ void main() {
         name: 'Test',
         height: 170.0,
         weight: 70.0,
+        age: 30,
+        gender: Gender.female,
         goal: 'maintain',
       );
 

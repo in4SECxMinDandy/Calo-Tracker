@@ -147,25 +147,43 @@ class _SleepTrackingScreenState extends State<SleepTrackingScreen> {
   // ─────────────────────── Header ──────────────────────────────────────────
   Widget _buildHeader(Color textPrimary, Color textSecondary) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Giấc ngủ',
-              style: TextStyle(
-                color: textPrimary,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+        GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: textPrimary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              CupertinoIcons.back,
+              size: 18,
+              color: textPrimary,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Giấc ngủ',
+                style: TextStyle(
+                  color: textPrimary,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              DateFormat('EEEE, d MMMM', 'vi').format(DateTime.now()),
-              style: TextStyle(color: textSecondary, fontSize: 13),
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                DateFormat('EEEE, d MMMM', 'vi').format(DateTime.now()),
+                style: TextStyle(color: textSecondary, fontSize: 13),
+              ),
+            ],
+          ),
         ),
         // Add button with purple gradient
         GestureDetector(

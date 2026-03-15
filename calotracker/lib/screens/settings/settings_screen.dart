@@ -8,6 +8,7 @@ import '../../services/notification_service.dart';
 import '../../services/supabase_auth_service.dart';
 import '../../services/fcm_service.dart';
 import '../../services/pdf_export_service.dart';
+import '../../services/biometric_service.dart';
 import '../../theme/animated_app_icons.dart';
 import 'package:flutter_lucide_animated/flutter_lucide_animated.dart' as lucide;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -31,6 +32,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isDarkMode = false;
   bool _notificationsEnabled = true;
+  bool _biometricEnabled = false;
   String _language = 'vi';
   String _userName = '';
   double _height = 0;
@@ -48,6 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _isDarkMode = StorageService.isDarkMode();
       _notificationsEnabled = StorageService.isNotificationsEnabled();
+      _biometricEnabled = StorageService.isBiometricEnabled();
       _language = StorageService.getLanguage();
       _userName = profile?.name ?? 'User';
       _height = profile?.height ?? 0;
@@ -70,6 +73,78 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } else {
       await FCMService().initialize();
     }
+  }
+
+  Future<void> _toggleBiometrics(bool value) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (value) {
+      final isSupported = await BiometricService.isDeviceSupported();
+      final canCheck = await BiometricService.canCheckBiometrics();
+      if (!isSupported || !canCheck) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Thiết bị chưa hỗ trợ hoặc chưa thiết lập Face ID/Touch ID.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        if (mounted) setState(() => _biometricEnabled = false);
+        await StorageService.setBiometricEnabled(false);
+        return;
+      }
+      final result = await BiometricService.authenticate(
+        reason: 'Xác thực để bật Face ID/Touch ID',
+      );
+      if (!result.isSuccess) {
+        if (result.errorMessage != null) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(BiometricService.mapError(result.errorMessage!)),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        if (mounted) setState(() => _biometricEnabled = false);
+        await StorageService.setBiometricEnabled(false);
+        return;
+      }
+    }
+
+    await StorageService.setBiometricEnabled(value);
+    if (mounted) setState(() => _biometricEnabled = value);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(value ? '✅ Đã bật sinh trắc học' : 'Đã tắt sinh trắc học'),
+        backgroundColor: value ? Colors.green : null,
+      ),
+    );
+  }
+
+  Future<void> _testBiometrics() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await BiometricService.authenticate(
+      reason: 'Xác thực sinh trắc học để kiểm tra',
+    );
+    if (result.isSuccess) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('✅ Xác thực thành công'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      return;
+    }
+    if (result.isCancelled) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Đã hủy xác thực')),
+      );
+      return;
+    }
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(result.errorMessage ?? 'Xác thực không thành công'),
+        backgroundColor: Colors.orange,
+      ),
+    );
   }
 
   Future<void> _clearAllData() async {
@@ -207,6 +282,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 subtitle: 'Gửi thông báo test ngay',
                 isDark: isDark,
                 onTap: _testNotification,
+              ),
+            ]),
+            const SizedBox(height: 24),
+
+            // ── Bảo mật ───────────────────────────────────────────────
+            _SectionTitle('BẢO MẬT', textSecondary),
+            const SizedBox(height: 12),
+            _buildCard(card, divider, [
+              _SwitchItem(
+                iconWidget: const Icon(
+                  CupertinoIcons.lock_shield,
+                  size: 20,
+                  color: _kBlue,
+                ),
+                iconColor: _kBlue,
+                title: 'Sinh trắc học',
+                subtitle: _biometricEnabled
+                    ? 'Đang bật Face ID/Touch ID'
+                    : 'Đang tắt',
+                value: _biometricEnabled,
+                isDark: isDark,
+                onChanged: _toggleBiometrics,
+              ),
+              _Divider(divider),
+              _TapItem(
+                icon: CupertinoIcons.check_mark_circled_solid,
+                iconColor: _kGreen,
+                title: 'Kiểm tra sinh trắc học',
+                subtitle: 'Xác thực thử Face ID/Touch ID',
+                isDark: isDark,
+                onTap: _testBiometrics,
               ),
             ]),
             const SizedBox(height: 24),
@@ -853,6 +959,7 @@ class _SwitchItem extends StatelessWidget {
         isDark ? const Color(0xFF8B92A8) : const Color(0xFF6B7280);
 
     return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(
         width: 36,
         height: 36,
@@ -867,10 +974,13 @@ class _SwitchItem extends StatelessWidget {
         subtitle,
         style: TextStyle(color: textSecondary, fontSize: 12),
       ),
-      trailing: CupertinoSwitch(
-        value: value,
-        onChanged: onChanged,
-        activeTrackColor: _kGreen,
+      trailing: Transform.translate(
+        offset: const Offset(8, 0),
+        child: CupertinoSwitch(
+          value: value,
+          onChanged: onChanged,
+          activeTrackColor: _kGreen,
+        ),
       ),
     );
   }

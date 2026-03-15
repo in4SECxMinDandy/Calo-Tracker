@@ -11,6 +11,7 @@ import '../../theme/text_styles.dart';
 import '../../widgets/glass_card.dart';
 import 'widgets/post_card.dart';
 import 'widgets/create_post_sheet.dart';
+import 'group_chat_screen.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
@@ -597,6 +598,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               if (value == 'leave') _leaveGroup();
               if (value == 'edit') _editGroup();
               if (value == 'delete') _deleteGroup();
+              if (value == 'chat') _openGroupChat();
             },
             itemBuilder:
                 (context) => [
@@ -624,7 +626,19 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                     ),
                     const PopupMenuDivider(),
                   ],
-                  // Leave option for all members (except owner)
+                  const PopupMenuItem(
+                    value: 'chat',
+                    child: Row(
+                      children: [
+                        Icon(
+                          CupertinoIcons.chat_bubble_2_fill,
+                          color: Colors.blue,
+                        ),
+                        SizedBox(width: 8),
+                        Text('Chat nhóm'),
+                      ],
+                    ),
+                  ),
                   if (!_isOwner)
                     const PopupMenuItem(
                       value: 'leave',
@@ -1320,6 +1334,21 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     } catch (e) {
       _showSnackBar('Lỗi: $e', isError: true);
     }
+  }
+
+  void _openGroupChat() {
+    if (_group == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => GroupChatScreen(
+              groupId: _group!.id,
+              groupName: _group!.name,
+              groupCoverUrl: _group!.coverImageUrl,
+            ),
+      ),
+    );
   }
 
   void _showSnackBar(String message, {bool isError = false}) {

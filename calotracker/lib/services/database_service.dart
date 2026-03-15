@@ -14,7 +14,7 @@ import '../models/sleep_record.dart';
 class DatabaseService {
   static Database? _database;
   static const String _dbName = 'calotracker.db';
-  static const int _dbVersion = 6; // Updated version for avatar support
+  static const int _dbVersion = 7; // Updated version for age/gender support
 
   /// Get database instance (singleton)
   static Future<Database> get database async {
@@ -45,6 +45,8 @@ class DatabaseService {
         name TEXT NOT NULL,
         height REAL NOT NULL,
         weight REAL NOT NULL,
+        age INTEGER DEFAULT 30,
+        gender TEXT DEFAULT 'female',
         goal TEXT NOT NULL,
         bmr REAL NOT NULL,
         daily_target REAL NOT NULL,
@@ -218,6 +220,14 @@ class DatabaseService {
     // Migration from v5 to v6: Add avatar_url to users table
     if (oldVersion < 6) {
       await db.execute('ALTER TABLE users ADD COLUMN avatar_url TEXT');
+    }
+
+    // Migration from v6 to v7: Add age and gender to users table
+    if (oldVersion < 7) {
+      await db.execute('ALTER TABLE users ADD COLUMN age INTEGER DEFAULT 30');
+      await db.execute(
+        "ALTER TABLE users ADD COLUMN gender TEXT DEFAULT 'female'",
+      );
     }
   }
 

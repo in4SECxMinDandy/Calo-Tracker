@@ -14,6 +14,7 @@ class StorageService {
   static const String _keyLanguage = 'language';
   static const String _keyCountry = 'country';
   static const String _keyNotificationsEnabled = 'notifications_enabled';
+  static const String _keyBiometricEnabled = 'biometric_enabled';
   static const String _keyOnlineMode = 'online_mode';
   static const String _keyHasSeenWelcome = 'has_seen_welcome';
 
@@ -144,6 +145,18 @@ class StorageService {
   /// Check if notifications are enabled
   static bool isNotificationsEnabled() {
     return prefs.getBool(_keyNotificationsEnabled) ?? true;
+  }
+
+  // ==================== BIOMETRICS ====================
+
+  /// Enable/disable biometric auth
+  static Future<bool> setBiometricEnabled(bool enabled) async {
+    return await prefs.setBool(_keyBiometricEnabled, enabled);
+  }
+
+  /// Check if biometric auth is enabled
+  static bool isBiometricEnabled() {
+    return prefs.getBool(_keyBiometricEnabled) ?? false;
   }
 
   // ==================== UTILITY ====================

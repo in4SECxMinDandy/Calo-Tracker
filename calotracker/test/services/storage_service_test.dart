@@ -21,6 +21,8 @@ void main() {
         name: 'Test User',
         height: 170.0,
         weight: 70.0,
+        age: 30,
+        gender: Gender.female,
         goal: 'maintain',
       );
 
@@ -49,6 +51,8 @@ void main() {
         name: 'Test User',
         height: 170.0,
         weight: 70.0,
+        age: 30,
+        gender: Gender.male,
         goal: 'maintain',
       );
       await StorageService.saveUserProfile(profile);
@@ -67,6 +71,8 @@ void main() {
         name: 'Test User',
         height: 170.0,
         weight: 70.0,
+        age: 30,
+        gender: Gender.female,
         goal: 'maintain',
       );
 
@@ -121,6 +127,8 @@ void main() {
         name: 'Test User',
         height: 170.0,
         weight: 70.0,
+        age: 30,
+        gender: Gender.female,
         goal: 'maintain',
       );
       await StorageService.saveUserProfile(profile);
