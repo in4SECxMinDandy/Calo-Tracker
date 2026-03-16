@@ -8,12 +8,10 @@ import 'nutrition_service.dart';
 import '../models/chat_message.dart';
 
 class FoodRecognitionService {
-  // Orbit API Configuration (Anthropic-compatible with Gemini)
-  // Using user's custom API endpoint
-  static const String _apiBaseUrl =
-      'https://api.orbit-provider.com/cliproxy-api/api/provider/agy';
-  static const String _apiKey = 'sk-orbit-96d3d67e76dea5043feb3c5fa64be0c8';
-  static const String _model = 'gemini-2.5-flash-preview';
+  // Anthropic (TapHoaApi Proxy) API Configuration
+  static const String _anthropicApiKey = 'sk-proj-69981a1c7a6c4bb3ad6f5c34f274cadd';
+  static const String _anthropicUrl = 'https://taphoaapi.info.vn/v1/messages';
+  static const String _anthropicModel = 'claude-haiku-4-5-20251001';
 
   // Alternative: OpenAI API (backup)
   static const String _openaiApiKey = 'YOUR_OPENAI_API_KEY';
@@ -26,33 +24,30 @@ class FoodRecognitionService {
 
   /// Check if API is configured
   static bool get isConfigured =>
-      (_apiKey.isNotEmpty && _apiKey != 'YOUR_API_KEY') ||
-      (_openaiApiKey.isNotEmpty && _openaiApiKey != 'YOUR_OPENAI_API_KEY');
+      _anthropicApiKey.isNotEmpty || _openaiApiKey.isNotEmpty;
 
   /// Recognize food from image using AI Vision API
   static Future<FoodRecognitionResult> recognizeFood(File imageFile) async {
-    // First try Orbit API (Gemini Vision)
-    if (_apiKey.isNotEmpty && _apiKey != 'YOUR_API_KEY') {
-      return _recognizeWithOrbitAPI(imageFile);
+    // Ưu tiên sử dụng Anthropic API qua proxy của taphoaapi
+    if (_anthropicApiKey.isNotEmpty && !_anthropicApiKey.contains('YOUR_ANTHROPIC_API_KEY')) {
+      return await _recognizeWithAnthropicAPI(imageFile);
     }
 
-    // Fallback to OpenAI Vision
-    if (_openaiApiKey.isNotEmpty && _openaiApiKey != 'YOUR_OPENAI_API_KEY') {
-      return _recognizeWithOpenAI(imageFile);
+    // Dự phòng OpenAI
+    if (_openaiApiKey.isNotEmpty && !_openaiApiKey.contains('YOUR_OPENAI_API_KEY')) {
+      return await _recognizeWithOpenAI(imageFile);
     }
-
-    // Fallback to Clarifai
     if (_clarifaiApiKey.isNotEmpty &&
         _clarifaiApiKey != 'YOUR_CLARIFAI_API_KEY') {
       return _recognizeWithClarifai(imageFile);
     }
 
-    // No API configured - use demo mode with basic recognition
+    // No API configured - use demo mode
     return _demoRecognition();
   }
 
-  /// Recognize food using Orbit API (Anthropic-compatible with Gemini)
-  static Future<FoodRecognitionResult> _recognizeWithOrbitAPI(
+  /// Recognize food using Anthropic API
+  static Future<FoodRecognitionResult> _recognizeWithAnthropicAPI(
     File imageFile,
   ) async {
     try {
@@ -60,17 +55,18 @@ class FoodRecognitionService {
       final bytes = await imageFile.readAsBytes();
       final base64Image = base64Encode(bytes);
 
-      // Anthropic-style API request with Gemini model
+      // Anthropic API request (via Proxy)
       final response = await http
           .post(
-            Uri.parse('$_apiBaseUrl/v1/messages'),
+            Uri.parse(_anthropicUrl),
             headers: {
-              'Authorization': 'Bearer $_apiKey',
+              'x-api-key': _anthropicApiKey,
+              'Authorization': 'Bearer $_anthropicApiKey', // Thêm Authorization đề phòng Proxy yêu cầu
               'anthropic-version': '2023-06-01',
               'Content-Type': 'application/json',
             },
             body: jsonEncode({
-              'model': _model,
+              'model': _anthropicModel,
               'max_tokens': 1024,
               'messages': [
                 {
@@ -87,21 +83,34 @@ class FoodRecognitionService {
                     {
                       'type': 'text',
                       'text':
-                          '''Analyze this food image. Identify all food items.
+                          '''You are an expert Vietnamese food nutritionist. Analyze this food image very carefully. Identify all the specific dishes and ingredients. If it's a traditional dish like "Bún Chả", identify the components properly (Grilled pork, Rice noodles, Herbs, Fish sauce).
 
-Return ONLY a JSON object in this exact format (no markdown, no explanation):
+Translate the dishes into their most accurate Vietnamese names. Estimate the weight based on visual proportions.
+
+Return ONLY a JSON object in exactly this format without any other markdown or text:
 {
   "foods": [
     {
-      "name": "Tên món ăn tiếng Việt",
-      "name_en": "Food name in English",
-      "estimated_weight": 150,
-      "confidence": 0.95
+      "name": "Bún chả",
+      "name_en": "Grilled pork banh mi",
+      "estimated_weight_grams": 250,
+      "confidence_score": 0.92,
+      "macros_per_100g": {
+        "protein_g": 10,
+        "carbs_g": 25,
+        "fat_g": 6
+      }
     }
   ]
 }
 
-If no food is detected, return: {"foods": [], "error": "No food detected"}''',
+Very crucial rules:
+1. Always output Vietnamese names for "name".
+2. Estimate the realistic total weight of the dish in grams.
+3. Provide realistic macro breakdown per 100g. Ensure Total Macros (Protein + Carbs + Fat) in 100g NEVER exceeds 100g, and realistically should be much lower because of water content (typically 40%-90% water).
+4. If it's a dish with high water content (soups, noodle soups), macros_per_100g will be very low (e.g. 5g-15g).
+
+If no food is detected, return: {"foods": [], "error": "Không nhận diện được thức ăn"}''',
                     },
                   ],
                 },
@@ -140,11 +149,15 @@ If no food is detected, return: {"foods": [], "error": "No food detected"}''',
                 (foodData['foods'] as List)
                     .map(
                       (f) => RecognizedFood(
-                        name: f['name'] ?? f['name_en'] ?? 'Unknown',
+                        name: f['food_name'] ?? f['name'] ?? f['name_en'] ?? 'Unknown',
                         nameEn: f['name_en'] ?? f['name'],
-                        estimatedWeight:
-                            (f['estimated_weight'] ?? 100).toDouble(),
-                        confidence: (f['confidence'] ?? 0.8).toDouble(),
+                        estimatedWeight: ((f['estimated_weight_grams'] ?? f['estimated_weight']) ?? 100).toDouble(),
+                        confidence: (f['confidence_score'] ?? f['confidence'] ?? 0.8).toDouble(),
+                        macrosPer100g: f['macros_per_100g'] != null ? {
+                          'protein_g': (f['macros_per_100g']['protein_g'] ?? 0).toDouble(),
+                          'carbs_g': (f['macros_per_100g']['carbs_g'] ?? 0).toDouble(),
+                          'fat_g': (f['macros_per_100g']['fat_g'] ?? 0).toDouble(),
+                        } : null,
                       ),
                     )
                     .toList();
@@ -158,13 +171,13 @@ If no food is detected, return: {"foods": [], "error": "No food detected"}''',
             return FoodRecognitionResult.success(foods);
           }
         } catch (e) {
-          return FoodRecognitionResult.error('Không thể phân tích kết quả: $e');
+          return FoodRecognitionResult.error('Không thể phân tích kết quả: $e\nNội dung từ API: $content');
         }
       } else if (response.statusCode == 401 || response.statusCode == 403) {
-        return FoodRecognitionResult.error('API key không hợp lệ');
+        return FoodRecognitionResult.error('API key không hợp lệ đối với máy chủ Anthropic');
       } else {
         return FoodRecognitionResult.error(
-          'Lỗi server: ${response.statusCode}\n${response.body}',
+          'Lỗi máy chủ Anthropic (${response.statusCode}): ${response.body}',
         );
       }
 
@@ -236,6 +249,7 @@ If no food is detected, return: {"foods": [], "error": "No food detected"}''',
                 },
               ],
               'max_tokens': 500,
+              'response_format': {'type': 'json_object'},
             }),
           )
           .timeout(const Duration(seconds: 60));
@@ -273,13 +287,13 @@ If no food is detected, return: {"foods": [], "error": "No food detected"}''',
           }
         } catch (e) {
           // If JSON parsing fails, try to extract food names
-          return FoodRecognitionResult.error('Không thể phân tích kết quả');
+          return FoodRecognitionResult.error('Không thể phân tích kết quả: $content');
         }
       } else if (response.statusCode == 401) {
-        return FoodRecognitionResult.error('API key không hợp lệ');
+        return FoodRecognitionResult.error('API key không hợp lệ hoặc đã hết hạn');
       } else {
         return FoodRecognitionResult.error(
-          'Lỗi server: ${response.statusCode}',
+          'Lỗi API (${response.statusCode}): ${response.body}',
         );
       }
 
@@ -396,37 +410,76 @@ If no food is detected, return: {"foods": [], "error": "No food detected"}''',
     List<FoodItem> foodItems = [];
 
     for (final food in foods) {
-      // Use Vietnamese name for local database, English for API
-      final result = await NutritionService.queryNutrition(food.name);
+      if (food.macrosPer100g != null) {
+        // Áp dụng thuật toán Sanity Check nội bộ ngay từ đầu vào API
+        double scale = food.estimatedWeight / 100;
+        
+        double p100 = food.macrosPer100g!['protein_g'] ?? 0;
+        double c100 = food.macrosPer100g!['carbs_g'] ?? 0;
+        double f100 = food.macrosPer100g!['fat_g'] ?? 0;
 
-      if (result.isSuccess && result.data != null) {
-        // Scale by estimated weight
-        final scale = food.estimatedWeight / 100;
-        totalCalories += result.data!.calories * scale;
-        totalProtein += (result.data!.protein ?? 0) * scale;
-        totalCarbs += (result.data!.carbs ?? 0) * scale;
-        totalFat += (result.data!.fat ?? 0) * scale;
+        // Validation Rule 1: Bảo toàn khối lượng
+        if ((p100 + c100 + f100) > 100) {
+           p100 = 10; c100 = 20; f100 = 5; // Reset khẩn cấp nếu bị ảo giác vượt 100%
+        }
+
+        // Validation Rule 2: Áp dụng cứng công thức Atwater tính Kcal
+        double kcal100 = (p100 * 4) + (c100 * 4) + (f100 * 9);
+        
+        totalCalories += kcal100 * scale;
+        totalProtein += p100 * scale;
+        totalCarbs += c100 * scale;
+        totalFat += f100 * scale;
 
         foodItems.add(
           FoodItem(
             name: food.name,
-            calories: result.data!.calories * scale,
+            calories: kcal100 * scale,
             weight: food.estimatedWeight,
           ),
         );
       } else {
-        // If not found, use estimated values
-        foodItems.add(
-          FoodItem(
-            name: food.name,
-            calories: 150 * (food.estimatedWeight / 100),
-            weight: food.estimatedWeight,
-          ),
-        );
-        totalCalories += 150 * (food.estimatedWeight / 100);
-        totalProtein += 8 * (food.estimatedWeight / 100);
-        totalCarbs += 18 * (food.estimatedWeight / 100);
-        totalFat += 5 * (food.estimatedWeight / 100);
+        // Fallback về database cũ nếu Model cũ không nhả form mới
+        final result = await NutritionService.queryNutrition(food.name);
+
+        if (result.isSuccess && result.data != null) {
+          final scale = food.estimatedWeight / 100;
+          totalCalories += result.data!.calories * scale;
+          totalProtein += (result.data!.protein ?? 0) * scale;
+          totalCarbs += (result.data!.carbs ?? 0) * scale;
+          totalFat += (result.data!.fat ?? 0) * scale;
+
+          foodItems.add(
+            FoodItem(
+              name: food.name,
+              calories: result.data!.calories * scale,
+              weight: food.estimatedWeight,
+            ),
+          );
+        } else {
+          // If not found, use a dynamic generic value based on food type
+          double calPer100g = 150;
+          if (food.name.toLowerCase().contains('bún') || food.name.toLowerCase().contains('phở')) {
+            calPer100g = 120;
+          } else if (food.name.toLowerCase().contains('chiên') || food.name.toLowerCase().contains('rán')) {
+            calPer100g = 250;
+          } else if (food.name.toLowerCase().contains('chả')) {
+            calPer100g = 200;
+          }
+          
+          totalCalories += calPer100g * (food.estimatedWeight / 100);
+          totalProtein += 8 * (food.estimatedWeight / 100);
+          totalCarbs += 18 * (food.estimatedWeight / 100);
+          totalFat += (calPer100g > 150 ? 10 : 5) * (food.estimatedWeight / 100);
+
+          foodItems.add(
+            FoodItem(
+              name: food.name,
+              calories: calPer100g * (food.estimatedWeight / 100),
+              weight: food.estimatedWeight,
+            ),
+          );
+        }
       }
     }
 
@@ -470,12 +523,14 @@ class RecognizedFood {
   final String nameEn;
   final double estimatedWeight;
   final double confidence;
+  final Map<String, double>? macrosPer100g;
 
   RecognizedFood({
     required this.name,
     required this.nameEn,
     required this.estimatedWeight,
     required this.confidence,
+    this.macrosPer100g,
   });
 
   @override
