@@ -7,6 +7,7 @@ import '../../models/gym_session.dart';
 import 'gym_session_card.dart';
 import 'premium_time_picker.dart';
 import 'package:line_icons/line_icons.dart';
+import '../../services/database_service.dart';
 
 class GymSchedulePage extends StatefulWidget {
   const GymSchedulePage({super.key});
@@ -16,37 +17,36 @@ class GymSchedulePage extends StatefulWidget {
 }
 
 class _GymSchedulePageState extends State<GymSchedulePage> {
-  // Demo sessions data
-  final List<GymSession> _sessions = [
-    GymSession(
-      scheduledTime: DateTime.now().subtract(const Duration(hours: 2)),
-      gymType: 'Gym ngực',
-      estimatedCalories: 350,
-      durationMinutes: 60,
-      isCompleted: true,
-    ),
-    GymSession(
-      scheduledTime: DateTime.now().add(const Duration(hours: 3)),
-      gymType: 'Gym chân',
-      estimatedCalories: 400,
-      durationMinutes: 90,
-      isCompleted: false,
-    ),
-    GymSession(
-      scheduledTime: DateTime.now().add(const Duration(days: 1, hours: 7)),
-      gymType: 'HIIT',
-      estimatedCalories: 500,
-      durationMinutes: 45,
-      isCompleted: false,
-    ),
-    GymSession(
-      scheduledTime: DateTime.now().add(const Duration(days: 2, hours: 6)),
-      gymType: 'Yoga',
-      estimatedCalories: 150,
-      durationMinutes: 60,
-      isCompleted: false,
-    ),
-  ];
+  // Sessions data loaded from database
+  List<GymSession> _sessions = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSessions();
+  }
+
+  Future<void> _loadSessions() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      // Load ALL sessions (past, today, and future) - no date limit
+      final allSessions = await DatabaseService.getAllGymSessions();
+      
+      if (mounted) {
+        setState(() {
+          _sessions = allSessions;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading sessions: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   // Stats
   int get _totalSessions => _sessions.length;
@@ -59,7 +59,9 @@ class _GymSchedulePageState extends State<GymSchedulePage> {
     return Scaffold(
       backgroundColor: PremiumTheme.background,
       body: SafeArea(
-        child: CustomScrollView(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : CustomScrollView(
           slivers: [
             // Header
             _buildHeader(),

@@ -14,7 +14,7 @@ import '../models/sleep_record.dart';
 class DatabaseService {
   static Database? _database;
   static const String _dbName = 'calotracker.db';
-  static const int _dbVersion = 7; // Updated version for age/gender support
+  static const int _dbVersion = 8; // Added passive sleep tracking tables
 
   /// Get database instance (singleton)
   static Future<Database> get database async {
@@ -140,6 +140,31 @@ class DatabaseService {
       )
     ''');
 
+    // Passive sleep tracking tables (v8)
+    await db.execute('''
+      CREATE TABLE sleep_sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        start_time INTEGER NOT NULL,
+        end_time INTEGER NOT NULL,
+        duration_minutes INTEGER NOT NULL,
+        source TEXT NOT NULL DEFAULT 'estimated_phone_sensors',
+        confidence_score INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        signal_summary TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE sleep_signal_events (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        value TEXT NOT NULL,
+        timestamp INTEGER NOT NULL,
+        metadata TEXT
+      )
+    ''');
+
     // Create indexes for better query performance
     await db.execute('CREATE INDEX idx_meals_date ON meals(date_time)');
     await db.execute(
@@ -153,6 +178,12 @@ class DatabaseService {
       'CREATE INDEX idx_weight_date ON weight_records(date_time)',
     );
     await db.execute('CREATE INDEX idx_sleep_date ON sleep_records(date)');
+    await db.execute(
+      'CREATE INDEX idx_sleep_sessions_start ON sleep_sessions(start_time)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_sleep_signal_timestamp ON sleep_signal_events(timestamp)',
+    );
   }
 
   /// Handle database upgrades
@@ -227,6 +258,43 @@ class DatabaseService {
       await db.execute('ALTER TABLE users ADD COLUMN age INTEGER DEFAULT 30');
       await db.execute(
         "ALTER TABLE users ADD COLUMN gender TEXT DEFAULT 'female'",
+      );
+    }
+
+    // Migration from v7 to v8: Add passive sleep tracking tables
+    if (oldVersion < 8) {
+      // Sleep sessions table (estimated sleep from phone sensors)
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS sleep_sessions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          start_time INTEGER NOT NULL,
+          end_time INTEGER NOT NULL,
+          duration_minutes INTEGER NOT NULL,
+          source TEXT NOT NULL DEFAULT 'estimated_phone_sensors',
+          confidence_score INTEGER NOT NULL,
+          created_at INTEGER NOT NULL,
+          signal_summary TEXT
+        )
+      ''');
+      
+      // Sleep signal events table (raw sensor data)
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS sleep_signal_events (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          value TEXT NOT NULL,
+          timestamp INTEGER NOT NULL,
+          metadata TEXT
+        )
+      ''');
+      
+      // Create indexes
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sleep_sessions_start ON sleep_sessions(start_time)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sleep_signal_timestamp ON sleep_signal_events(timestamp)',
       );
     }
   }
@@ -818,6 +886,26 @@ class DatabaseService {
     final results = await db.query(
       'gym_sessions',
       orderBy: 'scheduled_time DESC',
+    );
+    return results.map((m) => GymSession.fromMap(m)).toList();
+  }
+
+  /// Get upcoming gym sessions for the next N days (for preview)
+  /// This allows viewing sessions beyond just tomorrow
+  static Future<List<GymSession>> getUpcomingGymSessions({int days = 30}) async {
+    final db = await database;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final endDate = today.add(Duration(days: days));
+
+    final results = await db.query(
+      'gym_sessions',
+      where: 'scheduled_time >= ? AND scheduled_time < ?',
+      whereArgs: [
+        today.millisecondsSinceEpoch,
+        endDate.millisecondsSinceEpoch,
+      ],
+      orderBy: 'scheduled_time ASC',
     );
     return results.map((m) => GymSession.fromMap(m)).toList();
   }

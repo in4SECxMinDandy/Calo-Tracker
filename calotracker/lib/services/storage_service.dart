@@ -3,6 +3,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_profile.dart';
+import '../models/sleep_signal_event.dart';
 
 class StorageService {
   static SharedPreferences? _prefs;
@@ -188,5 +189,74 @@ class StorageService {
   /// Check if user has seen welcome screen
   static bool hasSeenWelcome() {
     return prefs.getBool(_keyHasSeenWelcome) ?? false;
+  }
+
+  // ==================== PASSIVE SLEEP TRACKING ====================
+
+  // Keys
+  static const String _keyPassiveSleepEnabled = 'passive_sleep_enabled';
+  static const String _keySleepSignalEvents = 'sleep_signal_events';
+  static const String _keySleepSessions = 'sleep_sessions';
+
+  /// Enable/disable passive sleep tracking
+  static Future<bool> setPassiveSleepEnabled(bool enabled) async {
+    return await prefs.setBool(_keyPassiveSleepEnabled, enabled);
+  }
+
+  /// Check if passive sleep tracking is enabled
+  static bool isPassiveSleepEnabled() {
+    return prefs.getBool(_keyPassiveSleepEnabled) ?? false;
+  }
+
+  /// Save sleep signal events (batch) - accepts SleepSignalEvent objects
+  static Future<bool> saveSleepSignalEvents(List<SleepSignalEvent> events) async {
+    final eventsMap = events.map((e) => e.toMap()).toList();
+    final json = jsonEncode(eventsMap);
+    return await prefs.setString(_keySleepSignalEvents, json);
+  }
+
+  /// Save sleep signal events (batch) - accepts List of Map
+  static Future<bool> saveSleepSignalEventsRaw(List<Map<String, dynamic>> events) async {
+    final json = jsonEncode(events);
+    return await prefs.setString(_keySleepSignalEvents, json);
+  }
+
+  /// Get sleep signal events
+  static List<Map<String, dynamic>> getSleepSignalEvents() {
+    final json = prefs.getString(_keySleepSignalEvents);
+    if (json == null) return [];
+
+    try {
+      final list = jsonDecode(json) as List;
+      return list.cast<Map<String, dynamic>>();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Save sleep sessions
+  static Future<bool> saveSleepSessions(List<Map<String, dynamic>> sessions) async {
+    final json = jsonEncode(sessions);
+    return await prefs.setString(_keySleepSessions, json);
+  }
+
+  /// Get sleep sessions
+  static List<Map<String, dynamic>> getSleepSessions() {
+    final json = prefs.getString(_keySleepSessions);
+    if (json == null) return [];
+
+    try {
+      final list = jsonDecode(json) as List;
+      return list.cast<Map<String, dynamic>>();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Delete all sleep data
+  static Future<bool> deleteAllSleepData() async {
+    await prefs.remove(_keySleepSignalEvents);
+    await prefs.remove(_keySleepSessions);
+    return true;
   }
 }

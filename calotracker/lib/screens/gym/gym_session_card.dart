@@ -85,12 +85,38 @@ class GymSessionCard extends StatelessWidget {
                               color: PremiumTheme.neonLime,
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              DateFormat(
-                                'dd/MM HH:mm',
-                              ).format(session.scheduledTime),
-                              style: PremiumTheme.titleMedium.copyWith(
-                                color: PremiumTheme.textPrimary,
+                            Expanded(
+                              child: Text(
+                                DateFormat(
+                                  'dd/MM HH:mm',
+                                ).format(session.scheduledTime),
+                                style: PremiumTheme.titleMedium.copyWith(
+                                  color: PremiumTheme.textPrimary,
+                                ),
+                              ),
+                            ),
+                            // Status label
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: session.isCompleted
+                                    ? PremiumTheme.neonLime.withValues(alpha: 0.2)
+                                    : (session.isUpcoming
+                                        ? Colors.orange.withValues(alpha: 0.2)
+                                        : PremiumTheme.textMuted.withValues(alpha: 0.2)),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                session.statusLabel,
+                                style: TextStyle(
+                                  color: session.isCompleted
+                                      ? PremiumTheme.neonLime
+                                      : (session.isUpcoming
+                                          ? Colors.orange
+                                          : PremiumTheme.textMuted),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
                           ],
@@ -143,7 +169,11 @@ class GymSessionCard extends StatelessWidget {
 
                   // Action Button
                   IconButton(
-                    onPressed: session.isCompleted ? null : onComplete,
+                    onPressed: session.isCompleted 
+                        ? null 
+                        : session.canCheckIn 
+                            ? onComplete 
+                            : null,
                     icon: Icon(
                       session.isCompleted
                           ? LineIcons.checkCircle
@@ -151,7 +181,9 @@ class GymSessionCard extends StatelessWidget {
                       color:
                           session.isCompleted
                               ? PremiumTheme.neonLime
-                              : PremiumTheme.textSecondary,
+                              : (session.canCheckIn 
+                                  ? PremiumTheme.textSecondary 
+                                  : PremiumTheme.textMuted),
                     ),
                   ),
                 ],

@@ -4,7 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import '../../models/sleep_record.dart';
+import '../../models/sleep_session_estimated.dart';
 import '../../services/sleep_service.dart';
+import '../../services/sleep/passive_sleep_service.dart';
+import '../../widgets/passive_sleep_settings_card.dart';
+import '../../widgets/estimated_sleep_card.dart';
 
 // ─────────────────────────── Design tokens ───────────────────────────────────
 const _kPurple = Color(0xFF6B73FF);
@@ -27,6 +31,9 @@ class _SleepTrackingScreenState extends State<SleepTrackingScreen> {
   List<SleepRecord> _recentRecords = [];
   List<SleepRecommendation> _recommendations = [];
   bool _isLoading = true;
+  
+  // Passive sleep tracking state
+  List<SleepSessionEstimated> _estimatedSessions = [];
 
   @override
   void initState() {
@@ -41,12 +48,17 @@ class _SleepTrackingScreenState extends State<SleepTrackingScreen> {
       final stats = await SleepService.getSleepStats(days: 7);
       final records = await SleepService.getRecentSleepRecords(7);
       final recs = await SleepService.getRecommendations();
+      
+      // Load passive sleep sessions
+      final estimated = PassiveSleepService.instance.estimatedSessions;
+      
       if (mounted) {
         setState(() {
           _lastNightSleep = lastNight;
           _weekStats = stats;
           _recentRecords = records;
           _recommendations = recs;
+          _estimatedSessions = estimated;
           _isLoading = false;
         });
       }
@@ -79,6 +91,19 @@ class _SleepTrackingScreenState extends State<SleepTrackingScreen> {
                       // ── Header ───────────────────────────────────────────
                       _buildHeader(textPrimary, textSecondary),
                       const SizedBox(height: 24),
+
+                      // ── Passive Sleep Tracking Toggle ─────────────────────
+                      PassiveSleepSettingsCard(
+                        onToggle: _loadData,
+                        onAnalyzeRequested: _loadData,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // ── Estimated Sleep Sessions (if any) ───────────────
+                      if (_estimatedSessions.isNotEmpty) ...[
+                        _buildEstimatedSessionsSection(textPrimary, textSecondary),
+                        const SizedBox(height: 20),
+                      ],
 
                       // ── 3 Stat Cards ─────────────────────────────────────
                       _buildStatRow(isDark),
@@ -207,6 +232,33 @@ class _SleepTrackingScreenState extends State<SleepTrackingScreen> {
               ],
             ),
             child: const Icon(Icons.add, color: Colors.white, size: 24),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─────────────────────── Estimated Sleep Sessions ───────────────────────
+  Widget _buildEstimatedSessionsSection(Color textPrimary, Color textSecondary) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Giấc ngủ ước tính từ điện thoại',
+          style: TextStyle(
+            color: textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 14),
+        ..._estimatedSessions.take(3).map(
+          (session) => EstimatedSleepCard(
+            session: session,
+            onTap: () {},
+            onEdit: () {
+              // TODO: Show edit dialog for manual adjustment
+            },
           ),
         ),
       ],

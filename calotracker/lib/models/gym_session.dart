@@ -315,6 +315,61 @@ class GymSession {
     return !isCompleted && scheduledTime.isBefore(DateTime.now());
   }
 
+  // ==================== PERMISSION HELPERS ====================
+  
+  /// Get date-only (without time) for proper date comparison
+  DateTime get dateOnly {
+    return DateTime(scheduledTime.year, scheduledTime.month, scheduledTime.day);
+  }
+  
+  /// Check if session can be previewed (viewed)
+  /// Always true for any valid session date (past, today, or future)
+  bool get canPreview {
+    // Can preview any session that exists
+    return true;
+  }
+  
+  /// Check if session can be started/completed (action)
+  /// Can only start if session date is today or in the past (allow early start)
+  /// For scheduling purposes, you might want to allow starting early
+  bool get canPerformAction {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final sessionDate = dateOnly;
+    
+    // Can perform action if:
+    // 1. Session is today
+    // 2. Session is in the past (catch up)
+    // 3. Session is in the future but user explicitly wants to start early
+    return sessionDate.isBefore(today.add(const Duration(days: 1)));
+  }
+  
+  /// Check if session can be checked in/completed
+  /// More restrictive - only allow on the scheduled day or after
+  bool get canCheckIn {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final sessionDate = dateOnly;
+    
+    // Can check in if session date is today or in the past
+    return !sessionDate.isAfter(today);
+  }
+  
+  /// Get status label for UI
+  String get statusLabel {
+    if (isCompleted) return 'Đã hoàn thành';
+    if (isToday) return 'Hôm nay';
+    if (isUpcoming) return 'Sắp tới';
+    if (isOverdue) return 'Quá hạn';
+    return 'Đã lên lịch';
+  }
+  
+  /// Get session date in local format
+  String get sessionDateFormatted {
+    final weekdays = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    return '${weekdays[scheduledTime.weekday % 7]}, ${scheduledTime.day}/${scheduledTime.month}';
+  }
+
   @override
   String toString() {
     return 'GymSession(id: $id, type: $gymType, time: $timeRangeStr, duration: ${durationMinutes}min, completed: $isCompleted)';
