@@ -924,6 +924,22 @@ class CommunityService {
   Future<void> likePost(String postId) async {
     if (_userId == null) return;
 
+    // Get post to find the owner
+    final post = await _client
+        .from('posts')
+        .select('user_id, content')
+        .eq('id', postId)
+        .maybeSingle();
+
+    if (post == null) return;
+
+    // Don't create notification if liking own post
+    final postOwnerId = post['user_id'] as String;
+    if (postOwnerId == _userId) {
+      debugPrint('⚠️ Not creating self-notification for like');
+      return;
+    }
+
     await _client.from('likes').insert({'user_id': _userId, 'post_id': postId});
 
     await _client.rpc(
@@ -934,6 +950,16 @@ class CommunityService {
         'row_id': postId,
         'amount': 1,
       },
+    );
+
+    // Create notification for post owner
+    await _createNotification(
+      recipientId: postOwnerId,
+      type: NotificationType.like,
+      title: 'Có người thích bài viết của bạn',
+      body: post['content'] as String?,
+      actorId: _userId,
+      relatedPostId: postId,
     );
   }
 
@@ -979,6 +1005,15 @@ class CommunityService {
   }) async {
     if (_userId == null) throw Exception('User not authenticated');
 
+    // Get post to find the owner
+    final post = await _client
+        .from('posts')
+        .select('user_id, content')
+        .eq('id', postId)
+        .maybeSingle();
+
+    final postOwnerId = post?['user_id'] as String?;
+
     final response =
         await _client
             .from('comments')
@@ -1000,6 +1035,18 @@ class CommunityService {
         'amount': 1,
       },
     );
+
+    // Create notification for post owner (not for replies to other comments)
+    if (postOwnerId != null && postOwnerId != _userId && parentId == null) {
+      await _createNotification(
+        recipientId: postOwnerId,
+        type: NotificationType.comment,
+        title: 'Có người bình luận bài viết của bạn',
+        body: content.length > 100 ? '${content.substring(0, 100)}...' : content,
+        actorId: _userId,
+        relatedPostId: postId,
+      );
+    }
 
     return Comment.fromJson(response);
   }
@@ -1107,6 +1154,83 @@ class CommunityService {
         .eq('is_read', false);
   }
 
+  /// Create a notification (internal helper)
+  Future<void> _createNotification({
+    required String recipientId,
+    required NotificationType type,
+    required String title,
+    String? body,
+    String? actorId,
+    String? relatedPostId,
+    String? relatedCommentId,
+    String? relatedChallengeId,
+    String? relatedGroupId,
+    String? actionUrl,
+  }) async {
+    try {
+      await _client.from('notifications').insert({
+        'user_id': recipientId,
+        'type': type.value,
+        'title': title,
+        'body': body,
+        'actor_id': actorId,
+        'related_post_id': relatedPostId,
+        'related_comment_id': relatedCommentId,
+        'related_challenge_id': relatedChallengeId,
+        'related_group_id': relatedGroupId,
+        'action_url': actionUrl,
+        'is_read': false,
+      });
+      debugPrint('✅ Notification created: $type for user $recipientId');
+    } catch (e) {
+      debugPrint('❌ Error creating notification: $e');
+    }
+  }
+
+  /// Create a notification (public method for external services)
+  Future<void> createNotification({
+    required String recipientId,
+    required NotificationType type,
+    required String title,
+    String? body,
+    String? actorId,
+    String? relatedPostId,
+    String? relatedCommentId,
+    String? relatedChallengeId,
+    String? relatedGroupId,
+    String? actionUrl,
+  }) async {
+    await _createNotification(
+      recipientId: recipientId,
+      type: type,
+      title: title,
+      body: body,
+      actorId: actorId,
+      relatedPostId: relatedPostId,
+      relatedCommentId: relatedCommentId,
+      relatedChallengeId: relatedChallengeId,
+      relatedGroupId: relatedGroupId,
+      actionUrl: actionUrl,
+    );
+  }
+
+  /// Subscribe to unread notification count changes
+  /// Returns a stream that emits the current count of unread notifications
+  /// whenever the notifications table changes for the current user
+  Stream<int> watchUnreadNotificationCount() {
+    if (_userId == null) return const Stream.empty();
+
+    // Subscribe to all notifications and compute count from the snapshot
+    return _client
+        .from('notifications')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', _userId!)
+        .map((List<Map<String, dynamic>> data) {
+          // Count unread notifications from the stream data
+          return data.where((n) => n['is_read'] != true).length;
+        });
+  }
+
   // ============================================
   // FOLLOWS
   // ============================================
@@ -1114,6 +1238,12 @@ class CommunityService {
   /// Follow a user
   Future<void> followUser(String targetUserId) async {
     if (_userId == null) return;
+
+    // Don't create notification if following self
+    if (targetUserId == _userId) {
+      debugPrint('⚠️ Not creating self-notification for follow');
+      return;
+    }
 
     await _client.from('follows').insert({
       'follower_id': _userId,
@@ -1139,6 +1269,14 @@ class CommunityService {
         'row_id': targetUserId,
         'amount': 1,
       },
+    );
+
+    // Create notification for the user being followed
+    await _createNotification(
+      recipientId: targetUserId,
+      type: NotificationType.follow,
+      title: 'Có người theo dõi bạn',
+      actorId: _userId,
     );
   }
 

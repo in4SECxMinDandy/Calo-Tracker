@@ -84,6 +84,46 @@ class AppNotification {
       return 'Vừa xong';
     }
   }
+
+  AppNotification copyWith({
+    String? id,
+    String? userId,
+    NotificationType? type,
+    String? title,
+    String? body,
+    String? actionUrl,
+    String? actorId,
+    String? relatedPostId,
+    String? relatedCommentId,
+    String? relatedChallengeId,
+    String? relatedGroupId,
+    bool? isRead,
+    DateTime? readAt,
+    DateTime? createdAt,
+    String? actorUsername,
+    String? actorDisplayName,
+    String? actorAvatarUrl,
+  }) {
+    return AppNotification(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      type: type ?? this.type,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      actionUrl: actionUrl ?? this.actionUrl,
+      actorId: actorId ?? this.actorId,
+      relatedPostId: relatedPostId ?? this.relatedPostId,
+      relatedCommentId: relatedCommentId ?? this.relatedCommentId,
+      relatedChallengeId: relatedChallengeId ?? this.relatedChallengeId,
+      relatedGroupId: relatedGroupId ?? this.relatedGroupId,
+      isRead: isRead ?? this.isRead,
+      readAt: readAt ?? this.readAt,
+      createdAt: createdAt ?? this.createdAt,
+      actorUsername: actorUsername ?? this.actorUsername,
+      actorDisplayName: actorDisplayName ?? this.actorDisplayName,
+      actorAvatarUrl: actorAvatarUrl ?? this.actorAvatarUrl,
+    );
+  }
 }
 
 enum NotificationType {
@@ -91,6 +131,7 @@ enum NotificationType {
   comment,
   follow,
   mention,
+  message,
   challengeInvite,
   challengeStart,
   challengeEnd,
@@ -111,6 +152,8 @@ enum NotificationType {
         return 'follow';
       case NotificationType.mention:
         return 'mention';
+      case NotificationType.message:
+        return 'message';
       case NotificationType.challengeInvite:
         return 'challenge_invite';
       case NotificationType.challengeStart:
@@ -142,6 +185,8 @@ enum NotificationType {
         return Icons.person_add;
       case NotificationType.mention:
         return Icons.alternate_email;
+      case NotificationType.message:
+        return Icons.message;
       case NotificationType.challengeInvite:
         return Icons.mail;
       case NotificationType.challengeStart:
@@ -173,6 +218,8 @@ enum NotificationType {
         return Colors.purple;
       case NotificationType.mention:
         return Colors.orange;
+      case NotificationType.message:
+        return Colors.green;
       case NotificationType.challengeInvite:
       case NotificationType.challengeStart:
       case NotificationType.challengeEnd:
@@ -199,6 +246,8 @@ enum NotificationType {
         return NotificationType.follow;
       case 'mention':
         return NotificationType.mention;
+      case 'message':
+        return NotificationType.message;
       case 'challenge_invite':
         return NotificationType.challengeInvite;
       case 'challenge_start':

@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/config/supabase_config.dart';
 import '../models/message.dart';
+import '../models/app_notification.dart';
+import 'community_service.dart';
 
 class MessagingService {
   static MessagingService? _instance;
@@ -60,6 +62,20 @@ class MessagingService {
             })
             .select()
             .single();
+
+    // Create notification for the receiver
+    try {
+      final communityService = CommunityService();
+      await communityService.createNotification(
+        recipientId: receiverId,
+        type: NotificationType.message,
+        title: 'Bạn có tin nhắn mới',
+        body: trimmed.length > 100 ? '${trimmed.substring(0, 100)}...' : trimmed,
+        actorId: _userId,
+      );
+    } catch (e) {
+      debugPrint('⚠️ Failed to create message notification: $e');
+    }
 
     return Message.fromJson({...response, 'is_mine': true});
   }

@@ -57,7 +57,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       setState(() {
         final idx = _notifications.indexWhere((n) => n.id == notification.id);
         if (idx != -1) {
-          // Mark as read locally
+          _notifications[idx] = _notifications[idx].copyWith(
+            isRead: true,
+            readAt: DateTime.now(),
+          );
         }
       });
     }
@@ -77,7 +80,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 postId: notification.relatedPostId!,
               ),
             ),
-          );
+          ).then((_) => _loadNotifications());
         }
         break;
       case NotificationType.follow:
@@ -88,13 +91,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               builder: (_) =>
                   UserProfileScreen(userId: notification.actorId!),
             ),
-          );
+          ).then((_) => _loadNotifications());
         }
         break;
       default:
         break;
     }
-    _loadNotifications();
   }
 
   List<AppNotification> get _filteredNotifications {
