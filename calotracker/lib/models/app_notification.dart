@@ -1,6 +1,7 @@
 // Notification Model
 // In-app notifications for community activities
 import 'package:flutter/material.dart';
+import 'package:calotracker/utils/time_formatter.dart';
 
 class AppNotification {
   final String id;
@@ -71,18 +72,7 @@ class AppNotification {
   }
 
   String get timeAgo {
-    final now = DateTime.now();
-    final difference = now.difference(createdAt);
-
-    if (difference.inDays > 0) {
-      return '${difference.inDays} ngày trước';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} giờ trước';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} phút trước';
-    } else {
-      return 'Vừa xong';
-    }
+    return formatTimeAgo(createdAt);
   }
 
   AppNotification copyWith({

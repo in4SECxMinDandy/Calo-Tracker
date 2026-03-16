@@ -1,7 +1,9 @@
 // Extensions
 // Useful extension methods for common types
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:calotracker/utils/time_formatter.dart';
 
 /// Date extensions
 extension DateTimeExtensions on DateTime {
@@ -30,18 +32,22 @@ extension DateTimeExtensions on DateTime {
 
   /// Format date as string
   String format([String pattern = 'dd/MM/yyyy']) {
-    return DateFormat(pattern, 'vi').format(this);
+    final local = toLocalTime(this);
+    return DateFormat(pattern, 'vi').format(local);
   }
 
   /// Format time as string
   String formatTime([String pattern = 'HH:mm']) {
-    return DateFormat(pattern, 'vi').format(this);
+    final local = toLocalTime(this);
+    return DateFormat(pattern, 'vi').format(local);
   }
 
   /// Format as relative time (e.g., "2 giờ trước")
   String get relative {
+    // Chuyển về local time trước khi tính toán
+    final localDt = toLocalTime(this);
     final now = DateTime.now();
-    final difference = now.difference(this);
+    final difference = now.difference(localDt);
 
     if (difference.inSeconds < 60) {
       return 'Vừa xong';

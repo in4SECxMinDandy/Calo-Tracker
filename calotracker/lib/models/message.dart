@@ -1,5 +1,7 @@
 // Message Model
 // Private messages between users
+
+import 'package:calotracker/utils/time_formatter.dart';
 class Message {
   final String id;
   final String senderId;
@@ -59,18 +61,7 @@ class Message {
   }
 
   String get timeAgo {
-    final now = DateTime.now();
-    final difference = now.difference(createdAt);
-
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m';
-    } else {
-      return 'Vừa xong';
-    }
+    return formatTimeAgoShort(createdAt);
   }
 
   Message copyWith({

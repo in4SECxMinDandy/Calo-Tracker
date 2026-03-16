@@ -1,5 +1,7 @@
 // Group Message Model
 // Messages posted inside a community group chat
+
+import 'package:calotracker/utils/time_formatter.dart';
 class GroupMessage {
   final String id;
   final String groupId;
@@ -74,17 +76,6 @@ class GroupMessage {
   }
 
   String get timeAgo {
-    final now = DateTime.now();
-    final difference = now.difference(createdAt);
-
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m';
-    } else {
-      return 'Vừa xong';
-    }
+    return formatTimeAgoShort(createdAt);
   }
 }

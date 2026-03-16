@@ -40,6 +40,7 @@ import 'widgets/nutrition_macros_bar_widget.dart';
 
 import '../../services/unified_community_service.dart';
 import '../../services/messaging_service.dart';
+import '../../utils/time_formatter.dart';
 
 // ── Hằng số thiết kế (8pt grid system) ───────────────────────────────────────
 class _DS {
@@ -1092,14 +1093,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   String _getTimeAgo(DateTime? time) {
     if (time == null) return 'Vừa xong';
-    // Normalize về UTC để tránh timezone mismatch với Supabase timestamps
-    final now = DateTime.now().toUtc();
-    final t = time.isUtc ? time : time.toUtc();
-    final diff = now.difference(t);
-    if (diff.inMinutes < 1) return 'Vừa xong';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
-    if (diff.inHours < 24) return '${diff.inHours} giờ trước';
-    return '${diff.inDays} ngày trước';
+    return formatTimeAgo(time);
   }
 
   // ── Next Workout Card ─────────────────────────────────────────────────────
