@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 class ChatMessage {
   final String id;
+  final String conversationId;
   final DateTime timestamp;
   final String message;
   final bool isUser;
@@ -13,6 +14,7 @@ class ChatMessage {
 
   ChatMessage({
     String? id,
+    required this.conversationId,
     required this.timestamp,
     required this.message,
     required this.isUser,
@@ -21,31 +23,34 @@ class ChatMessage {
   }) : id = id ?? const Uuid().v4();
 
   /// Create user message
-  factory ChatMessage.user(String message) {
+  factory ChatMessage.user(String message, {String conversationId = 'default'}) {
     return ChatMessage(
       timestamp: DateTime.now(),
       message: message,
       isUser: true,
+      conversationId: conversationId,
     );
   }
 
   /// Create loading bot message
-  factory ChatMessage.loading() {
+  factory ChatMessage.loading({String conversationId = 'default'}) {
     return ChatMessage(
       timestamp: DateTime.now(),
       message: '',
       isUser: false,
       isLoading: true,
+      conversationId: conversationId,
     );
   }
 
   /// Create bot response with nutrition data
-  factory ChatMessage.bot(String message, {NutritionData? nutrition}) {
+  factory ChatMessage.bot(String message, {NutritionData? nutrition, String conversationId = 'default'}) {
     return ChatMessage(
       timestamp: DateTime.now(),
       message: message,
       isUser: false,
       nutrition: nutrition,
+      conversationId: conversationId,
     );
   }
 
@@ -53,6 +58,7 @@ class ChatMessage {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'conversation_id': conversationId,
       'timestamp': timestamp.millisecondsSinceEpoch,
       'message': message,
       'is_user': isUser ? 1 : 0,
@@ -61,16 +67,25 @@ class ChatMessage {
   }
 
   /// Create from database Map
+  /// Handles both raw JSON string and parsed Map from sqflite
   factory ChatMessage.fromMap(Map<String, dynamic> map) {
+    NutritionData? nutrition;
+    if (map['nutrition'] != null) {
+      final nutritionData = map['nutrition'];
+      if (nutritionData is String) {
+        nutrition = NutritionData.fromJson(nutritionData);
+      } else if (nutritionData is Map<String, dynamic>) {
+        nutrition = NutritionData.fromJsonMap(nutritionData);
+      }
+    }
+
     return ChatMessage(
       id: map['id'] as String,
+      conversationId: map['conversation_id'] as String? ?? 'default',
       timestamp: DateTime.fromMillisecondsSinceEpoch(map['timestamp'] as int),
       message: map['message'] as String,
       isUser: (map['is_user'] as int) == 1,
-      nutrition:
-          map['nutrition'] != null
-              ? NutritionData.fromJson(map['nutrition'] as String)
-              : null,
+      nutrition: nutrition,
     );
   }
 
@@ -300,8 +315,13 @@ class NutritionData {
   /// Create from JSON string
   factory NutritionData.fromJson(String json) {
     final map = jsonDecode(json) as Map<String, dynamic>;
+    return NutritionData.fromJsonMap(map);
+  }
+
+  /// Create from JSON Map (parsed Map from sqflite)
+  factory NutritionData.fromJsonMap(Map<String, dynamic> map) {
     return NutritionData(
-      calories: (map['calories'] as num).toDouble(),
+      calories: (map['calories'] as num?)?.toDouble() ?? 0,
       protein: (map['protein'] as num?)?.toDouble(),
       carbs: (map['carbs'] as num?)?.toDouble(),
       fat: (map['fat'] as num?)?.toDouble(),

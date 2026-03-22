@@ -7,6 +7,7 @@ import '../../services/group_chat_service.dart';
 import '../../models/group_message.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
+import '../../utils/time_formatter.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final String groupId;
@@ -241,21 +242,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
+    final localA = toLocalTime(a);
+    final localB = toLocalTime(b);
+    return localA.year == localB.year &&
+        localA.month == localB.month &&
+        localA.day == localB.day;
   }
 
   Widget _buildDateSeparator(DateTime date) {
-    final now = DateTime.now();
-    String text;
-
-    if (_isSameDay(date, now)) {
-      text = 'Hôm nay';
-    } else if (_isSameDay(date, now.subtract(const Duration(days: 1)))) {
-      text = 'Hôm qua';
-    } else {
-      text = '${date.day}/${date.month}/${date.year}';
-    }
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Center(
@@ -266,7 +260,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
-            text,
+            formatChatHeader(date),
             style: AppTextStyles.caption.copyWith(color: Colors.grey),
           ),
         ),
@@ -323,16 +317,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            _formatTime(message.createdAt),
+            formatHHmm(message.createdAt),
             style: TextStyle(fontSize: 11, color: Colors.grey[500]),
           ),
         ],
       ),
     );
-  }
-
-  String _formatTime(DateTime time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _buildInputBar() {

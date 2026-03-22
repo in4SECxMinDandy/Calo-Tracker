@@ -158,9 +158,10 @@ class _FriendsScreenState extends State<FriendsScreen>
   }
 
   Widget _buildHeader(bool isDark) {
+    // Count online: priority to presence, fallback to friendship.isOnline
     final onlineFriends = _friends.where((f) {
       final presence = _presenceMap[f.friendId];
-      return presence?.isOnline ?? false;
+      return presence?.isOnline ?? f.isOnline;
     }).length;
 
     return Container(
@@ -391,14 +392,14 @@ class _FriendsScreenState extends State<FriendsScreen>
       return _buildEmptyFriends(isDark);
     }
 
-    // Group by online status
+    // Group by online status: priority to presence, fallback to friendship.isOnline
     final onlineFriends = filtered.where((f) {
       final presence = _presenceMap[f.friendId];
-      return presence?.isOnline ?? false;
+      return presence?.isOnline ?? f.isOnline;
     }).toList();
     final offlineFriends = filtered.where((f) {
       final presence = _presenceMap[f.friendId];
-      return !(presence?.isOnline ?? false);
+      return !(presence?.isOnline ?? f.isOnline);
     }).toList();
 
     return RefreshIndicator(
@@ -448,7 +449,8 @@ class _FriendsScreenState extends State<FriendsScreen>
 
   Widget _buildFriendCard(Friendship friendship, bool isDark) {
     final presence = _presenceMap[friendship.friendId];
-    final isOnline = presence?.isOnline ?? false;
+    // Priority to presence, fallback to friendship.isOnline from profiles
+    final isOnline = presence?.isOnline ?? friendship.isOnline;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -517,7 +519,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                         Text(
                           isOnline
                               ? 'Đang online'
-                              : _getLastSeenText(presence),
+                              : _getLastSeenText(presence, friendship: friendship),
                           style: TextStyle(
                             fontSize: 12,
                             color: isOnline
@@ -583,9 +585,19 @@ class _FriendsScreenState extends State<FriendsScreen>
     );
   }
 
-  String _getLastSeenText(UserPresence? presence) {
-    if (presence == null) return 'Offline';
-    return presence.lastSeenText;
+  String _getLastSeenText(UserPresence? presence, {Friendship? friendship}) {
+    if (presence != null) {
+      return presence.lastSeenText;
+    }
+    // Fallback to lastSeen from friendship (profiles table)
+    if (friendship?.lastSeen != null) {
+      final diff = DateTime.now().difference(friendship!.lastSeen!);
+      if (diff.inMinutes < 1) return 'Vừa hoạt động';
+      if (diff.inMinutes < 60) return 'Hoạt động ${diff.inMinutes} phút trước';
+      if (diff.inHours < 24) return 'Hoạt động ${diff.inHours} giờ trước';
+      return 'Hoạt động ${diff.inDays} ngày trước';
+    }
+    return 'Offline';
   }
 
   void _showFriendOptions(Friendship friendship, bool isDark) {

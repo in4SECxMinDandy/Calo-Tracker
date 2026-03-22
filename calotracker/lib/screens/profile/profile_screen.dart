@@ -1030,25 +1030,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             }
                           },
                         ),
-                        const SizedBox(height: 12),
-                        CupertinoSlidingSegmentedControl<String>(
-                          groupValue: selectedGender,
-                          children: const {
-                            'male': Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 16),
-                              child: Text('Nam'),
-                            ),
-                            'female': Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 16),
-                              child: Text('Nữ'),
-                            ),
-                          },
-                          onValueChanged: (value) {
-                            if (value != null) {
-                              setDialogState(() => selectedGender = value);
-                            }
-                          },
-                        ),
                       ],
                     ),
                   ),

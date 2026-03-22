@@ -35,8 +35,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _biometricEnabled = false;
   String _language = 'vi';
   String _userName = '';
-  double _height = 0;
-  double _weight = 0;
   int _dailyTarget = 2000;
 
   @override
@@ -53,8 +51,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _biometricEnabled = StorageService.isBiometricEnabled();
       _language = StorageService.getLanguage();
       _userName = profile?.name ?? 'User';
-      _height = profile?.height ?? 0;
-      _weight = profile?.weight ?? 0;
       _dailyTarget = (profile?.dailyTarget ?? 2000).toInt();
     });
   }
@@ -83,7 +79,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!isSupported || !canCheck) {
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('Thiết bị chưa hỗ trợ hoặc chưa thiết lập Face ID/Touch ID.'),
+            content: Text(
+              'Thiết bị chưa hỗ trợ hoặc chưa thiết lập Face ID/Touch ID.',
+            ),
             backgroundColor: Colors.orange,
           ),
         );
@@ -113,7 +111,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() => _biometricEnabled = value);
     messenger.showSnackBar(
       SnackBar(
-        content: Text(value ? '✅ Đã bật sinh trắc học' : 'Đã tắt sinh trắc học'),
+        content: Text(value ? 'Đã bật sinh trắc học' : 'Đã tắt sinh trắc học'),
         backgroundColor: value ? Colors.green : null,
       ),
     );
@@ -127,16 +125,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (result.isSuccess) {
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('✅ Xác thực thành công'),
+          content: Text('Xác thực thành công'),
           backgroundColor: Colors.green,
         ),
       );
       return;
     }
     if (result.isCancelled) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Đã hủy xác thực')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('Đã hủy xác thực')));
       return;
     }
     messenger.showSnackBar(
@@ -224,10 +220,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Profile mini-card ────────────────────────────────────────
-            _buildProfileCard(isDark, card, textPrimary, textSecondary),
-            const SizedBox(height: 24),
-
             // ── Giao diện ─────────────────────────────────────────────
             _SectionTitle('GIAO DIỆN', textSecondary),
             const SizedBox(height: 12),
@@ -298,9 +290,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 iconColor: _kBlue,
                 title: 'Sinh trắc học',
-                subtitle: _biometricEnabled
-                    ? 'Đang bật Face ID/Touch ID'
-                    : 'Đang tắt',
+                subtitle:
+                    _biometricEnabled
+                        ? 'Đang bật Face ID/Touch ID'
+                        : 'Đang tắt',
                 value: _biometricEnabled,
                 isDark: isDark,
                 onChanged: _toggleBiometrics,
@@ -470,92 +463,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ─────────────────────── Profile mini-card ────────────────────────────────
-  Widget _buildProfileCard(
-    bool isDark,
-    Color card,
-    Color textPrimary,
-    Color textSecondary,
-  ) {
-    final authService = SupabaseAuthService();
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: card,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
-          // Avatar with gradient
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [_kGreen, Color(0xFF00B4D8)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Center(
-              child: Text(
-                _userName.isNotEmpty ? _userName[0].toUpperCase() : '👤',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _userName.isNotEmpty ? _userName : 'Người dùng',
-                  style: TextStyle(
-                    color: textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                if (authService.currentUser?.email != null)
-                  Text(
-                    authService.currentUser!.email!,
-                    style: TextStyle(color: textSecondary, fontSize: 12),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  )
-                else
-                  Text(
-                    '${_height.toInt()} cm • ${_weight.toInt()} kg',
-                    style: TextStyle(color: textSecondary, fontSize: 12),
-                  ),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: _editProfile,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: _kBlue.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(CupertinoIcons.pencil, color: _kBlue, size: 18),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ─────────────────────── Helper builders ──────────────────────────────────
   Widget _buildCard(Color card, Color divider, List<Widget> children) {
     return Container(
@@ -627,11 +534,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.only(top: 16),
-                        child: Text(
-                          'Mục tiêu calo/ngày',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                          overflow: TextOverflow.ellipsis,
+                        child: DefaultTextStyle(
+                          style: const TextStyle(
+                            color: CupertinoColors.label,
+                            decoration: TextDecoration.none,
+                            fontSize: 16,
+                          ),
+                          child: const Text(
+                            'Mục tiêu calo/ngày',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
                     ),
@@ -808,97 +722,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     }
   }
-
-  void _editProfile() {
-    final nameController = TextEditingController(text: _userName);
-    final heightController = TextEditingController(
-      text: _height.toInt().toString(),
-    );
-    final weightController = TextEditingController(
-      text: _weight.toInt().toString(),
-    );
-
-    showCupertinoDialog(
-      context: context,
-      builder:
-          (dialogContext) => CupertinoAlertDialog(
-            title: const Text('Chỉnh sửa hồ sơ'),
-            content: Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Column(
-                children: [
-                  CupertinoTextField(
-                    controller: nameController,
-                    placeholder: 'Tên của bạn',
-                    padding: const EdgeInsets.all(12),
-                  ),
-                  const SizedBox(height: 12),
-                  CupertinoTextField(
-                    controller: heightController,
-                    placeholder: 'Chiều cao (cm)',
-                    keyboardType: TextInputType.number,
-                    padding: const EdgeInsets.all(12),
-                  ),
-                  const SizedBox(height: 12),
-                  CupertinoTextField(
-                    controller: weightController,
-                    placeholder: 'Cân nặng (kg)',
-                    keyboardType: TextInputType.number,
-                    padding: const EdgeInsets.all(12),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              CupertinoDialogAction(
-                isDefaultAction: true,
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Hủy'),
-              ),
-              CupertinoDialogAction(
-                onPressed: () {
-                  final newName = nameController.text.trim();
-                  final newHeight =
-                      double.tryParse(heightController.text) ?? _height;
-                  final newWeight =
-                      double.tryParse(weightController.text) ?? _weight;
-                  Navigator.pop(dialogContext);
-                  _saveProfileChanges(newName, newHeight, newWeight);
-                },
-                child: const Text('Lưu'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  Future<void> _saveProfileChanges(
-    String newName,
-    double newHeight,
-    double newWeight,
-  ) async {
-    final profile = StorageService.getUserProfile();
-    if (profile != null) {
-      final updatedProfile = profile.copyWith(
-        name: newName,
-        height: newHeight,
-        weight: newWeight,
-      );
-      await StorageService.saveUserProfile(updatedProfile);
-    }
-    if (!mounted) return;
-    setState(() {
-      _userName = newName;
-      _height = newHeight;
-      _weight = newWeight;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✅ Đã cập nhật hồ sơ'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
 }
 
 // ─────────────────────────────── Sub-widgets ────────────────────────────────
@@ -963,6 +786,7 @@ class _SwitchItem extends StatelessWidget {
       leading: Container(
         width: 36,
         height: 36,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: iconColor.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(10),

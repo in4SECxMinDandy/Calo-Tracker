@@ -2,6 +2,7 @@
 // SQLite database management for all app data
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:uuid/uuid.dart';
 import '../models/user_profile.dart';
 import '../models/calo_record.dart';
 import '../models/meal.dart';
@@ -10,11 +11,12 @@ import '../models/chat_message.dart';
 import '../models/water_record.dart';
 import '../models/weight_record.dart';
 import '../models/sleep_record.dart';
+import '../models/conversation.dart';
 
 class DatabaseService {
   static Database? _database;
   static const String _dbName = 'calotracker.db';
-  static const int _dbVersion = 8; // Added passive sleep tracking tables
+  static const int _dbVersion = 9; // Added conversation_id to chat_history
 
   /// Get database instance (singleton)
   static Future<Database> get database async {
@@ -100,10 +102,21 @@ class DatabaseService {
     await db.execute('''
       CREATE TABLE chat_history (
         id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
         timestamp INTEGER NOT NULL,
         message TEXT NOT NULL,
         is_user INTEGER NOT NULL,
         nutrition TEXT
+      )
+    ''');
+
+    // Chat conversations table (for managing conversations)
+    await db.execute('''
+      CREATE TABLE chat_conversations (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
       )
     ''');
 
@@ -172,6 +185,9 @@ class DatabaseService {
     );
     await db.execute(
       'CREATE INDEX idx_chat_timestamp ON chat_history(timestamp)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_chat_conversation ON chat_history(conversation_id)',
     );
     await db.execute('CREATE INDEX idx_water_date ON water_records(date_time)');
     await db.execute(
@@ -297,6 +313,38 @@ class DatabaseService {
         'CREATE INDEX IF NOT EXISTS idx_sleep_signal_timestamp ON sleep_signal_events(timestamp)',
       );
     }
+
+    // Migration from v8 to v9: Add conversation_id to chat_history
+    if (oldVersion < 9) {
+      // Add conversation_id column to chat_history
+      await db.execute(
+        'ALTER TABLE chat_history ADD COLUMN conversation_id TEXT NOT NULL DEFAULT \'default\'',
+      );
+      
+      // Create conversations table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS chat_conversations (
+          id TEXT PRIMARY KEY,
+          title TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )
+      ''');
+      
+      // Create index for conversation_id
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_chat_conversation ON chat_history(conversation_id)',
+      );
+      
+      // Create default conversation for existing messages
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await db.insert('chat_conversations', {
+        'id': 'default',
+        'title': 'Cuộc trò chuyện mới',
+        'created_at': now,
+        'updated_at': now,
+      });
+    }
   }
 
   // ==================== USER OPERATIONS ====================
@@ -307,14 +355,18 @@ class DatabaseService {
     final existing = await getUser();
 
     if (existing != null) {
+      final map = user.toMap();
+      map.remove('id'); // Do not update the primary key
       return await db.update(
         'users',
-        user.toMap(),
+        map,
         where: 'id = ?',
         whereArgs: [existing.id],
       );
     } else {
-      return await db.insert('users', user.toMap());
+      final map = user.toMap();
+      map.remove('id'); // Let SQLite auto-increment handle it
+      return await db.insert('users', map);
     }
   }
 
@@ -588,6 +640,199 @@ class DatabaseService {
   static Future<void> clearChatHistory() async {
     final db = await database;
     await db.delete('chat_history');
+  }
+
+  /// Get chat history grouped by date (for history sheet)
+  /// Returns a Map with date string as key and list of messages as value
+  static Future<Map<String, List<ChatMessage>>> getChatHistoryGroupedByDate({
+    int limit = 100,
+  }) async {
+    final db = await database;
+    final results = await db.query(
+      'chat_history',
+      orderBy: 'timestamp DESC',
+      limit: limit,
+    );
+
+    final messages = results.map((m) => ChatMessage.fromMap(m)).toList();
+
+    // Group by date
+    final Map<String, List<ChatMessage>> grouped = {};
+    for (final msg in messages) {
+      final dateKey = _formatDateKey(msg.timestamp);
+      grouped.putIfAbsent(dateKey, () => []);
+      grouped[dateKey]!.insert(0, msg); // Insert at beginning to maintain order
+    }
+
+    return grouped;
+  }
+
+  /// Delete a specific chat message by ID
+  static Future<void> deleteChatMessage(String id) async {
+    final db = await database;
+    await db.delete('chat_history', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// Get chat history with full nutrition data parsed
+  static Future<List<ChatMessage>> getChatHistoryWithNutrition({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final db = await database;
+    final results = await db.query(
+      'chat_history',
+      orderBy: 'timestamp ASC', // Chronological order for loading
+      limit: limit,
+      offset: offset,
+    );
+
+    return results.map((m) => ChatMessage.fromMap(m)).toList();
+  }
+
+  /// Format DateTime to date key (yyyy-MM-dd)
+  static String _formatDateKey(DateTime dt) {
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Get total count of chat messages
+  static Future<int> getChatMessageCount() async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM chat_history');
+    return (result.first['count'] as int?) ?? 0;
+  }
+
+  // ==================== CONVERSATION OPERATIONS ====================
+
+  /// Create a new conversation
+  static Future<String> createConversation({String? title}) async {
+    final db = await database;
+    final now = DateTime.now();
+    final id = const Uuid().v4();
+    
+    final conversation = Conversation(
+      id: id,
+      title: title ?? 'Cuộc trò chuyện mới',
+      createdAt: now,
+      updatedAt: now,
+    );
+    
+    await db.insert('chat_conversations', conversation.toMap());
+    return id;
+  }
+
+  /// Get all conversations ordered by most recent
+  static Future<List<Conversation>> getConversations({int limit = 50}) async {
+    final db = await database;
+    
+    // Query conversations with message count and last message
+    final results = await db.rawQuery('''
+      SELECT 
+        c.id,
+        c.title,
+        c.created_at,
+        c.updated_at,
+        COUNT(m.id) as message_count,
+        (SELECT message FROM chat_history WHERE conversation_id = c.id ORDER BY timestamp DESC LIMIT 1) as last_message
+      FROM chat_conversations c
+      LEFT JOIN chat_history m ON c.id = m.conversation_id
+      GROUP BY c.id
+      ORDER BY c.updated_at DESC
+      LIMIT ?
+    ''', [limit]);
+
+    return results.map((m) => Conversation.fromMap(m)).toList();
+  }
+
+  /// Get messages for a specific conversation
+  static Future<List<ChatMessage>> getMessagesByConversation(
+    String conversationId, {
+    int limit = 100,
+  }) async {
+    final db = await database;
+    final results = await db.query(
+      'chat_history',
+      where: 'conversation_id = ?',
+      whereArgs: [conversationId],
+      orderBy: 'timestamp ASC',
+      limit: limit,
+    );
+
+    return results.map((m) => ChatMessage.fromMap(m)).toList();
+  }
+
+  /// Get the most recent conversation or create a new one
+  static Future<String> getOrCreateCurrentConversation() async {
+    final db = await database;
+    
+    // Get the most recent conversation
+    final results = await db.query(
+      'chat_conversations',
+      orderBy: 'updated_at DESC',
+      limit: 1,
+    );
+
+    if (results.isNotEmpty) {
+      return results.first['id'] as String;
+    }
+
+    // Create new conversation if none exists
+    return await createConversation();
+  }
+
+  /// Update conversation title
+  static Future<void> updateConversationTitle(String conversationId, String title) async {
+    final db = await database;
+    await db.update(
+      'chat_conversations',
+      {
+        'title': title,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'id = ?',
+      whereArgs: [conversationId],
+    );
+  }
+
+  /// Update conversation timestamp (called when a new message is added)
+  static Future<void> updateConversationTimestamp(String conversationId) async {
+    final db = await database;
+    await db.update(
+      'chat_conversations',
+      {'updated_at': DateTime.now().millisecondsSinceEpoch},
+      where: 'id = ?',
+      whereArgs: [conversationId],
+    );
+  }
+
+  /// Delete a conversation and all its messages
+  static Future<void> deleteConversation(String conversationId) async {
+    final db = await database;
+    
+    // Delete all messages in the conversation
+    await db.delete(
+      'chat_history',
+      where: 'conversation_id = ?',
+      whereArgs: [conversationId],
+    );
+    
+    // Delete the conversation
+    await db.delete(
+      'chat_conversations',
+      where: 'id = ?',
+      whereArgs: [conversationId],
+    );
+  }
+
+  /// Clear all chat history (keeps conversations, deletes all messages)
+  static Future<void> clearAllChatMessages() async {
+    final db = await database;
+    await db.delete('chat_history');
+    
+    // Reset conversation timestamps
+    await db.update(
+      'chat_conversations',
+      {'updated_at': DateTime.now().millisecondsSinceEpoch},
+    );
   }
 
   // ==================== WATER RECORD OPERATIONS ====================

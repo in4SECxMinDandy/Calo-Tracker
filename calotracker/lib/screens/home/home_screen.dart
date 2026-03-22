@@ -225,10 +225,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
+  /// Refresh dữ liệu nhẹ (không show loading spinner) — dùng khi thêm nước/bữa ăn
+  /// để tránh làm toàn bộ dashboard biến mất.
+  Future<void> _refreshDataSilently() async {
+    if (!mounted) return;
+    try {
+      final todayRecord = await DatabaseService.getTodayRecord();
+      Map<String, double> macros = {'protein': 0, 'carbs': 0, 'fat': 0};
+      try {
+        macros = await DatabaseService.getDailyMacros();
+      } catch (_) {}
+      if (!mounted) return;
+      setState(() {
+        _todayRecord = todayRecord;
+        _protein = macros['protein'] ?? 0;
+        _carbs = macros['carbs'] ?? 0;
+        _fat = macros['fat'] ?? 0;
+      });
+    } catch (e) {
+      debugPrint('Silent refresh error: $e');
+    }
+  }
+
   // ── Navigation Helpers ────────────────────────────────────────────────────
   void _openChatbot() => Navigator.push(
     context,
-    _buildPageRoute(ChatbotScreen(onMealAdded: _loadData)),
+    _buildPageRoute(ChatbotScreen(onMealAdded: _refreshDataSilently)),
   );
 
   void _openCamera() => Navigator.push(
@@ -295,7 +317,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const CommunityHubScreen(),
           const HistoryScreen(),
           // Truyền onMealAdded để refresh HomeScreen khi thêm bữa ăn qua tab AI
-          ChatbotScreen(onMealAdded: _loadData),
+          ChatbotScreen(onMealAdded: _refreshDataSilently),
           const ProfileScreen(),
         ],
       ),
@@ -404,14 +426,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   const SizedBox(height: _DS.s16),
                   FadeTransition(
                     opacity: _cardsFadeAnim,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: WaterIntakeWidget(onWaterAdded: _loadData),
-                        ),
-                        const SizedBox(width: _DS.s12),
-                        const Expanded(child: SleepWidget()),
-                      ],
+                    child: IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: WaterIntakeWidget(onWaterAdded: _refreshDataSilently),
+                          ),
+                          const SizedBox(width: _DS.s12),
+                          const Expanded(child: SleepWidget()),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: _DS.s16),
@@ -799,21 +824,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               label: 'Protein',
               current: _protein,
               target: proteinTarget,
-              barColor: const Color(0xFF1FBF8C),
+              barColor: AppColors.errorRed,
             ),
             const SizedBox(height: _DS.s12),
             NutritionMacrosBarWidget(
               label: 'Carbs',
               current: _carbs,
               target: carbsTarget,
-              barColor: const Color(0xFFFFA500),
+              barColor: AppColors.warningOrange,
             ),
             const SizedBox(height: _DS.s12),
             NutritionMacrosBarWidget(
               label: 'Fat',
               current: _fat,
               target: fatTarget,
-              barColor: const Color(0xFF7C3AED),
+              barColor: AppColors.primaryBlue,
             ),
           ],
         ],

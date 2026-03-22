@@ -188,7 +188,7 @@ class PassiveSleepCollectorService {
     // For now, this is a placeholder that will be activated when package is added
     debugPrint('[SleepCollector] Accelerometer listening started (requires sensors_plus package)');
     
-    // TODO: Uncomment when sensors_plus is added to pubspec.yaml
+    // To do: Uncomment when sensors_plus is added to pubspec.yaml
     // _accelerometerSubscription = accelerometerEventStream(
     //   samplingPeriod: Duration(milliseconds: _config.accelerometerSampleIntervalMs),
     // ).listen(

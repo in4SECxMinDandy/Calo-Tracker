@@ -20,6 +20,7 @@ class _GymSchedulePageState extends State<GymSchedulePage> {
   // Sessions data loaded from database
   List<GymSession> _sessions = [];
   bool _isLoading = true;
+  DateTime _selectedDate = DateTime.now();
 
   @override
   void initState() {
@@ -49,10 +50,18 @@ class _GymSchedulePageState extends State<GymSchedulePage> {
   }
 
   // Stats
-  int get _totalSessions => _sessions.length;
-  int get _completedSessions => _sessions.where((s) => s.isCompleted).length;
+  List<GymSession> get _filteredSessions {
+    return _sessions.where((s) {
+      return s.scheduledTime.year == _selectedDate.year &&
+             s.scheduledTime.month == _selectedDate.month &&
+             s.scheduledTime.day == _selectedDate.day;
+    }).toList();
+  }
+
+  int get _totalSessions => _filteredSessions.length;
+  int get _completedSessions => _filteredSessions.where((s) => s.isCompleted).length;
   double get _totalCalories =>
-      _sessions.fold(0, (sum, s) => sum + s.estimatedCalories);
+      _filteredSessions.fold(0, (sum, s) => sum + s.estimatedCalories);
 
   @override
   Widget build(BuildContext context) {
@@ -79,13 +88,18 @@ class _GymSchedulePageState extends State<GymSchedulePage> {
               ),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate((context, index) {
-                  final session = _sessions[index];
+                  final session = _filteredSessions[index];
                   return GymSessionCard(
                     session: session,
-                    onComplete: () => _completeSession(index),
+                    onComplete: () {
+                      final originalIndex = _sessions.indexOf(session);
+                      if (originalIndex != -1) {
+                        _completeSession(originalIndex);
+                      }
+                    },
                     onTap: () => _showSessionDetails(session),
                   );
-                }, childCount: _sessions.length),
+                }, childCount: _filteredSessions.length),
               ),
             ),
 
@@ -171,6 +185,12 @@ class _GymSchedulePageState extends State<GymSchedulePage> {
   }
 
   Widget _buildSectionTitle() {
+    final now = DateTime.now();
+    final isToday = _selectedDate.year == now.year &&
+                   _selectedDate.month == now.month &&
+                   _selectedDate.day == now.day;
+    final title = isToday ? 'Hôm nay' : 'Ngày ${_selectedDate.day}/${_selectedDate.month}';
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: PremiumTheme.spacingL,
@@ -178,7 +198,7 @@ class _GymSchedulePageState extends State<GymSchedulePage> {
       ),
       child: Row(
         children: [
-          Text('Hôm nay & Sắp tới', style: PremiumTheme.headingSmall),
+          Text(title, style: PremiumTheme.headingSmall),
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(
@@ -190,7 +210,7 @@ class _GymSchedulePageState extends State<GymSchedulePage> {
               borderRadius: BorderRadius.circular(PremiumTheme.radiusSmall),
             ),
             child: Text(
-              '${_sessions.length} buổi',
+              '${_filteredSessions.length} buổi',
               style: PremiumTheme.labelMedium.copyWith(
                 color: PremiumTheme.neonLime,
               ),
@@ -396,28 +416,30 @@ class _GymSchedulePageState extends State<GymSchedulePage> {
     );
   }
 
-  void _showCalendar() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(LineIcons.calendar, color: PremiumTheme.neonLime),
-            const SizedBox(width: PremiumTheme.spacingS),
-            Text(
-              'Tính năng lịch đang được phát triển',
-              style: PremiumTheme.bodyMedium.copyWith(
-                color: PremiumTheme.textPrimary,
-              ),
+  Future<void> _showCalendar() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: PremiumTheme.neonLime,
+              onPrimary: PremiumTheme.background,
+              surface: PremiumTheme.surfaceDark,
+              onSurface: PremiumTheme.textPrimary,
             ),
-          ],
-        ),
-        backgroundColor: PremiumTheme.surfaceDark,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(PremiumTheme.radiusMedium),
-        ),
-      ),
+          ),
+          child: child!,
+        );
+      },
     );
+
+    if (date != null && mounted) {
+      setState(() => _selectedDate = date);
+    }
   }
 
   void _addNewSession() {

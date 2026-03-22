@@ -19,9 +19,9 @@ class NutritionProgressRingWidget extends StatelessWidget {
   static const double _ringSize = 180.0;
   static const double _strokeWidth = 12.0;
 
-  static const Color _neonGreen = Color(0xFF1FBF8C);
-  static const Color _neonOrange = Color(0xFFFFA500);
-  static const Color _neonPurple = Color(0xFF7C3AED);
+  static const Color _proteinColor = AppColors.errorRed;
+  static const Color _carbsColor = AppColors.warningOrange;
+  static const Color _fatColor = AppColors.primaryBlue;
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +68,7 @@ class NutritionProgressRingWidget extends StatelessWidget {
                 painter: _MultiColorRingPainter(
                   progress: progress,
                   strokeWidth: _strokeWidth,
-                  colors: const [_neonGreen, _neonOrange, _neonPurple],
+                  colors: const [_proteinColor, _carbsColor, _fatColor],
                 ),
               ),
               // Center content

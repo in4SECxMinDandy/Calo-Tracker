@@ -257,7 +257,7 @@ class _SleepTrackingScreenState extends State<SleepTrackingScreen> {
             session: session,
             onTap: () {},
             onEdit: () {
-              // TODO: Show edit dialog for manual adjustment
+              // To do: Show edit dialog for manual adjustment
             },
           ),
         ),
