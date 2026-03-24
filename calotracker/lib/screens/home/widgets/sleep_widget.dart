@@ -8,7 +8,9 @@ import '../../../theme/app_icons.dart';
 import '../../sleep/sleep_tracking_screen.dart';
 
 class SleepWidget extends StatefulWidget {
-  const SleepWidget({super.key});
+  final VoidCallback? onRefresh;
+
+  const SleepWidget({super.key, this.onRefresh});
 
   @override
   State<SleepWidget> createState() => _SleepWidgetState();
@@ -23,6 +25,11 @@ class _SleepWidgetState extends State<SleepWidget> {
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  /// Public method to refresh data from parent
+  Future<void> refresh() async {
+    await _loadData();
   }
 
   Future<void> _loadData() async {

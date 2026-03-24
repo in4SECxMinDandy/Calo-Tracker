@@ -40,6 +40,8 @@ import 'widgets/nutrition_macros_bar_widget.dart';
 
 import '../../services/unified_community_service.dart';
 import '../../services/messaging_service.dart';
+import '../../services/presence_service.dart';
+import '../../models/user_presence.dart';
 import '../../utils/time_formatter.dart';
 
 // ── Hằng số thiết kế (8pt grid system) ───────────────────────────────────────
@@ -88,6 +90,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   double _carbs = 0;
   double _fat = 0;
 
+  // HistoryRefreshController để có thể gọi refresh HistoryScreen từ bên ngoài
+  final HistoryRefreshController _historyRefreshCtrl = HistoryRefreshController();
+
   // ── Timer (để cancel Future.delayed khi dispose) ──────────────────────────
   Timer? _animTimer;
 
@@ -95,6 +100,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final _friendsService = FriendsService();
   final _communityService = UnifiedCommunityService();
   final _messagingService = MessagingService();
+  final _presenceService = PresenceService();
+
+  Map<String, UserPresence> _presenceMap = {};
+  StreamSubscription? _presenceSubscription;
 
   // ── Animation Controllers ─────────────────────────────────────────────────
   late AnimationController _headerAnimCtrl;
@@ -157,6 +166,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _headerAnimCtrl.dispose();
     _cardsAnimCtrl.dispose();
     _fabAnimCtrl.dispose();
+    _presenceSubscription?.cancel();
+    _presenceService.unsubscribeFromPresence();
     super.dispose();
   }
 
@@ -181,6 +192,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           final pendingFriends = await _friendsService.getPendingRequests();
           unreadCount = communityUnread + messageUnread + pendingFriends.length;
           friends = await _friendsService.getFriends();
+
+          if (friends.isNotEmpty) {
+            final friendIds = friends.map((f) => f.friendId).toList();
+            final pm = await _presenceService.getBatchPresence(friendIds);
+            if (mounted) {
+              setState(() => _presenceMap = pm);
+            }
+            
+            _presenceSubscription?.cancel();
+            _presenceSubscription = _presenceService.presenceStream.listen((p) {
+              if (mounted) setState(() => _presenceMap[p.userId] = p);
+            });
+            _presenceService.subscribeToPresence(friendIds);
+          }
         }
       } catch (e) {
         debugPrint('Lỗi tải dữ liệu xã hội: $e');
@@ -242,6 +267,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _carbs = macros['carbs'] ?? 0;
         _fat = macros['fat'] ?? 0;
       });
+
+      // Refresh HistoryScreen để đồng bộ dữ liệu
+      _historyRefreshCtrl.refresh();
     } catch (e) {
       debugPrint('Silent refresh error: $e');
     }
@@ -250,7 +278,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // ── Navigation Helpers ────────────────────────────────────────────────────
   void _openChatbot() => Navigator.push(
     context,
-    _buildPageRoute(ChatbotScreen(onMealAdded: _refreshDataSilently)),
+    _buildPageRoute(ChatbotScreen(
+      onMealAdded: _refreshDataSilently,
+      onSleepAdded: _refreshDataSilently,
+      onWaterAdded: _refreshDataSilently,
+    )),
   );
 
   void _openCamera() => Navigator.push(
@@ -315,9 +347,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         children: [
           _buildDashboard(isDark),
           const CommunityHubScreen(),
-          const HistoryScreen(),
-          // Truyền onMealAdded để refresh HomeScreen khi thêm bữa ăn qua tab AI
-          ChatbotScreen(onMealAdded: _refreshDataSilently),
+          HistoryScreen(controller: _historyRefreshCtrl),
+          // Truyền callback để refresh HomeScreen và HistoryScreen khi thêm dữ liệu từ AI
+          ChatbotScreen(
+            onMealAdded: _refreshDataSilently,
+            onSleepAdded: _refreshDataSilently,
+            onWaterAdded: _refreshDataSilently,
+          ),
           const ProfileScreen(),
         ],
       ),
@@ -544,6 +580,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       onTap: () {
                         HapticFeedback.selectionClick();
                         setState(() => _currentIndex = i);
+                        // Khi chuyển sang tab Lịch sử (index 2), tự động refresh
+                        if (i == 2) {
+                          _historyRefreshCtrl.refresh();
+                        }
                       },
                     ),
                   );
@@ -951,7 +991,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildSocialActivityCard(bool isDark) {
     if (_friends.isEmpty) return const SizedBox.shrink();
 
-    final onlineFriends = _friends.where((f) => f.isOnline).take(3).toList();
+    final onlineFriends = _friends.where((f) {
+      final presence = _presenceMap[f.friendId];
+      return presence?.isOnline ?? f.isOnline;
+    }).take(3).toList();
 
     return _GlassCard(
       isDark: isDark,
@@ -1041,7 +1084,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildFriendItem(Friendship friend, bool isDark) {
     final name = friend.friendDisplayName ?? friend.friendUsername ?? 'Bạn bè';
-    final timeAgo = _getTimeAgo(friend.lastSeen);
+    
+    final presence = _presenceMap[friend.friendId];
+    final isOnline = presence?.isOnline ?? friend.isOnline;
+    final timeAgo = isOnline ? 'Đang online' : _getTimeAgo(presence, friend);
 
     return Row(
       children: [
@@ -1100,7 +1146,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
-                const TextSpan(text: ' đang online 🟢'),
+                TextSpan(
+                  text: isOnline ? ' đang online 🟢' : ' ⚪',
+                  style: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1116,9 +1167,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  String _getTimeAgo(DateTime? time) {
-    if (time == null) return 'Vừa xong';
-    return formatTimeAgo(time);
+  String _getTimeAgo(UserPresence? presence, Friendship friend) {
+    if (presence != null) {
+      final diff = DateTime.now().difference(presence.lastSeen);
+      if (diff.inMinutes < 1) return 'Vừa xong';
+      if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
+      if (diff.inHours < 24) return '${diff.inHours} giờ trước';
+      return '${diff.inDays} ngày trước';
+    }
+    
+    if (friend.lastSeen != null) {
+      return formatTimeAgo(friend.lastSeen!);
+    }
+    
+    return 'Gần đây';
   }
 
   // ── Next Workout Card ─────────────────────────────────────────────────────

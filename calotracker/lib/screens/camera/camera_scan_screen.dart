@@ -4,10 +4,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../models/meal.dart';
 import '../../models/chat_message.dart';
-import '../../services/database_service.dart';
 import '../../services/food_recognition_service.dart';
+import '../../services/food_recognition_persistence.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/nutrition_pie_chart.dart';
@@ -28,6 +27,10 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
   List<RecognizedFood>? _recognizedFoods;
   bool _isLoading = false;
   String? _error;
+  /// Đã ghi SQLite sau khi nhận diện thành công (tránh bấm "Thêm" trùng)
+  bool _persistedToHistory = false;
+  /// Lỗi lưu DB (vẫn hiển thị kết quả AI để user thử lưu tay)
+  String? _persistError;
 
   @override
   void initState() {
@@ -49,6 +52,10 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
         setState(() {
           _imageFile = File(photo.path);
           _error = null;
+          _persistedToHistory = false;
+          _persistError = null;
+          _nutritionData = null;
+          _recognizedFoods = null;
         });
         _scanImage();
       } else {
@@ -75,6 +82,8 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
         setState(() {
           _imageFile = File(photo.path);
           _error = null;
+          _persistedToHistory = false;
+          _persistError = null;
           _nutritionData = null;
           _recognizedFoods = null;
         });
@@ -93,6 +102,8 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
     setState(() {
       _isLoading = true;
       _error = null;
+      _persistedToHistory = false;
+      _persistError = null;
     });
 
     // Step 1: Recognize food from image using AI
@@ -119,56 +130,59 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
       recognitionResult.foods!,
     );
 
-    if (mounted) {
+    if (!mounted) return;
+
+    if (!nutritionResult.isSuccess || nutritionResult.data == null) {
       setState(() {
         _isLoading = false;
-        _recognizedFoods = recognitionResult.foods;
-        if (nutritionResult.isSuccess) {
-          _nutritionData = nutritionResult.data;
-        } else {
-          _error = nutritionResult.error;
-        }
+        _error = nutritionResult.error ?? 'Không tính được dinh dưỡng';
       });
+      return;
     }
-  }
 
-  Future<void> _addMealToDiary() async {
-    if (_nutritionData == null) return;
+    final data = nutritionResult.data!;
+    final foods = recognitionResult.foods!;
 
-    for (final food in _nutritionData!.foods) {
-      final meal = Meal(
-        dateTime: DateTime.now(),
-        foodName: food.name,
-        weight: food.weight,
-        calories: food.calories,
-        protein:
-            _nutritionData!.protein != null
-                ? _nutritionData!.protein! / _nutritionData!.foods.length
-                : null,
-        carbs:
-            _nutritionData!.carbs != null
-                ? _nutritionData!.carbs! / _nutritionData!.foods.length
-                : null,
-        fat:
-            _nutritionData!.fat != null
-                ? _nutritionData!.fat! / _nutritionData!.foods.length
-                : null,
-        source: 'camera',
+    // Step 3: Tự động lưu vào Lịch sử (SQLite) — await xong mới cập nhật UI
+    var savedOk = false;
+    try {
+      final persist = await FoodRecognitionPersistence.saveScanToHistory(
+        nutritionData: data,
+        recognizedFoods: foods,
+        imagePath: _imageFile!.path,
       );
-      await DatabaseService.insertMeal(meal);
+      savedOk = persist.success;
+      if (!persist.success) {
+        debugPrint('Auto-save history: ${persist.error}');
+      }
+    } catch (e, st) {
+      debugPrint('Auto-save exception: $e\n$st');
+      savedOk = false;
     }
 
-    widget.onMealAdded?.call();
+    if (!mounted) return;
 
-    if (mounted) {
+    setState(() {
+      _isLoading = false;
+      _recognizedFoods = foods;
+      _nutritionData = data;
+      _persistedToHistory = savedOk;
+      _persistError =
+          savedOk ? null : 'Chưa lưu được vào nhật ký. Nhấn nút bên dưới để thử lại.';
+    });
+
+    if (savedOk) {
+      widget.onMealAdded?.call();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
               const Icon(CupertinoIcons.checkmark_circle, color: Colors.white),
               const SizedBox(width: 12),
-              Text(
-                'Đã thêm ${_nutritionData!.calories.toInt()} kcal vào nhật ký!',
+              Expanded(
+                child: Text(
+                  'Đã lưu ${data.calories.toInt()} kcal vào Lịch sử',
+                ),
               ),
             ],
           ),
@@ -179,7 +193,86 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
           ),
         ),
       );
-      Navigator.pop(context);
+    }
+  }
+
+  /// Lưu thủ công khi auto-save thất bại hoặc người dùng muốn ghi lại
+  Future<void> _addMealToDiary() async {
+    if (_nutritionData == null) return;
+    if (_recognizedFoods == null) return;
+
+    if (_persistedToHistory) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Bữa ăn đã được lưu vào Lịch sử'),
+            backgroundColor: AppColors.primaryBlue,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+        Navigator.pop(context);
+      }
+      return;
+    }
+
+    try {
+      final persist = await FoodRecognitionPersistence.saveScanToHistory(
+        nutritionData: _nutritionData!,
+        recognizedFoods: _recognizedFoods!,
+        imagePath: _imageFile?.path,
+      );
+      if (!persist.success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(persist.error ?? 'Không lưu được'),
+              backgroundColor: AppColors.errorRed,
+            ),
+          );
+        }
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _persistedToHistory = true;
+          _persistError = null;
+        });
+      }
+      widget.onMealAdded?.call();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(CupertinoIcons.checkmark_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Text(
+                  'Đã thêm ${_nutritionData!.calories.toInt()} kcal vào nhật ký!',
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.successGreen,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi lưu: $e'),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+      }
     }
   }
 
@@ -364,19 +457,39 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.successGreen.withValues(alpha: 0.1),
+                      color: _persistedToHistory
+                          ? AppColors.successGreen.withValues(alpha: 0.1)
+                          : AppColors.warningOrange.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
-                      CupertinoIcons.checkmark_circle_fill,
-                      color: AppColors.successGreen,
+                    child: Icon(
+                      _persistedToHistory
+                          ? CupertinoIcons.checkmark_circle_fill
+                          : CupertinoIcons.info_circle_fill,
+                      color: _persistedToHistory
+                          ? AppColors.successGreen
+                          : AppColors.warningOrange,
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Kết quả nhận diện',
-                      style: AppTextStyles.cardTitle,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _persistedToHistory
+                              ? 'Đã lưu vào Lịch sử'
+                              : 'Kết quả nhận diện',
+                          style: AppTextStyles.cardTitle,
+                        ),
+                        if (_persistError != null)
+                          Text(
+                            _persistError!,
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.errorRed,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   Text(
@@ -497,10 +610,19 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                     flex: 2,
                     child: ElevatedButton.icon(
                       onPressed: _addMealToDiary,
-                      icon: const Icon(CupertinoIcons.plus, size: 18),
-                      label: const Text('Thêm vào nhật ký'),
+                      icon: Icon(
+                        _persistedToHistory
+                            ? CupertinoIcons.checkmark
+                            : CupertinoIcons.plus,
+                        size: 18,
+                      ),
+                      label: Text(
+                        _persistedToHistory ? 'Đã lưu' : 'Thêm vào nhật ký',
+                      ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.successGreen,
+                        backgroundColor: _persistedToHistory
+                            ? AppColors.primaryBlue
+                            : AppColors.successGreen,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                     ),

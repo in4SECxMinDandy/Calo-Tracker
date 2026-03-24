@@ -246,6 +246,7 @@ class OSMLocationService {
       'Nhà',
       'Công viên',
       'Quán cafe',
+      'Nhà hàng',
       'Văn phòng',
       'Trường học',
       'Bệnh viện',

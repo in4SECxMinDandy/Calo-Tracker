@@ -3,18 +3,60 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import '../../models/calo_record.dart';
 import '../../models/meal.dart';
+import '../../models/water_record.dart';
+import '../../models/sleep_record.dart';
 import '../../models/user_profile.dart';
 import '../../services/database_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/data_sync_service.dart';
 import '../../theme/colors.dart';
 
+/// Controller đơn giản để màn hình khác có thể ra lệnh refresh HistoryScreen
+class HistoryRefreshController {
+  VoidCallback? _onRefresh;
+
+  // ignore: use_setters_to_change_properties
+  void attach(VoidCallback cb) => _onRefresh = cb;
+  void detach() => _onRefresh = null;
+
+  /// Gọi từ bên ngoài để làm mới dữ liệu
+  void refresh() => _onRefresh?.call();
+}
+
+void _historyAgentLog({
+  required String runId,
+  required String hypothesisId,
+  required String location,
+  required String message,
+  required Map<String, dynamic> data,
+}) {
+  final payload = jsonEncode({
+    'sessionId': 'f5a970',
+    'runId': runId,
+    'hypothesisId': hypothesisId,
+    'location': location,
+    'message': message,
+    'data': data,
+    'timestamp': DateTime.now().millisecondsSinceEpoch,
+  });
+  final logFile = File('debug-f5a970.log');
+  logFile.writeAsString(
+    '$payload\n',
+    mode: FileMode.append,
+    flush: true,
+  ).catchError((_) => logFile);
+}
+
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  final HistoryRefreshController? controller;
+
+  const HistoryScreen({super.key, this.controller});
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -26,6 +68,8 @@ class _HistoryScreenState extends State<HistoryScreen>
   List<CaloRecord> _chartRecords = [];
   CaloRecord? _selectedDayRecord;
   List<Meal> _selectedDayMeals = [];
+  List<WaterRecord> _selectedDayWater = [];
+  SleepRecord? _selectedDaySleep;
   UserProfile? _userProfile;
   bool _isLoading = true;
   bool _isSyncing = false;
@@ -38,6 +82,9 @@ class _HistoryScreenState extends State<HistoryScreen>
   @override
   void initState() {
     super.initState();
+    // Gắn controller để HomeScreen có thể gọi refresh từ bên ngoài
+    // external: true để reset _selectedDate về hôm nay khi có dữ liệu mới từ chatbot
+    widget.controller?.attach(() => _loadData(external: true));
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -51,12 +98,24 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   @override
   void dispose() {
+    widget.controller?.detach();
     _fadeController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+  /// Public method để cho phép refresh từ bên ngoài (HomeScreen)
+  Future<void> refreshData() => _loadData(external: true);
+
+  Future<void> _loadData({bool external = false}) async {
+    setState(() {
+      _isLoading = true;
+      // When an external trigger (e.g. chatbot) adds new data, always show today's date
+      // so the user sees the newly added entry immediately.
+      // Only do this for external refreshes, not when user manually picks a date.
+      if (external) {
+        _selectedDate = DateTime.now();
+      }
+    });
 
     if (_syncService.canSync) {
       _syncData(silent: true);
@@ -74,6 +133,8 @@ class _HistoryScreenState extends State<HistoryScreen>
         '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
     final dayRecord = await DatabaseService.getCaloRecord(dateStr);
     final meals = await DatabaseService.getMealsForDate(dateStr);
+    final waterRecords = await DatabaseService.getWaterRecordsForDate(dateStr);
+    final sleepRecord = await DatabaseService.getSleepRecordForDate(dateStr);
 
     final filledRecords = <CaloRecord>[];
     for (int i = 0; i < _chartRange; i++) {
@@ -92,6 +153,8 @@ class _HistoryScreenState extends State<HistoryScreen>
       _chartRecords = filledRecords;
       _selectedDayRecord = dayRecord;
       _selectedDayMeals = meals;
+      _selectedDayWater = waterRecords;
+      _selectedDaySleep = sleepRecord;
       _isLoading = false;
     });
 
@@ -347,6 +410,12 @@ class _HistoryScreenState extends State<HistoryScreen>
 
     return Scaffold(
       backgroundColor: bgColor,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showManualEntrySheet(context),
+        backgroundColor: AppColors.successGreen,
+        elevation: 4,
+        child: const Icon(CupertinoIcons.add_circled_solid, color: Colors.white, size: 28),
+      ),
       body:
           _isLoading
               ? const Center(child: CupertinoActivityIndicator())
@@ -463,6 +532,26 @@ class _HistoryScreenState extends State<HistoryScreen>
                                     );
                                   }, childCount: _selectedDayMeals.length),
                                 ),
+                      ),
+
+                      // ─── Water Section ───
+                      SliverToBoxAdapter(
+                        child: _buildWaterSection(
+                          isDark,
+                          surfaceColor,
+                          textPrimary,
+                          textMuted,
+                        ),
+                      ),
+
+                      // ─── Sleep Section ───
+                      SliverToBoxAdapter(
+                        child: _buildSleepSection(
+                          isDark,
+                          surfaceColor,
+                          textPrimary,
+                          textMuted,
+                        ),
                       ),
 
                       // ─── Insights Section ───
@@ -1706,3 +1795,735 @@ class _DoughnutPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
+
+// ════════════════════════════════════════════════════════════
+// WATER & SLEEP SECTIONS
+// ════════════════════════════════════════════════════════════
+
+extension _WaterSleepExtensions on _HistoryScreenState {
+  void _showManualEntrySheet(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _ManualEntrySheet(
+        isDark: isDark,
+        selectedDate: _selectedDate,
+        onSave: (meal) async {
+          // #region agent log
+          _historyAgentLog(
+            runId: 'pre-fix',
+            hypothesisId: 'H3',
+            location: 'history_screen.dart:_showManualEntrySheet:onSave',
+            message: 'before async DB insert',
+            data: {
+              'screenMounted': mounted,
+              'mealNameLen': meal.foodName.length,
+            },
+          );
+          // #endregion
+          Navigator.pop(ctx);
+          await DatabaseService.insertMeal(meal);
+          // #region agent log
+          _historyAgentLog(
+            runId: 'pre-fix',
+            hypothesisId: 'H4',
+            location: 'history_screen.dart:_showManualEntrySheet:onSave',
+            message: 'after async DB insert before snackbar',
+            data: {
+              'screenMounted': mounted,
+              'ctxMounted': ctx.mounted,
+            },
+          );
+          // #endregion
+          _loadData();
+          if (ctx.mounted) {
+            ScaffoldMessenger.of(ctx).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(CupertinoIcons.checkmark_circle, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text('Đã thêm "${meal.foodName}" (${meal.calories.toInt()} kcal)')),
+                  ],
+                ),
+                backgroundColor: AppColors.successGreen,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildWaterSection(
+    bool isDark,
+    Color surfaceColor,
+    Color textPrimary,
+    Color textMuted,
+  ) {
+    final totalMl =
+        _selectedDayWater.fold<int>(0, (sum, r) => sum + r.amount);
+    final targetMl = 2000;
+    final progress = (totalMl / targetMl).clamp(0.0, 1.0);
+    final isOverTarget = totalMl >= targetMl;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  CupertinoIcons.drop_fill,
+                  color: AppColors.primaryBlue,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Nước uống',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: textPrimary,
+                      ),
+                    ),
+                    Text(
+                      '${totalMl}ml / ${targetMl}ml',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isOverTarget
+                      ? AppColors.successGreen.withValues(alpha: 0.15)
+                      : AppColors.warningOrange.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${(progress * 100).toInt()}%',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isOverTarget ? AppColors.successGreen : AppColors.warningOrange,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: isDark
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : Colors.black.withValues(alpha: 0.08),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isOverTarget ? AppColors.successGreen : AppColors.primaryBlue,
+              ),
+            ),
+          ),
+          if (_selectedDayWater.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: _selectedDayWater.map((w) {
+                final timeStr = _formatTime(w.dateTime);
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '+${w.amount}ml ($timeStr)',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryBlue,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ] else ...[
+            const SizedBox(height: 4),
+            Text(
+              'Chưa ghi nhận lượng nước hôm nay',
+              style: TextStyle(
+                fontSize: 12,
+                color: textMuted,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSleepSection(
+    bool isDark,
+    Color surfaceColor,
+    Color textPrimary,
+    Color textMuted,
+  ) {
+    final sleep = _selectedDaySleep;
+
+    String durationText;
+    String qualityText;
+    String timeRangeText;
+    Color statusColor;
+    String statusLabel;
+
+    if (sleep != null) {
+      final hours = sleep.durationHours;
+      final h = hours.floor();
+      final m = ((hours - h) * 60).round();
+      durationText = '${h}h ${m}p';
+      qualityText = sleep.quality?.label ?? '—';
+      timeRangeText =
+          '${_formatTime(sleep.bedTime)} → ${_formatTime(sleep.wakeTime)}';
+
+      if (hours >= 7) {
+        statusColor = AppColors.successGreen;
+        statusLabel = 'Tốt';
+      } else if (hours >= 5) {
+        statusColor = AppColors.warningOrange;
+        statusLabel = 'Trung bình';
+      } else {
+        statusColor = AppColors.errorRed;
+        statusLabel = 'Thiếu ngủ';
+      }
+    } else {
+      durationText = '—';
+      qualityText = '—';
+      timeRangeText = '— → —';
+      statusColor = textMuted;
+      statusLabel = 'Chưa ghi';
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6C63FF).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  CupertinoIcons.moon_stars_fill,
+                  color: Color(0xFF6C63FF),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Giấc ngủ',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: textPrimary,
+                      ),
+                    ),
+                    Text(
+                      timeRangeText,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSleepStatItem(
+                  'Thời lượng',
+                  durationText,
+                  CupertinoIcons.clock,
+                  textPrimary,
+                  textMuted,
+                  surfaceColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildSleepStatItem(
+                  'Chất lượng',
+                  qualityText,
+                  CupertinoIcons.star_fill,
+                  textPrimary,
+                  textMuted,
+                  surfaceColor,
+                ),
+              ),
+            ],
+          ),
+          if (sleep?.notes != null && sleep!.notes!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              sleep.notes!,
+              style: TextStyle(
+                fontSize: 12,
+                color: textMuted,
+                fontStyle: FontStyle.italic,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSleepStatItem(
+    String label,
+    String value,
+    IconData icon,
+    Color textPrimary,
+    Color textMuted,
+    Color surfaceColor,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: surfaceColor.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 18, color: textMuted),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: textPrimary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(DateTime dt) {
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// MANUAL ENTRY BOTTOM SHEET (separate stateful class)
+// ════════════════════════════════════════════════════════════
+
+class _ManualEntrySheet extends StatefulWidget {
+  final bool isDark;
+  final DateTime selectedDate;
+  final void Function(Meal meal) onSave;
+
+  const _ManualEntrySheet({
+    required this.isDark,
+    required this.selectedDate,
+    required this.onSave,
+  });
+
+  @override
+  State<_ManualEntrySheet> createState() => _ManualEntrySheetState();
+}
+
+class _ManualEntrySheetState extends State<_ManualEntrySheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _caloriesController = TextEditingController();
+  final _weightController = TextEditingController();
+  final _proteinController = TextEditingController();
+  final _carbsController = TextEditingController();
+  final _fatController = TextEditingController();
+  TimeOfDay _selectedTime = TimeOfDay.now();
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _caloriesController.dispose();
+    _weightController.dispose();
+    _proteinController.dispose();
+    _carbsController.dispose();
+    _fatController.dispose();
+    super.dispose();
+  }
+
+  Color get _bgColor => widget.isDark ? const Color(0xFF1A1B2E) : Colors.white;
+  Color get _surfaceColor => widget.isDark ? const Color(0xFF252640) : const Color(0xFFF5F5F7);
+  Color get _textPrimary => widget.isDark ? Colors.white : const Color(0xFF1A1B2E);
+  Color get _textSecondary => widget.isDark ? const Color(0xFF8E8EA0) : const Color(0xFF6E6E80);
+  Color get _borderColor => widget.isDark ? const Color(0xFF3A3A5C) : const Color(0xFFE0E0E8);
+
+  InputDecoration _inputDecoration(String label, {IconData? icon}) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: _textSecondary, fontSize: 14),
+      prefixIcon: icon != null ? Icon(icon, color: _textSecondary, size: 20) : null,
+      filled: true,
+      fillColor: _surfaceColor,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: _borderColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: _borderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primaryBlue, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.errorRed),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.errorRed, width: 2),
+      ),
+    );
+  }
+
+  Future<void> _selectTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: AppColors.primaryBlue,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() => _selectedTime = picked);
+    }
+  }
+
+  void _saveMeal() {
+    if (!_formKey.currentState!.validate()) return;
+    if (_isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    final dateTime = DateTime(
+      widget.selectedDate.year,
+      widget.selectedDate.month,
+      widget.selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+
+    final meal = Meal(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      dateTime: dateTime,
+      foodName: _nameController.text.trim(),
+      calories: double.tryParse(_caloriesController.text) ?? 0,
+      weight: double.tryParse(_weightController.text),
+      protein: double.tryParse(_proteinController.text),
+      carbs: double.tryParse(_carbsController.text),
+      fat: double.tryParse(_fatController.text),
+      source: 'manual',
+    );
+
+    widget.onSave(meal);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: _bgColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(bottom: bottomPadding + 24),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: _borderColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.successGreen.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      CupertinoIcons.pencil_outline,
+                      color: AppColors.successGreen,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Thêm món ăn thủ công',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: _textPrimary,
+                          ),
+                        ),
+                        Text(
+                          'Nhập thông tin dinh dưỡng bằng tay',
+                          style: TextStyle(fontSize: 12, color: _textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(CupertinoIcons.xmark_circle_fill, color: _textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _nameController,
+                      style: TextStyle(color: _textPrimary),
+                      decoration: _inputDecoration('Tên món ăn', icon: CupertinoIcons.text_cursor),
+                      textCapitalization: TextCapitalization.sentences,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Vui lòng nhập tên món ăn';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _caloriesController,
+                      style: TextStyle(color: _textPrimary),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: _inputDecoration('Calories (kcal)', icon: CupertinoIcons.flame),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Vui lòng nhập calories';
+                        final val = double.tryParse(v);
+                        if (val == null || val <= 0) return 'Calories phải lớn hơn 0';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _weightController,
+                      style: TextStyle(color: _textPrimary),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: _inputDecoration('Cân nặng (g)', icon: CupertinoIcons.gauge),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _proteinController,
+                            style: TextStyle(color: _textPrimary),
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: _inputDecoration('Protein (g)'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _carbsController,
+                            style: TextStyle(color: _textPrimary),
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: _inputDecoration('Carbs (g)'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _fatController,
+                            style: TextStyle(color: _textPrimary),
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: _inputDecoration('Fat (g)'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _surfaceColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _borderColor),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(CupertinoIcons.clock, color: _textSecondary, size: 20),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Giờ ăn:',
+                            style: TextStyle(color: _textSecondary, fontSize: 14),
+                          ),
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: _selectTime,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryBlue.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _selectedTime.format(context),
+                                style: const TextStyle(
+                                  color: AppColors.primaryBlue,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _isSaving ? null : _saveMeal,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.successGreen,
+                          disabledBackgroundColor: AppColors.successGreen.withValues(alpha: 0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 20, height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Thêm bữa ăn',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

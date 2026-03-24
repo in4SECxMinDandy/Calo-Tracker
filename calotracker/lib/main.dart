@@ -13,6 +13,7 @@ import 'services/analytics_service.dart';
 import 'services/auth_service.dart';
 import 'services/fcm_service.dart';
 import 'core/config/supabase_config.dart';
+import 'services/sleep/passive_sleep_service.dart';
 import 'screens/splash/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
 
@@ -50,6 +51,12 @@ void main() async {
     }
 
     await AnalyticsService.logAppOpened();
+
+    // Restore passive sleep tracking if it was previously enabled
+    if (StorageService.isPassiveSleepEnabled()) {
+      await PassiveSleepService.instance.setEnabled(true);
+      debugPrint('[App] Passive sleep tracking restored on startup');
+    }
   });
 }
 

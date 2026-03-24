@@ -125,10 +125,43 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Future<void> _completeOnboarding() async {
     if (_isLoading) return;
 
+    // Check if there's an existing user profile - show confirmation dialog
+    final existingProfile = StorageService.getUserProfile();
+    debugPrint('[ONBOARDING] existingProfile: ${existingProfile?.name ?? 'null'}');
+    bool? shouldClearData = false;
+
+    if (existingProfile != null) {
+      debugPrint('[ONBOARDING] Showing clear data dialog for user: ${existingProfile.name}');
+      shouldClearData = await _showClearDataDialog(existingProfile.name);
+      debugPrint('[ONBOARDING] Dialog result: shouldClearData=$shouldClearData');
+      // User cancelled dialog - don't proceed
+      if (shouldClearData == null) {
+        debugPrint('[ONBOARDING] Dialog cancelled by user');
+        return;
+      }
+    } else {
+      debugPrint('[ONBOARDING] No existing profile found');
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      debugPrint('🚀 Starting onboarding completion...');
+      debugPrint('[ONBOARDING] Starting onboarding completion...');
+
+      // If user confirmed, clear old data first
+      if (shouldClearData) {
+        debugPrint('[ONBOARDING] Clearing old user data...');
+        await DatabaseService.clearUserData();
+        await StorageService.clearAll();
+        debugPrint('[ONBOARDING] Old data cleared successfully');
+
+        // Verify data was cleared
+        final profileAfterClear = StorageService.getUserProfile();
+        final hasUserAfterClear = StorageService.hasUserProfile();
+        debugPrint('[ONBOARDING] Profile after clear: ${profileAfterClear?.name ?? 'null'}, hasUserProfile: $hasUserAfterClear');
+      } else {
+        debugPrint('[ONBOARDING] Keeping existing data (shouldClearData=$shouldClearData)');
+      }
 
       final profile = UserProfile.create(
         name: _nameController.text.trim(),
@@ -141,18 +174,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         language: 'vi',
       );
 
-      debugPrint('✅ Profile created: ${profile.name}');
+      debugPrint('Profile created: ${profile.name}');
 
       // Save to SharedPreferences
       final profileSaved = await StorageService.saveUserProfile(profile);
-      debugPrint('✅ Profile saved to storage: $profileSaved');
+      debugPrint('Profile saved to storage: $profileSaved');
 
       final onboardingMarked = await StorageService.setOnboardingComplete(true);
-      debugPrint('✅ Onboarding marked complete: $onboardingMarked');
+      debugPrint('Onboarding marked complete: $onboardingMarked');
 
       // Verify onboarding completion was saved
       final isComplete = StorageService.isOnboardingComplete();
-      debugPrint('✅ Onboarding verification: $isComplete');
+      debugPrint('Onboarding verification: $isComplete');
 
       if (!isComplete) {
         throw Exception('Failed to mark onboarding as complete');
@@ -161,12 +194,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       // Save to database (non-critical, don't block on failure)
       try {
         await DatabaseService.saveUser(profile);
-        debugPrint('✅ Profile saved to database');
+        debugPrint('Profile saved to database');
       } catch (e) {
-        debugPrint('⚠️ Warning: Failed to save user to database: $e');
+        debugPrint('Warning: Failed to save user to database: $e');
       }
 
-      debugPrint('🎉 Onboarding completed successfully!');
+      debugPrint('Onboarding completed successfully!');
 
       // Navigate to home
       if (mounted) {
@@ -175,7 +208,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         );
       }
     } catch (e) {
-      debugPrint('❌ Onboarding error: $e');
+      debugPrint('Onboarding error: $e');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -192,6 +225,50 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         );
       }
     }
+  }
+
+  /// Show dialog to confirm clearing old data when existing user is detected
+  Future<bool?> _showClearDataDialog(String existingUserName) async {
+    debugPrint('[DIALOG] Showing clear data dialog for user: $existingUserName');
+    return await showCupertinoDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => CupertinoAlertDialog(
+        title: const Text('Phát hiện tài khoản cũ'),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Text(
+            'Đã có dữ liệu của "$existingUserName".\n\n'
+            'Bạn có muốn xóa dữ liệu cũ và tạo tài khoản mới không?\n\n'
+            '⚠️ Hành động này sẽ xóa tất cả bữa ăn, lịch tập và dữ liệu sức khỏe đã lưu.',
+          ),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () {
+              debugPrint('[DIALOG] User pressed: Hủy (Cancel)');
+              Navigator.pop(ctx, false);
+            },
+            child: const Text('Hủy'),
+          ),
+          CupertinoDialogAction(
+            onPressed: () {
+              debugPrint('[DIALOG] User pressed: Giữ dữ liệu cũ');
+              Navigator.pop(ctx, false);
+            },
+            child: const Text('Giữ dữ liệu cũ'),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              debugPrint('[DIALOG] User pressed: Xóa và tạo mới');
+              Navigator.pop(ctx, true);
+            },
+            child: const Text('Xóa và tạo mới'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

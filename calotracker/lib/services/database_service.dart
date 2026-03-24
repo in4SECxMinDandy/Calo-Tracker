@@ -16,7 +16,7 @@ import '../models/conversation.dart';
 class DatabaseService {
   static Database? _database;
   static const String _dbName = 'calotracker.db';
-  static const int _dbVersion = 9; // Added conversation_id to chat_history
+  static const int _dbVersion = 10; // meals.notes for AI scan metadata
 
   /// Get database instance (singleton)
   static Future<Database> get database async {
@@ -80,7 +80,8 @@ class DatabaseService {
         protein REAL,
         carbs REAL,
         fat REAL,
-        source TEXT NOT NULL
+        source TEXT NOT NULL,
+        notes TEXT
       )
     ''');
 
@@ -345,6 +346,11 @@ class DatabaseService {
         'updated_at': now,
       });
     }
+
+    // Migration from v9 to v10: meals.notes (JSON metadata for AI camera scan)
+    if (oldVersion < 10) {
+      await db.execute('ALTER TABLE meals ADD COLUMN notes TEXT');
+    }
   }
 
   // ==================== USER OPERATIONS ====================
@@ -454,6 +460,42 @@ class DatabaseService {
     final record = await getCaloRecord(meal.dateStr);
     final updatedRecord = record.addIntake(meal.calories);
     await updateCaloRecord(updatedRecord);
+  }
+
+  /// Insert nhiều bữa trong một transaction: cả lô thành công hoặc rollback (atomic).
+  /// Dùng sau AI nhận diện nhiều món — tránh lưu một phần khi lỗi giữa chừng.
+  static Future<void> insertMealsBatch(List<Meal> meals) async {
+    if (meals.isEmpty) return;
+    final db = await database;
+    final dateStr = meals.first.dateStr;
+    for (final m in meals) {
+      if (m.dateStr != dateStr) {
+        throw ArgumentError(
+          'insertMealsBatch: all meals must be the same calendar day',
+        );
+      }
+    }
+    await db.transaction((txn) async {
+      var totalCal = 0.0;
+      for (final meal in meals) {
+        await txn.insert('meals', meal.toMap());
+        totalCal += meal.calories;
+      }
+      final results = await txn.query(
+        'calo_records',
+        where: 'date = ?',
+        whereArgs: [dateStr],
+      );
+      final CaloRecord record = results.isEmpty
+          ? CaloRecord.empty(dateStr)
+          : CaloRecord.fromMap(results.first);
+      final updated = record.addIntake(totalCal);
+      await txn.insert(
+        'calo_records',
+        updated.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
   }
 
   /// Get meals for a specific date
@@ -1165,6 +1207,28 @@ class DatabaseService {
     await db.delete('water_records');
     await db.delete('weight_records');
     await db.delete('sleep_records');
+    await db.delete('sleep_sessions');
+    await db.delete('sleep_signal_events');
+    await db.delete('users');
+  }
+
+  /// Clear user data (all tracking data) but keep database structure.
+  /// Use this when creating a new user to ensure clean state.
+  /// This deletes: meals, calo_records, gym_sessions, chat_history,
+  /// water_records, weight_records, sleep_records, sleep_sessions,
+  /// sleep_signal_events, and user profile.
+  static Future<void> clearUserData() async {
+    final db = await database;
+    await db.delete('meals');
+    await db.delete('gym_sessions');
+    await db.delete('calo_records');
+    await db.delete('chat_history');
+    await db.delete('chat_conversations');
+    await db.delete('water_records');
+    await db.delete('weight_records');
+    await db.delete('sleep_records');
+    await db.delete('sleep_sessions');
+    await db.delete('sleep_signal_events');
     await db.delete('users');
   }
 }

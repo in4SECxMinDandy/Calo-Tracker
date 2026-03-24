@@ -3,7 +3,8 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
+import 'package:sensors_plus/sensors_plus.dart';
+import 'package:battery_plus/battery_plus.dart';
 import '../../models/sleep_signal_event.dart';
 import '../storage_service.dart';
 
@@ -57,9 +58,11 @@ class PassiveSleepCollectorService {
   bool _isCollecting = false;
 
   // Stream subscriptions
-  // ignore: unused_field - Will be used when sensors_plus is added
-  StreamSubscription<dynamic>? _accelerometerSubscription;
-  MethodChannel? _platformChannel;
+  StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
+  StreamSubscription<BatteryState>? _batteryStateSubscription;
+  
+  // Battery plugin
+  final Battery _battery = Battery();
   
   // Event storage (in-memory buffer before saving to DB)
   final List<SleepSignalEvent> _eventBuffer = [];
@@ -72,13 +75,19 @@ class PassiveSleepCollectorService {
   // Accelerometer tracking
   final List<double> _motionReadings = [];
   DateTime? _lastMotionSample;
-  // ignore: unused_field - Will be used in future enhancement
-  double _lastMotionMagnitude = 0;
 
   // Current state tracking
-  bool _wasScreenOn = true;
+  // Note: _wasScreenOn is not tracked in real-time since we don't have
+  // a screen broadcast receiver. We assume screen is off during sleep analysis
+  // (window analysis uses this conservatively).
+  final bool _wasScreenOn = false; // Tracked via platform events if available
   bool _wasCharging = false;
   int _lastBatteryLevel = -1;
+
+  // Window analysis timer
+  Timer? _windowAnalysisTimer;
+  // Battery polling timer
+  Timer? _batteryPollingTimer;
   
   /// Get current config
   SleepCollectorConfig get config => _config;
@@ -110,12 +119,14 @@ class PassiveSleepCollectorService {
     onWindowAnalysis = onAnalysis;
     
     try {
-      // Initialize platform channel for Android broadcasts
-      await _initPlatformChannel();
-      
       // Start accelerometer listening if enabled
       if (_config.enableAccelerometer) {
         _startAccelerometerListening();
+      }
+
+      // Start battery monitoring
+      if (_config.enableChargingEvents || _config.enableBatteryEvents) {
+        await _startBatteryMonitoring();
       }
       
       _isCollecting = true;
@@ -140,78 +151,106 @@ class PassiveSleepCollectorService {
     // Cancel subscriptions
     await _accelerometerSubscription?.cancel();
     _accelerometerSubscription = null;
-    
-    // Cancel platform channel
-    _platformChannel?.invokeMethod('stopListening');
-    _platformChannel = null;
+
+    await _batteryStateSubscription?.cancel();
+    _batteryStateSubscription = null;
+
+    _batteryPollingTimer?.cancel();
+    _batteryPollingTimer = null;
+
+    _windowAnalysisTimer?.cancel();
+    _windowAnalysisTimer = null;
     
     // Save remaining buffer
     await _flushBuffer();
     
     debugPrint('[SleepCollector] Stopped collecting');
   }
-  
-  /// Initialize platform channel for Android-specific broadcasts
-  Future<void> _initPlatformChannel() async {
-    _platformChannel = const MethodChannel('com.calotracker/sleep_signals');
-    
+
+  /// Start battery monitoring via battery_plus
+  Future<void> _startBatteryMonitoring() async {
     try {
-      // Set up method call handler
-      _platformChannel?.setMethodCallHandler((call) async {
-        switch (call.method) {
-          case 'onScreenStateChanged':
-            final isOn = call.arguments as bool;
-            _handleScreenStateChange(isOn);
-            break;
-          case 'onChargingStateChanged':
-            final isCharging = call.arguments as bool;
-            _handleChargingStateChange(isCharging);
-            break;
-          case 'onBatteryLevelChanged':
-            final level = call.arguments as int;
-            _handleBatteryLevelChange(level);
-            break;
-        }
-        return null;
-      });
-      
-      // Start listening on Android side
-      await _platformChannel?.invokeMethod('startListening');
+      // Get initial battery state
+      final state = await _battery.batteryState;
+      _handleBatteryState(state);
+
+      // Get initial battery level
+      final level = await _battery.batteryLevel;
+      _handleBatteryLevelChange(level);
+
+      // Listen for battery state changes (charging/discharging)
+      _batteryStateSubscription = _battery.onBatteryStateChanged.listen(
+        (BatteryState state) {
+          _handleBatteryState(state);
+        },
+        onError: (e) => debugPrint('[SleepCollector] Battery state error: $e'),
+      );
+
+      // Poll battery level every 5 minutes
+      _batteryPollingTimer = Timer.periodic(
+        const Duration(minutes: 5),
+        (_) async {
+          try {
+            final lvl = await _battery.batteryLevel;
+            _handleBatteryLevelChange(lvl);
+          } catch (e) {
+            debugPrint('[SleepCollector] Battery poll error: $e');
+          }
+        },
+      );
+
+      debugPrint('[SleepCollector] Battery monitoring started');
     } catch (e) {
-      debugPrint('[SleepCollector] Platform channel error (expected on iOS): $e');
+      debugPrint('[SleepCollector] Battery monitoring error: $e');
+    }
+  }
+
+  /// Handle battery state change (charging / discharging)
+  void _handleBatteryState(BatteryState state) {
+    final isCharging = state == BatteryState.charging ||
+        state == BatteryState.full;
+
+    _handleChargingStateChange(isCharging);
+  }
+  
+  /// Start accelerometer listening using sensors_plus
+  void _startAccelerometerListening() {
+    try {
+      _accelerometerSubscription = accelerometerEventStream(
+        samplingPeriod: Duration(
+          milliseconds: _config.accelerometerSampleIntervalMs,
+        ),
+      ).listen(
+        (AccelerometerEvent event) {
+          _handleAccelerometerEvent(event);
+        },
+        onError: (error) {
+          debugPrint('[SleepCollector] Accelerometer error: $error');
+        },
+      );
+      debugPrint('[SleepCollector] Accelerometer listening started');
+    } catch (e) {
+      debugPrint('[SleepCollector] Could not start accelerometer: $e');
     }
   }
   
-  /// Start accelerometer listening
-  void _startAccelerometerListening() {
-    // sensors_plus will be available after adding dependency
-    // For now, this is a placeholder that will be activated when package is added
-    debugPrint('[SleepCollector] Accelerometer listening started (requires sensors_plus package)');
-    
-    // To do: Uncomment when sensors_plus is added to pubspec.yaml
-    // _accelerometerSubscription = accelerometerEventStream(
-    //   samplingPeriod: Duration(milliseconds: _config.accelerometerSampleIntervalMs),
-    // ).listen(
-    //   (AccelerometerEvent event) {
-    //     _handleAccelerometerEvent(event);
-    //   },
-    //   onError: (error) {
-    //     debugPrint('[SleepCollector] Accelerometer error: $error');
-    //   },
-    // );
-  }
-  
-  /// Handle accelerometer event (placeholder - update signature when sensors_plus added)
-  // ignore: unused_element
-  void _handleAccelerometerEvent(dynamic event) {
+  /// Handle accelerometer event
+  void _handleAccelerometerEvent(AccelerometerEvent event) {
     final magnitude = sqrt(
-      (event.x as double) * (event.x as double) + 
-      (event.y as double) * (event.y as double) + 
-      (event.z as double) * (event.z as double),
+      event.x * event.x +
+      event.y * event.y +
+      event.z * event.z,
     );
     
-    // Calculate deviation from gravity (~9.8)
+    // Calculate deviation from gravity (~9.8 m/s²)
     final deviation = (magnitude - 9.8).abs();
+    
+    // Throttle: only sample once per configured interval
+    final now = DateTime.now();
+    if (_lastMotionSample != null) {
+      final elapsed = now.difference(_lastMotionSample!).inMilliseconds;
+      if (elapsed < _config.accelerometerSampleIntervalMs) return;
+    }
     
     // Store reading
     _motionReadings.add(deviation);
@@ -219,8 +258,7 @@ class PassiveSleepCollectorService {
       _motionReadings.removeAt(0); // Keep last 60 readings (1 minute at 1Hz)
     }
     
-    _lastMotionMagnitude = deviation;
-    _lastMotionSample = DateTime.now();
+    _lastMotionSample = now;
     
     // If significant motion detected, log it
     if (deviation > _config.motionThreshold) {
@@ -234,22 +272,6 @@ class PassiveSleepCollectorService {
           },
         ),
       );
-    }
-  }
-  
-  /// Handle screen state change
-  void _handleScreenStateChange(bool isScreenOn) {
-    final value = isScreenOn ? SignalValue.screenOn : SignalValue.screenOff;
-    
-    // Only log state changes
-    if (_wasScreenOn != isScreenOn) {
-      _addSignalEvent(
-        SleepSignalEvent(
-          type: SleepSignalType.screenState,
-          value: value,
-        ),
-      );
-      _wasScreenOn = isScreenOn;
     }
   }
   
@@ -318,8 +340,6 @@ class PassiveSleepCollectorService {
   }
   
   /// Start periodic window analysis timer
-  Timer? _windowAnalysisTimer;
-  
   void _startWindowAnalysisTimer() {
     _windowAnalysisTimer?.cancel();
     _windowAnalysisTimer = Timer.periodic(
@@ -331,12 +351,6 @@ class PassiveSleepCollectorService {
   /// Analyze current window and produce summary
   Future<void> _analyzeCurrentWindow() async {
     if (!_isCollecting) return;
-
-    // Get events from the last window (for future filtering)
-    // ignore: unused_local_variable
-    final cutoff = DateTime.now().subtract(
-      Duration(minutes: _config.windowSizeMinutes),
-    );
 
     // Analyze motion readings
     double avgMotion = 0;
@@ -361,7 +375,7 @@ class PassiveSleepCollectorService {
     // Notify callback
     onWindowAnalysis?.call(analysis);
     
-    debugPrint('[SleepCollector] Window analysis: still=$isMostlyStill, motion=${avgMotion.toStringAsFixed(3)}');
+    debugPrint('[SleepCollector] Window: still=$isMostlyStill, motion=${avgMotion.toStringAsFixed(3)}, charging=$_wasCharging');
   }
   
   /// Get current motion status
@@ -379,6 +393,7 @@ class PassiveSleepCollectorService {
       'charging': _wasCharging,
       'bufferSize': _eventBuffer.length,
       'lastMotionSample': _lastMotionSample?.toIso8601String(),
+      'motionReadingsCount': _motionReadings.length,
     };
   }
   
@@ -402,7 +417,6 @@ class PassiveSleepCollectorService {
   /// Clean up resources
   void dispose() {
     stopCollecting();
-    _windowAnalysisTimer?.cancel();
     _instance = null;
   }
 }

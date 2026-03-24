@@ -12,6 +12,8 @@ class Meal {
   final double? carbs;
   final double? fat;
   final String source; // 'camera' | 'chatbot' | 'manual'
+  /// JSON hoặc text ghi chú (vd. metadata AI: đường ảnh, confidence)
+  final String? notes;
 
   Meal({
     String? id,
@@ -23,6 +25,7 @@ class Meal {
     this.carbs,
     this.fat,
     required this.source,
+    this.notes,
   }) : id = id ?? const Uuid().v4();
 
   /// Create from Nutritionix API response food item
@@ -116,6 +119,7 @@ class Meal {
       'carbs': carbs,
       'fat': fat,
       'source': source,
+      'notes': notes,
     };
   }
 
@@ -131,6 +135,7 @@ class Meal {
       carbs: (map['carbs'] as num?)?.toDouble(),
       fat: (map['fat'] as num?)?.toDouble(),
       source: map['source'] as String,
+      notes: map['notes'] as String?,
     );
   }
 
@@ -145,6 +150,7 @@ class Meal {
     double? carbs,
     double? fat,
     String? source,
+    String? notes,
   }) {
     return Meal(
       id: id ?? this.id,
@@ -156,6 +162,7 @@ class Meal {
       carbs: carbs ?? this.carbs,
       fat: fat ?? this.fat,
       source: source ?? this.source,
+      notes: notes ?? this.notes,
     );
   }
 

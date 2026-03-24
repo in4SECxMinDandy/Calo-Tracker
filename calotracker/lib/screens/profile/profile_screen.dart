@@ -688,37 +688,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 24),
 
-              // ── Health Tracking ──────────────────────────────────────────
-              Text(
-                'THEO DÕI SỨC KHỎE',
-                style: TextStyle(
-                  color:
-                      isDark
-                          ? const Color(0xFF8B92A8)
-                          : const Color(0xFF6B7280),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _HealthTrackingItem(
-                icon: Icons.scale,
-                iconColor: _kGreen,
-                title: 'Cân nặng',
-                value: '${_weight > 0 ? _weight.toInt() : '--'} kg',
-                isDark: isDark,
-              ),
-              const SizedBox(height: 12),
-              _HealthTrackingItem(
-                icon: Icons.local_fire_department,
-                iconColor: _kCalColor,
-                title: 'Calo hôm nay',
-                value: '-- kcal',
-                isDark: isDark,
-              ),
-              const SizedBox(height: 24),
-
               // ── Account Section ──────────────────────────────────────────
               _buildAccountSection(isDark, _isLoggedIn, card, textPrimary),
               const SizedBox(height: 40),
@@ -1302,61 +1271,3 @@ class _BodyInfoItem extends StatelessWidget {
   }
 }
 
-class _HealthTrackingItem extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String value;
-  final bool isDark;
-
-  const _HealthTrackingItem({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.value,
-    required this.isDark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cardColor = isDark ? const Color(0xFF1A1F2E) : Colors.white;
-    final textPrimary = isDark ? Colors.white : const Color(0xFF1A1A2E);
-    final textSecondary =
-        isDark ? const Color(0xFF8B92A8) : const Color(0xFF6B7280);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              title,
-              style: TextStyle(
-                color: textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Text(value, style: TextStyle(color: textSecondary, fontSize: 14)),
-          const SizedBox(width: 8),
-          Icon(Icons.chevron_right, color: textSecondary, size: 20),
-        ],
-      ),
-    );
-  }
-}

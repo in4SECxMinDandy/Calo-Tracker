@@ -40,6 +40,11 @@ class _WaterIntakeWidgetState extends State<WaterIntakeWidget> {
     }
   }
 
+  /// Public method to refresh data from parent
+  Future<void> refreshData() async {
+    await _loadData();
+  }
+
   Future<void> _addWater(int amountMl) async {
     await WaterService.addWaterIntake(amountMl);
     await _loadData();

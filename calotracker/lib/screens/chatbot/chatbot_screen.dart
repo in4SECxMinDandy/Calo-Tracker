@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../models/meal.dart';
 import '../../models/sleep_record.dart';
 import '../../models/chat_message.dart';
@@ -11,14 +12,22 @@ import '../../models/conversation.dart';
 import '../../services/database_service.dart';
 import '../../services/nutrition_ai_service.dart';
 import '../../services/water_service.dart';
+import '../../services/meal_suggestion_service.dart';
 import '../../theme/colors.dart';
 import '../../utils/time_formatter.dart';
 import 'package:uuid/uuid.dart';
 
 class ChatbotScreen extends StatefulWidget {
   final VoidCallback? onMealAdded;
+  final VoidCallback? onSleepAdded;
+  final VoidCallback? onWaterAdded;
 
-  const ChatbotScreen({super.key, this.onMealAdded});
+  const ChatbotScreen({
+    super.key,
+    this.onMealAdded,
+    this.onSleepAdded,
+    this.onWaterAdded,
+  });
 
   @override
   State<ChatbotScreen> createState() => _ChatbotScreenState();
@@ -257,6 +266,13 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     try {
       final response = await _aiService.processMessage(message);
 
+      // #region agent log
+      debugPrint(
+        '[AI-LOG-DBG] action=${response.action} hasLogData=${response.logData != null} '
+        'willAutoLog=${response.action == NutritionIntent.log && response.logData != null}',
+      );
+      // #endregion
+
       if (mounted) {
         setState(() {
           _messages.add(_ChatItem.bot(response.reply, aiResponse: response));
@@ -337,8 +353,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         note: 'Ghi nhận từ AI Chatbot',
       );
 
-      // Refresh home screen or other screens
+      // Refresh all screens (meals, sleep, water)
       widget.onMealAdded?.call();
+      widget.onSleepAdded?.call();
+      widget.onWaterAdded?.call();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -368,8 +386,36 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           ),
         );
       }
-    } catch (e) {
-      debugPrint('Auto-log water error: $e');
+    } catch (e, st) {
+      debugPrint('[Chatbot] _autoLogWater failed: $e\n$st');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(
+                  CupertinoIcons.exclamationmark_circle_fill,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '❌ Lỗi khi lưu nước uống: $e',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.errorRed,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
@@ -381,8 +427,24 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           logData.bedTime ??
           wakeTime.subtract(Duration(minutes: (logData.hours * 60).toInt()));
 
-      // Determine the date of the sleep record (usually the wake date)
-      final sleepDate = DateTime(wakeTime.year, wakeTime.month, wakeTime.day);
+      // For overnight sleep (bed after midnight), use the ACTUAL calendar date of bed_time.
+      // For normal sleep, use the date of wake_time.
+      // In most cases we associate sleep with the day you WOKE UP, so we use wake date.
+      // But if bed_time's date is AFTER wake_time's date, it means the sleep started
+      // yesterday — use the bed date so it shows in the correct day's history.
+      DateTime sleepDate;
+      if (bedTime.year > wakeTime.year ||
+          (bedTime.year == wakeTime.year && bedTime.month > wakeTime.month) ||
+          (bedTime.year == wakeTime.year &&
+              bedTime.month == wakeTime.month &&
+              bedTime.day > wakeTime.day)) {
+        // Overnight sleep: started yesterday, wake up today
+        // Associate with the date you went to bed
+        sleepDate = DateTime(bedTime.year, bedTime.month, bedTime.day);
+      } else {
+        // Normal: went to bed and woke up on same calendar day
+        sleepDate = DateTime(wakeTime.year, wakeTime.month, wakeTime.day);
+      }
 
       final sleepRecord = SleepRecord(
         date: sleepDate,
@@ -393,6 +455,11 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       );
 
       await DatabaseService.insertSleepRecord(sleepRecord);
+
+      // Refresh all screens (meals, sleep, water)
+      widget.onMealAdded?.call();
+      widget.onSleepAdded?.call();
+      widget.onWaterAdded?.call();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -422,8 +489,36 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           ),
         );
       }
-    } catch (e) {
-      debugPrint('Auto-log sleep error: $e');
+    } catch (e, st) {
+      debugPrint('[Chatbot] _autoLogSleep failed: $e\n$st');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(
+                  CupertinoIcons.exclamationmark_circle_fill,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '❌ Lỗi khi lưu giấc ngủ: $e',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.errorRed,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
@@ -440,7 +535,11 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         source: 'ai_chatbot',
       );
       await DatabaseService.insertMeal(meal);
+
+      // Refresh all screens (meals, sleep, water)
       widget.onMealAdded?.call();
+      widget.onSleepAdded?.call();
+      widget.onWaterAdded?.call();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -470,8 +569,36 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           ),
         );
       }
-    } catch (e) {
-      debugPrint('Auto-log error: $e');
+    } catch (e, st) {
+      debugPrint('[Chatbot] _autoLogMeal failed: $e\n$st');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(
+                  CupertinoIcons.exclamationmark_circle_fill,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '❌ Lỗi khi lưu bữa ăn: $e',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.errorRed,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
@@ -607,19 +734,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       backgroundColor: isDark ? AppColors.darkCard : Colors.white,
       elevation: 0,
       automaticallyImplyLeading: false,
-      leadingWidth: 48,
-      leading: Padding(
-        padding: const EdgeInsets.only(left: 8.0),
-        child: IconButton(
-          icon: Icon(
-            CupertinoIcons.square_pencil,
-            color: accent,
-            size: 24,
-          ),
-          onPressed: _startNewConversation,
-          tooltip: 'Cuộc trò chuyện mới',
-          splashRadius: 20,
-        ),
+      leading: IconButton(
+        icon: Icon(CupertinoIcons.square_pencil, color: accent, size: 24),
+        onPressed: _startNewConversation,
+        tooltip: 'New Chat',
       ),
       title: Row(
         children: [
@@ -777,6 +895,15 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                   _buildLogBadge(item.aiResponse!.logData!, isDark),
                 ],
 
+                // Meal suggestions for SUGGEST intent
+                if (!isUser &&
+                    item.aiResponse?.action == NutritionIntent.suggest &&
+                    item.aiResponse?.suggestions != null &&
+                    item.aiResponse!.suggestions!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _buildSuggestionCards(item.aiResponse!.suggestions!, isDark),
+                ],
+
                 // Timestamp
                 const SizedBox(height: 2),
                 Text(
@@ -800,23 +927,99 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   Widget _buildMessageContent(_ChatItem item, bool isUser, bool isDark) {
-    // Parse markdown-like formatting
     final text = item.content;
-    final spans = _parseMarkdown(text, isUser, isDark);
+    final baseColor =
+        isUser
+            ? Colors.white
+            : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary);
+    final secondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final divider =
+        isDark ? Colors.white24 : Colors.black.withValues(alpha: 0.12);
 
+    // Bot: tiêu đề #, bảng |, code fence — render Markdown đầy đủ
+    if (!isUser && _looksLikeStructuredMarkdown(text)) {
+      return MarkdownBody(
+        data: text,
+        shrinkWrap: true,
+        selectable: true,
+        styleSheet: MarkdownStyleSheet(
+          p: TextStyle(fontSize: 14, height: 1.5, color: baseColor),
+          h1: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: baseColor,
+            height: 1.35,
+          ),
+          h2: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: baseColor,
+            height: 1.35,
+          ),
+          h3: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: baseColor,
+            height: 1.35,
+          ),
+          strong: TextStyle(fontWeight: FontWeight.w700, color: baseColor),
+          em: TextStyle(
+            fontStyle: FontStyle.italic,
+            color: baseColor.withValues(alpha: 0.9),
+          ),
+          listBullet: TextStyle(color: baseColor, fontSize: 14),
+          listIndent: 20,
+          blockquote: TextStyle(color: secondary, fontSize: 14, height: 1.5),
+          blockquoteDecoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(color: AppColors.primaryBlue, width: 3),
+            ),
+          ),
+          code: TextStyle(
+            fontSize: 13,
+            fontFamily: 'monospace',
+            color: baseColor,
+            backgroundColor: isDark ? Colors.white10 : Colors.black12,
+          ),
+          codeblockDecoration: BoxDecoration(
+            color: isDark ? Colors.white10 : Colors.black12,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          tableHead: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: baseColor,
+            fontSize: 13,
+          ),
+          tableBody: TextStyle(color: baseColor, fontSize: 13),
+          tableBorder: TableBorder.all(color: divider, width: 0.5),
+          horizontalRuleDecoration: BoxDecoration(
+            border: Border(top: BorderSide(color: divider)),
+          ),
+        ),
+      );
+    }
+
+    final spans = _parseMarkdown(text, isUser, isDark);
     return Text.rich(
       TextSpan(children: spans),
-      style: TextStyle(
-        fontSize: 14,
-        height: 1.5,
-        color:
-            isUser
-                ? Colors.white
-                : (isDark
-                    ? AppColors.darkTextPrimary
-                    : AppColors.lightTextPrimary),
-      ),
+      style: TextStyle(fontSize: 14, height: 1.5, color: baseColor),
     );
+  }
+
+  /// Phát hiện markdown có cấu trúc (tiêu đề, bảng, fence) — khác với chỉ **đậm**
+  bool _looksLikeStructuredMarkdown(String text) {
+    final t = text.trimLeft();
+    if (t.startsWith('#')) return true;
+    if (RegExp(r'^[-*]\s', multiLine: true).hasMatch(text)) return true;
+    if (RegExp(r'^\d+\.\s', multiLine: true).hasMatch(text)) return true;
+    if (text.contains('|') && text.contains('\n')) {
+      final lines = text.split('\n');
+      final pipeLines = lines.where((l) => l.contains('|')).length;
+      if (pipeLines >= 2) return true;
+    }
+    if (text.contains('```')) return true;
+    return false;
   }
 
   List<InlineSpan> _parseMarkdown(String text, bool isUser, bool isDark) {
@@ -908,6 +1111,205 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         ],
       ),
     );
+  }
+
+  Widget _buildSuggestionCards(List<MealSuggestion> suggestions, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: AppColors.primaryBlue.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                CupertinoIcons.lightbulb_fill,
+                size: 12,
+                color: AppColors.primaryBlue,
+              ),
+              SizedBox(width: 4),
+              Text(
+                'Gợi ý món ăn',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primaryBlue,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 140,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: suggestions.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final s = suggestions[index];
+              return _buildSuggestionCard(s, isDark);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSuggestionCard(MealSuggestion s, bool isDark) {
+    return Container(
+      width: 160,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            s.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            s.description,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              color:
+                  isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
+            ),
+          ),
+          const Spacer(),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${s.calories.toInt()} kcal',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryBlue,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'P${s.protein.toInt()} C${s.carbs.toInt()} F${s.fat.toInt()}',
+                style: TextStyle(
+                  fontSize: 10,
+                  color:
+                      isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          GestureDetector(
+            onTap: () => _addMealFromSuggestion(s),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.successGreen,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.plus, size: 12, color: Colors.white),
+                  SizedBox(width: 3),
+                  Text(
+                    'Thêm',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _addMealFromSuggestion(MealSuggestion s) async {
+    try {
+      final meal = Meal(
+        dateTime: DateTime.now(),
+        foodName: s.name,
+        calories: s.calories,
+        protein: s.protein,
+        carbs: s.carbs,
+        fat: s.fat,
+        source: 'chatbot_suggestion',
+      );
+      await DatabaseService.insertMeal(meal);
+      widget.onMealAdded?.call();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(
+                  CupertinoIcons.checkmark_circle_fill,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '✅ Đã thêm ${s.name} (${s.calories.toInt()} kcal)',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.successGreen,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error adding meal from suggestion: $e');
+    }
   }
 
   Widget _buildTypingIndicator(bool isDark) {

@@ -23,7 +23,9 @@ class SupabaseAuthService {
 
   // Get client safely (throws if not available)
   SupabaseClient get _client {
+    debugPrint('[SUPA_AUTH] _client getter called, isAvailable: $isAvailable');
     if (!isAvailable) {
+      debugPrint('[SUPA_AUTH] Supabase not available, throwing StateError');
       throw StateError('Supabase is not initialized');
     }
     return SupabaseConfig.client;
@@ -31,7 +33,11 @@ class SupabaseAuthService {
 
   // Stream of auth state changes (returns empty stream if not available)
   Stream<AuthState> get authStateChanges {
-    if (!isAvailable) return const Stream.empty();
+    debugPrint('[SUPA_AUTH] authStateChanges getter called, isAvailable: $isAvailable');
+    if (!isAvailable) {
+      debugPrint('[SUPA_AUTH] Returning empty stream - Supabase not available');
+      return const Stream.empty();
+    }
     return _client.auth.onAuthStateChange;
   }
 
@@ -124,11 +130,19 @@ class SupabaseAuthService {
 
   // Sign in with Google
   Future<bool> signInWithGoogle() async {
-    final response = await _client.auth.signInWithOAuth(
-      OAuthProvider.google,
-      redirectTo: 'io.supabase.calotracker://login-callback/',
-    );
-    return response;
+    debugPrint('[SUPA_AUTH] signInWithGoogle called');
+    try {
+      final response = await _client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: 'io.supabase.calotracker://login-callback/',
+      );
+      debugPrint('[SUPA_AUTH] signInWithOAuth response: $response');
+      return response;
+    } catch (e, stackTrace) {
+      debugPrint('[SUPA_AUTH] signInWithGoogle error: $e');
+      debugPrint('[SUPA_AUTH] Stack trace: $stackTrace');
+      rethrow;
+    }
   }
 
   // Sign in with Apple

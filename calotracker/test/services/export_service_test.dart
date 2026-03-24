@@ -138,9 +138,11 @@ void main() {
       final csvBytes = utf8.encode(csv);
       final fullBytes = [...bom, ...csvBytes];
 
-      // Decode lại và kiểm tra
+      // BOM bytes should be at the beginning
+      expect(fullBytes.sublist(0, 3), equals([0xEF, 0xBB, 0xBF]));
+
+      // Decode and check content
       final decoded = utf8.decode(fullBytes);
-      expect(decoded.startsWith('\uFEFF'), isTrue);
       expect(decoded.contains('Phở bò'), isTrue);
       expect(decoded.contains('Cơm tấm sườn'), isTrue);
     });

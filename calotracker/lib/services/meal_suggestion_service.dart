@@ -8,11 +8,10 @@ import 'database_service.dart';
 import 'storage_service.dart';
 
 class MealSuggestionService {
-  // API Configuration (same as FoodRecognitionService)
-  static const String _apiBaseUrl =
-      'https://api.orbit-provider.com/cliproxy-api/api/provider/agy';
-  static const String _apiKey = 'sk-orbit-0846cfa453c75d71f36966e14c314e24';
-  static const String _model = 'gemini-2.5-flash';
+  // API Configuration (TapHoaApi Proxy - Claude Haiku)
+  static const String _apiBaseUrl = 'https://taphoaapi.info.vn';
+  static const String _apiKey = 'sk-proj-69981a1c7a6c4bb3ad6f5c34f274cadd';
+  static const String _model = 'claude-sonnet-4-6';
 
   /// Get meal suggestions based on remaining calories and macro balance
   static Future<MealSuggestionResult> getSuggestions() async {
@@ -105,44 +104,47 @@ class MealSuggestionService {
       }
 
       // Calculate exact calorie target for this meal
-      final int mealCalTarget = (remainingCalories / remainingMeals).toInt();
-      final int mealCalMin = mealCalTarget - 50;
+      int mealCalTarget = (remainingCalories / remainingMeals).toInt();
+      if (mealCalTarget < 150) {
+        mealCalTarget = 150; // Tối thiểu 150 kcal (các món siêu nhẹ)
+      }
+      
+      final int mealCalMin = mealCalTarget > 150 ? mealCalTarget - 50 : 50;
       final int mealCalMax = mealCalTarget + 50;
 
       final prompt =
-          '''Bạn là chuyên gia dinh dưỡng Việt Nam. Gợi ý đúng 4 món ăn PHÙ HỢP NHẤT cho bữa ${_getMealTimeText(mealTime)} này.
+          '''Bạn là chuyên gia dinh dưỡng Việt Nam. Gợi ý 6-8 món ăn ĐA DẠNG, PHONG PHÚ và PHÙ HỢP NHẤT cho bữa ${_getMealTimeText(mealTime)} này.
+Đặc biệt phải bám sát lịch sử nạp calo của người dùng hôm nay!
 
 Thông tin người dùng:
 - Mục tiêu sức khỏe: ${_getGoalText(profile.goal)}
 - Mục tiêu calo/ngày: ${profile.dailyTarget.toInt()} kcal
 - Đã nạp hôm nay: ${(profile.dailyTarget - remainingCalories).toInt()} kcal
 - Calo CÒN LẠI hôm nay: ${remainingCalories.toInt()} kcal
-- Macro đã nạp: Protein ${totalProtein.toInt()}g, Carbs ${totalCarbs.toInt()}g, Fat ${totalFat.toInt()}g
-- Số bữa (bao gồm bữa này): $remainingMeals
+- Biến động Macro còn lại (ước tính): Protein ${(profile.dailyTarget * 0.3 / 4 - totalProtein).round()}g, Carbs ${(profile.dailyTarget * 0.4 / 4 - totalCarbs).round()}g, Fat ${(profile.dailyTarget * 0.3 / 9 - totalFat).round()}g
+- Số bữa dự kiến còn lại (bao gồm bữa này): $remainingMeals
 
 QUY TẮC BẮT BUỘC - PHÂN CHIA CALO:
-1. Mục tiêu calo cho bữa NÀY = ${remainingCalories.toInt()} ÷ $remainingMeals = $mealCalTarget kcal
-2. Mỗi món gợi ý PHẢI trong khoảng $mealCalMin – $mealCalMax kcal (sai số ±50 kcal).
-3. Nếu là bữa phụ/snack: giới hạn 150–250 kcal.
-4. Macros phải khớp calo: 1g Protein=4kcal, 1g Carb=4kcal, 1g Fat=9kcal.
-5. Nếu thiếu macro (Protein/Carbs/Fat), ưu tiên món bổ sung macro đó.
-6. Chỉ gợi ý MÓN VIỆT NAM phổ biến, dễ tìm (phở, cơm, bún, cháo, mì, bánh mì, xôi...).
+1. Mục tiêu calo CHO BỮA NÀY = ${remainingCalories.toInt()} ÷ $remainingMeals = $mealCalTarget kcal.
+2. NẾU mục tiêu calo thấp (ví dụ dưới 300kcal) vì họ đã ăn quá nhiều: Bắt buộc gợi ý các món ăn siêu nhẹ, trái cây, salad, hạt, sữa chua...
+3. NẾU mục tiêu calo cực cao (ví dụ trên 800kcal): Gợi ý các combo món nhậu, bún/phở size lớn, cơm phần nhiều thịt...
+4. Mỗi món gợi ý PHẢI nằm trong dải $mealCalMin – $mealCalMax kcal (sai số ±50 kcal).
+5. Chỉ gợi ý MÓN VIỆT NAM phổ biến hoặc dễ mua/làm (cơm, phở, xôi, bún, gỏi, chè, bánh mì, hủ tiếu...). Đưa ra nhiều sự lựa chọn độc đáo.
+6. Macros (P/C/F) ở từng món phải tính chuẩn xác thực tế.
 
-Ví dụ: Nếu $mealCalTarget kcal → Phở gà là ~420 kcal ✓ (nằm trong $mealCalMin–$mealCalMax).
-
-Trả về JSON thuần túy, không giải thích thêm:
+Trả về JSON thuần túy, không có text dư thừa bọc ngoài:
 {
   "meal_target_kcal": $mealCalTarget,
   "suggestions": [
     {
-      "name": "Tên món ăn tiếng Việt",
+      "name": "Tên món ăn tiếng Việt (Combo nếu cần bù nhiều calo)",
       "name_en": "English name",
-      "description": "Mô tả ngắn dưới 15 chữ",
+      "description": "Mô tả hấp dẫn, nhấn mạnh tại sao hợp mục tiêu",
       "calories": $mealCalTarget,
       "protein": 25,
       "carbs": 45,
       "fat": 12,
-      "reason": "Lý do: calo phù hợp và bổ sung macro còn thiếu"
+      "reason": "Giải thích nhanh sự phù hợp với calo còn lại"
     }
   ]
 }''';
@@ -151,6 +153,7 @@ Trả về JSON thuần túy, không giải thích thêm:
           .post(
             Uri.parse('$_apiBaseUrl/v1/messages'),
             headers: {
+              'x-api-key': _apiKey,
               'Authorization': 'Bearer $_apiKey',
               'anthropic-version': '2023-06-01',
               'Content-Type': 'application/json',
@@ -163,7 +166,7 @@ Trả về JSON thuần túy, không giải thích thêm:
               ],
             }),
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -226,7 +229,10 @@ Trả về JSON thuần túy, không giải thích thêm:
     } else if (mealTime == 'snack') {
       remainingMeals = 2;
     }
-    final double mealTarget = remainingCalories / remainingMeals;
+    double mealTarget = remainingCalories / remainingMeals;
+    if (mealTarget < 150) {
+      mealTarget = 150;
+    }
     final double tolerance = 150; // ±150 kcal cho local fallback
 
     // Toàn bộ ngân hàng món ăn Việt Nam phân loại theo bữa + mục tiêu

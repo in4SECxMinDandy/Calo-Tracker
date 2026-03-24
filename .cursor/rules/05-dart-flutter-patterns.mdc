@@ -1,0 +1,411 @@
+---
+description: Flutter/Dart best practices, state management, and architecture patterns for mobile development
+globs: ["**/*.dart"]
+priority: 25
+---
+
+# Flutter/Dart Mobile Development Patterns
+
+## Architecture Overview
+
+### Clean Architecture Layers
+```
+lib/
+├── core/                    # Shared utilities, constants, themes
+│   ├── constants/
+│   ├── theme/
+│   ├── utils/
+│   └── widgets/
+├── data/                    # Data layer
+│   ├── models/
+│   ├── repositories/
+│   └── services/
+├── domain/                  # Business logic
+│   ├── entities/
+│   ├── repositories/
+│   └── usecases/
+└── presentation/            # UI layer
+    ├── screens/
+    ├── widgets/
+    └── providers/
+```
+
+### Layer Dependencies
+```dart
+// Presentation → Domain → Data
+// Lower layers never depend on upper layers
+// Dependencies point inward
+```
+
+## State Management (Riverpod)
+
+### Provider Structure
+```dart
+// Good: Organized providers
+@riverpod
+class MealNotifier extends _$MealNotifier {
+  @override
+  Future<List<Meal>> build() async {
+    return await _repository.getMeals();
+  }
+  
+  Future<void> addMeal(Meal meal) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => _repository.addMeal(meal));
+  }
+  
+  Future<void> deleteMeal(String id) async {
+    state = await AsyncValue.guard(() => _repository.deleteMeal(id));
+  }
+}
+
+// Good: Computed providers
+@riverpod
+double dailyCalories(TodayMealsRef ref) {
+  final meals = ref.watch(todayMealsProvider);
+  return meals.when(
+    data: (list) => list.fold(0.0, (sum, m) => sum + m.calories),
+    loading: () => 0.0,
+    error: (_, __) => 0.0,
+  );
+}
+
+// Good: Family providers for parameterized data
+@riverpod
+Future<MealDetails> mealDetails(MealDetailsRef ref, String mealId) {
+  return _repository.getMealDetails(mealId);
+}
+```
+
+### AsyncState Handling
+```dart
+// Good: Consistent async widget pattern
+class MealListWidget extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mealsAsync = ref.watch(mealListProvider);
+    
+    return mealsAsync.when(
+      data: (meals) => MealListView(meals: meals),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => MealErrorView(
+        error: error,
+        onRetry: () => ref.invalidate(mealListProvider),
+      ),
+    );
+  }
+}
+```
+
+## Repository Pattern
+
+### Data Repository Implementation
+```dart
+abstract class MealRepository {
+  Future<List<Meal>> getMeals();
+  Future<Meal> getMealById(String id);
+  Future<void> addMeal(Meal meal);
+  Future<void> updateMeal(Meal meal);
+  Future<void> deleteMeal(String id);
+  Stream<List<Meal>> watchMeals();
+}
+
+class MealRepositoryImpl implements MealRepository {
+  final MealLocalDataSource _localDataSource;
+  final MealRemoteDataSource _remoteDataSource;
+  final DatabaseService _db;
+  
+  @override
+  Future<List<Meal>> getMeals() async {
+    try {
+      final localMeals = await _localDataSource.getMeals();
+      if (localMeals.isNotEmpty) return localMeals;
+      
+      final remoteMeals = await _remoteDataSource.fetchMeals();
+      await _localDataSource.cacheMeals(remoteMeals);
+      return remoteMeals;
+    } on NetworkException {
+      return _localDataSource.getMeals();
+    }
+  }
+}
+```
+
+## Dependency Injection
+
+### Riverpod Provider Setup
+```dart
+// providers.dart
+final databaseServiceProvider = Provider<DatabaseService>((ref) {
+  return DatabaseService();
+});
+
+final supabaseClientProvider = Provider<SupabaseClient>((ref) {
+  return SupabaseClient(
+    supabaseUrl,
+    supabaseKey,
+    authOptions: AuthOptions(authCallbackPathWildcard: true),
+  );
+});
+
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  return SupabaseAuthRepository(ref.watch(supabaseClientProvider));
+});
+
+final authStateProvider = StreamProvider<AuthState>((ref) {
+  return ref.watch(authRepositoryProvider).authStateChanges;
+});
+```
+
+## Error Handling
+
+### Custom Exceptions
+```dart
+class AppException implements Exception {
+  final String message;
+  final String? code;
+  final dynamic originalError;
+  
+  const AppException({
+    required this.message,
+    this.code,
+    this.originalError,
+  });
+  
+  @override
+  String toString() => 'AppException: $message (code: $code)';
+}
+
+class NetworkException extends AppException {
+  const NetworkException({super.message = 'Network error occurred'});
+}
+
+class CacheException extends AppException {
+  const CacheException({super.message = 'Cache error occurred'});
+}
+
+class AuthException extends AppException {
+  const AuthException({super.message = 'Authentication error'});
+}
+```
+
+### Error Widget Pattern
+```dart
+class ErrorView extends StatelessWidget {
+  final AppException error;
+  final VoidCallback? onRetry;
+  final Widget? fallback;
+  
+  const ErrorView({
+    super.key,
+    required this.error,
+    this.onRetry,
+    this.fallback,
+  });
+  
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(_getIcon(error), size: 48, color: Colors.red),
+          const SizedBox(height: 16),
+          Text(error.message),
+          if (onRetry != null) ...[
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: const Text('Retry'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+  
+  IconData _getIcon(AppException error) {
+    if (error is NetworkException) return Icons.wifi_off;
+    if (error is AuthException) return Icons.lock;
+    return Icons.error_outline;
+  }
+}
+```
+
+## Navigation
+
+### GoRouter Setup
+```dart
+final routerProvider = Provider<GoRouter>((ref) {
+  final authState = ref.watch(authStateProvider);
+  
+  return GoRouter(
+    initialLocation: '/home',
+    redirect: (context, state) {
+      final isLoggedIn = authState.value != null;
+      final isAuthRoute = state.matchedLocation == '/login';
+      
+      if (!isLoggedIn && !isAuthRoute) {
+        return '/login';
+      }
+      if (isLoggedIn && isAuthRoute) {
+        return '/home';
+      }
+      return null;
+    },
+    routes: [
+      GoRoute(
+        path: '/home',
+        builder: (context, state) => const HomeScreen(),
+        routes: [
+          GoRoute(
+            path: 'meal/:id',
+            builder: (context, state) => MealDetailScreen(
+              id: state.pathParameters['id']!,
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+});
+```
+
+## Performance Optimization
+
+### Efficient Widgets
+```dart
+// Good: Const constructors and efficient rebuilds
+class MealCard extends ConsumerWidget {
+  const MealCard({super.key});
+  
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final meal = ref.watch(selectedMealProvider);
+    
+    return Card(
+      // Use const where possible
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              meal.name,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text('${meal.calories} kcal'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Good: Select specific data to avoid rebuilds
+class CalorieProgress extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Only rebuild when calories change, not whole meals
+    final calories = ref.watch(
+      todayMealsProvider.select((meals) => 
+        meals.fold(0.0, (sum, m) => sum + m.calories)
+      ),
+    );
+    
+    return CircularProgressIndicator(value: calories / 2000);
+  }
+}
+```
+
+## Testing Patterns
+
+### Unit Testing
+```dart
+@GenerateMocks([MealRepository, NutritionService])
+void main() {
+  late MealRepository mockRepository;
+  
+  setUp(() {
+    mockRepository = MockMealRepository();
+  });
+  
+  test('addMeal should call repository', () async {
+    when(mockRepository.addMeal(any)).thenAnswer((_) async {});
+    
+    final notifier = MealNotifier(repository: mockRepository);
+    await notifier.addMeal(TestFixtures.meal);
+    
+    verify(mockRepository.addMeal(any)).called(1);
+  });
+}
+```
+
+## Platform Channels (Native Integration)
+
+### Method Channel Pattern
+```dart
+class HealthKitService {
+  static const _channel = MethodChannel('com.calotracker/healthkit');
+  
+  Future<List<HealthData>> getHealthData(DateTime start, DateTime end) async {
+    try {
+      final result = await _channel.invokeMethod('getHealthData', {
+        'start': start.toIso8601String(),
+        'end': end.toIso8601String(),
+      });
+      return (result as List).map((e) => HealthData.fromJson(e)).toList();
+    } on PlatformException catch (e) {
+      throw HealthKitException(e.message ?? 'Failed to get health data');
+    }
+  }
+}
+```
+
+## Security Considerations
+
+### Secure Storage
+```dart
+class SecureStorageService {
+  Future<void> storeToken(String token) async {
+    await const FlutterSecureStorage(
+      aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    ).write(key: 'auth_token', value: token);
+  }
+  
+  Future<String?> getToken() async {
+    return await const FlutterSecureStorage(
+      aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    ).read(key: 'auth_token');
+  }
+}
+```
+
+## Implementation Checklist
+
+### Architecture
+- [ ] Clean architecture layers defined
+- [ ] Repository pattern implemented
+- [ ] Dependency injection configured
+
+### State Management
+- [ ] Riverpod providers set up
+- [ ] Async state handling consistent
+- [ ] Computed providers optimized
+
+### Error Handling
+- [ ] Custom exceptions defined
+- [ ] Error widgets implemented
+- [ ] Retry mechanisms in place
+
+### Performance
+- [ ] Const constructors used
+- [ ] Selective rebuilds implemented
+- [ ] Lazy loading configured
+
+### Testing
+- [ ] Unit tests for providers
+- [ ] Widget tests for screens
+- [ ] Integration tests for flows

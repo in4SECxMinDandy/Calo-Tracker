@@ -40,9 +40,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _setupAuthListener() {
+    debugPrint('[LOGIN] _setupAuthListener called');
     // Listen for auth state changes (for OAuth callback)
     _authSubscription = _authService.authStateChanges.listen((authState) {
+      debugPrint('[LOGIN] authStateChanges event: ${authState.event}');
+      debugPrint('[LOGIN] session: ${authState.session?.user.email ?? 'null'}');
+      debugPrint('[LOGIN] mounted: $mounted');
+
       if (authState.event == AuthChangeEvent.signedIn && mounted) {
+        debugPrint('[LOGIN] User signed in via OAuth - calling onLoginSuccess and popping');
         // User signed in via OAuth
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -52,6 +58,12 @@ class _LoginScreenState extends State<LoginScreen> {
         );
         widget.onLoginSuccess?.call();
         Navigator.of(context).pop();
+      } else if (authState.event == AuthChangeEvent.signedOut) {
+        debugPrint('[LOGIN] User signed out');
+      } else if (authState.event == AuthChangeEvent.tokenRefreshed) {
+        debugPrint('[LOGIN] Token refreshed');
+      } else if (authState.event == AuthChangeEvent.userUpdated) {
+        debugPrint('[LOGIN] User updated');
       }
     });
   }
@@ -100,14 +112,33 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    debugPrint('[LOGIN] _signInWithGoogle called');
+    debugPrint('[LOGIN] SupabaseConfig.isConfigured: ${SupabaseConfig.isConfigured}');
+    debugPrint('[LOGIN] SupabaseConfig.isInitialized: ${SupabaseConfig.isInitialized}');
+    debugPrint('[LOGIN] _authService.isAvailable: ${_authService.isAvailable}');
+
+    // Check if Supabase is available before attempting login
+    if (!_authService.isAvailable) {
+      debugPrint('[LOGIN] Supabase not available - showing error');
+      setState(() {
+        _errorMessage = 'Dịch vụ đăng nhập chưa sẵn sàng. Vui lòng thử lại sau.';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
+      debugPrint('[LOGIN] Calling authService.signInWithGoogle()');
       await _authService.signInWithGoogle();
-    } catch (e) {
+      debugPrint('[LOGIN] signInWithGoogle returned (OAuth flow started)');
+      // Note: OAuth is async - the callback will be handled by authStateChanges listener
+    } catch (e, stackTrace) {
+      debugPrint('[LOGIN] signInWithGoogle error: $e');
+      debugPrint('[LOGIN] Stack trace: $stackTrace');
       setState(() {
         _errorMessage = 'Đăng nhập Google thất bại';
       });
@@ -500,20 +531,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
 
-              const SizedBox(height: 12),
-
-              OutlinedButton.icon(
-                onPressed:
-                    _isLoading ? null : () => _authService.signInWithApple(),
-                icon: const Icon(Icons.apple),
-                label: const Text('Tiếp tục với Apple'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
+              // Apple Sign-In removed per user request
 
               const SizedBox(height: 32),
 

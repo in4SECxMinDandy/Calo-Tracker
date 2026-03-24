@@ -101,11 +101,13 @@ void main() {
     test('getByGoal returns correct exercises', () {
       final weightLoss = ExerciseData.getByGoal(ExerciseGoal.weightLoss);
       final muscleGain = ExerciseData.getByGoal(ExerciseGoal.muscleGain);
+      final maintain = ExerciseData.getByGoal(ExerciseGoal.maintain);
 
       expect(weightLoss.isNotEmpty, true);
       expect(muscleGain.isNotEmpty, true);
+      expect(maintain.isNotEmpty, true);
       expect(
-        weightLoss.length + muscleGain.length,
+        weightLoss.length + muscleGain.length + maintain.length,
         ExerciseData.allExercises.length,
       );
     });
