@@ -7,7 +7,6 @@
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.7-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
 [![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
-[![Gemini AI](https://img.shields.io/badge/AI-Gemini%201.5-blue?style=for-the-badge&logo=google-gemini&logoColor=white)](https://aistudio.google.com)
 [![Claude AI](https://img.shields.io/badge/AI-Claude%204.6-orange?style=for-the-badge&logo=anthropic&logoColor=white)](https://anthropic.com)
 [![Firebase](https://img.shields.io/badge/Firebase-FCM-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com)
 
