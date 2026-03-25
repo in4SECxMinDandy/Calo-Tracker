@@ -13,7 +13,7 @@
 
 <br/>
 
-> **CaloTracker** không chỉ là một ứng dụng đếm calo. Đây là một trợ lý sức khỏe cá nhân hóa, kết hợp sức mạnh của AI thế hệ mới (Gemini/Claude) để nhận diện thực phẩm, gợi ý bữa ăn theo văn hóa Việt Nam, và tích hợp cộng đồng sức khỏe bảo mật cấp doanh nghiệp.
+> **CaloTracker** không chỉ là một ứng dụng đếm calo. Đây là một trợ lý sức khỏe cá nhân hóa, kết hợp sức mạnh của AI thế hệ mới (Claude) để nhận diện thực phẩm, gợi ý bữa ăn theo văn hóa Việt Nam, và tích hợp cộng đồng sức khỏe bảo mật cấp doanh nghiệp.
 
 </div>
 
@@ -51,7 +51,7 @@
 ## 🌟 Giới thiệu
 
 **CaloTracker** giải quyết bài toán theo dõi dinh dưỡng một cách thông minh và nhất quán. Phiên bản hiện tại đã vượt xa một ứng dụng CRUD cơ bản, trở thành một hệ sinh thái phức tạp với:
-- **AI Co-pilot**: Sử dụng Gemini 1.5 Pro và Claude 3.5 Sonnet để phân tích bữa ăn và tư vấn.
+- **AI Co-pilot**: Sử dụng Claude 4.6 Sonnet để phân tích bữa ăn và tư vấn.
 - **Văn hóa Việt**: Gợi ý hơn 1000 món ăn Việt Nam phổ biến (Phở, Bún, Cơm tấm...) khớp chính xác với mục tiêu calo.
 - **Bảo mật**: Hệ thống xác thực đa lớp, mã hóa đầu cuối và kiểm soát quyền truy cập RLS (Row Level Security) nghiêm ngặt.
 - **Trải nghiệm Premium**: Giao diện mang đậm ngôn ngữ thiết kế iOS, mượt mà và tối ưu hóa cho hiệu suất.
@@ -72,7 +72,7 @@
 ## 🚀 Tính năng nổi bật
 
 ### 🤖 AI & Trợ lý thông minh (Core AI)
-- **AI Chatbot (Gemini)**: Trợ lý tư vấn dinh dưỡng, lên kế hoạch tập luyện và trả lời mọi thắc mắc về sức khỏe.
+- **AI Chatbot (Claude)**: Trợ lý tư vấn dinh dưỡng, lên kế hoạch tập luyện và trả lời mọi thắc mắc về sức khỏe.
 - **AI Meal Suggester (Claude)**: Hệ thống gợi ý món ăn "siêu cá nhân hóa". Nếu bạn còn 400kcal cho bữa tối, AI sẽ gợi ý các combo món Việt (ví dụ: bún riêu + nước cam) khớp chính xác số calo đó.
 - **Food Recognition**: Quét ảnh món ăn để ước tính hàm lượng macro tự động.
 
@@ -102,11 +102,11 @@
 ```
 calotracker/
 ├── lib/
-│   ├── main.dart                   # Entry point, Khởi tạo Firebase & Gemini
+│   ├── main.dart                   # Entry point, Khởi tạo Firebase & Anthropic
 │   ├── core/                       # Cấu hình tập trung (Supabase, API Keys)
 │   ├── models/                     # 25+ Data Models (User, Meal, Sleep, Workout...)
 │   ├── services/                   # 40+ Business Logic Services
-│   │   ├── ai/                     # Gemini & Claude integration logic
+│   │   ├── ai/                     # Claude integration logic
 │   │   ├── sleep/                  # Passive sleep monitoring engine
 │   │   ├── fitness/                # Workout & Exercise management
 │   │   └── social/                 # Chat, Post, Block, Report services
@@ -129,8 +129,8 @@ calotracker/
 - **ML Kit**: Quét mã vạch và nhận diện hình ảnh cơ bản.
 
 ### 🧠 Trí tuệ nhân tạo (AI)
-- **Google Gemini 1.5 Pro**: Sử dụng cho chatbot tư vấn và phân tích dữ liệu tập luyện.
-- **Anthropic Claude 3.5 Sonnet**: Tối ưu hóa cho logic gợi ý bữa ăn tiếng Việt phức tạp.
+- **Anthropic Claude Sonnet 4.6**: Sử dụng cho chatbot tư vấn và phân tích dữ liệu tập luyện.
+- **Anthropic Claude 4.5 Haiku**: Tối ưu hóa cho logic gợi ý bữa ăn tiếng Việt phức tạp.
 
 ### 🗄️ Backend
 - **Supabase**: Auth, PostgreSQL Database, Storage, Edge Functions.
@@ -168,7 +168,7 @@ Tạo file `.env` hoặc cập nhật `lib/core/config/supabase_config.dart`:
 ```env
 SUPABASE_URL=https://your-id.supabase.co
 SUPABASE_ANON_KEY=your_anon_key
-GEMINI_API_KEY=your_gemini_key
+ANTHROPIC_API_KEY=your_anthropic_key
 ```
 
 ### Bước 3: Cấu hình Native
@@ -184,7 +184,7 @@ GEMINI_API_KEY=your_gemini_key
 |---|---|
 | `SUPABASE_URL` | URL kết nối tới dự án Supabase của bạn. |
 | `SUPABASE_ANON_KEY` | Key công khai để truy cập API (tuân thủ RLS). |
-| `GEMINI_API_KEY` | Key từ Google AI Studio để kích hoạt tính năng thông minh. |
+| `ANTHROPIC_API_KEY` | Key từ ANTHROPIC để kích hoạt tính năng thông minh. |
 | `FIREBASE_KEY` | Server Key để gửi thông báo từ Cloud Functions (tùy chọn). |
 
 ---
